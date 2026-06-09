@@ -1,0 +1,37 @@
+Title,Body,Status,Iteration,Labels
+Initialize GitHub repository and branch workflow,"建立 GitHub repository，設定 main / develop / feature branch 規範，並讓所有功能透過 PR 合併。
+
+Source: AutoCamTracker_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, github"
+Scaffold C++20 CMake Qt 6 application,"建立 AutoCamTracker C++ 專案骨架，包含 CMake、Qt 6 MainWindow、基本資料夾結構與 README/build guide。
+
+Source: AutoCamTracker_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, frontend"
+Build LiveViewWidget and vehicle panel with mock data,"前端建立 Live View、Detected Vehicles panel、StatusBarWidget，先用假資料顯示 bbox、縮圖與 Start / Stop / Reset 操作。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, frontend"
+Define frontend-backend UI data contracts,"約定 UiDetectionItem 與 UiFrameData，包含 raw/display frame、detections、selected target、FPS、inference time、errorX/errorY 與 tracking status。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, interface"
+Implement video source interfaces,"後端建立 IVideoSource、MacCameraSource 與 VideoFileSource，支援解析度/FPS 設定，並處理鏡頭開啟失敗。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, backend"
+Create YOLO detector interface and ONNX Runtime path,"準備 YOLOv11 / YOLO11 ONNX 模型載入流程，建立 YoloDetector interface，完成 preprocessing、inference、postprocessing 的實作路徑。
+
+Source: AutoCamTracker_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, ai"
+Implement thumbnail cropping for detections,"根據 bbox 裁切 vehicle thumbnail，避免 bbox 超出畫面邊界，統一縮圖尺寸並綁定 detection id。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, backend"
+Implement target selection and SimpleTracker,"建立 TargetSelector 與 SimpleTracker，支援 selectTarget、unlockTarget、resetTracking，並用中心距離維持單一目標追蹤與 lost 狀態。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, tracking"
+Implement FramingController error calculation,"計算 frame center、target center、error_x/error_y、normalized error 與 dead zone，並輸出 virtual pan/tilt command 供 V2 延伸。
+
+Source: AutoCamTracker_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, tracking"
+Implement DigitalCropController,"根據 error_x/error_y 移動 crop window，加入 smoothing，限制 crop window 不超出原始 frame，輸出置中的 cropped frame。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, tracking"
+Add config and logging,"建立 default_config.json 與 ConfigManager，加入 spdlog 或等效 logging，記錄 camera、YOLO、tracking、crop boundary、FPS 與 inference time。
+
+Source: AutoCamTracker_V1_Division_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, backend"
+Integrate V1 demo pipeline,"整合 camera、detection、thumbnail、target selection、tracking、framing、digital crop 與 UI，完成可展示的 V1 demo pipeline。
+
+Source: AutoCamTracker_Development_Log.pdf",Todo,@current,"autocamtracker, current-iteration, integration"
