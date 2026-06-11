@@ -1,3 +1,5 @@
+https://github.com/ConstantRobotics/DJIR_SDK
+
 # AutoCamTracker
 
 AutoCamTracker 是自動化攝影追蹤系統的團隊專案。這個 repository 用來放程式碼、專案文件、任務管理資料與開發紀錄。
