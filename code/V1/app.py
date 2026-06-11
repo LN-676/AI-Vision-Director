@@ -56,6 +56,7 @@ class AutoCamTrackerApp:
         self.root = root
         self.config = config or AppConfig()
         self.root.title(self.config.window_title)
+        self.root.minsize(1120, 720)
 
         self.input_config = InputConfig()
         self.detector: VideoDetector | None = None
@@ -95,18 +96,16 @@ class AutoCamTrackerApp:
         controls = ttk.Frame(main)
         controls.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
 
-        source_controls = ttk.LabelFrame(controls, text="Source", padding=8, width=395, height=190)
-        source_controls.grid(row=0, column=0, sticky="nsew", padx=6, pady=6)
-        tracking_controls = ttk.LabelFrame(controls, text="Tracking", padding=8, width=395, height=190)
-        tracking_controls.grid(row=0, column=1, sticky="nsew", padx=6, pady=6)
-        playback_controls = ttk.LabelFrame(controls, text="Playback", padding=8, width=395, height=190)
-        playback_controls.grid(row=1, column=0, sticky="nsew", padx=6, pady=6)
-        view_controls = ttk.LabelFrame(controls, text="View", padding=8, width=395, height=190)
-        view_controls.grid(row=1, column=1, sticky="nsew", padx=6, pady=6)
-        for panel in (source_controls, tracking_controls, playback_controls, view_controls):
-            panel.grid_propagate(False)
-        controls.columnconfigure(0, weight=0, minsize=407)
-        controls.columnconfigure(1, weight=0, minsize=407)
+        source_controls = ttk.LabelFrame(controls, text="Source", padding=8)
+        source_controls.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        tracking_controls = ttk.LabelFrame(controls, text="Tracking", padding=8)
+        tracking_controls.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        playback_controls = ttk.LabelFrame(controls, text="Playback", padding=8)
+        playback_controls.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
+        view_controls = ttk.LabelFrame(controls, text="View", padding=8)
+        view_controls.grid(row=0, column=3, sticky="nsew", padx=4, pady=4)
+        for column in range(4):
+            controls.columnconfigure(column, weight=1, uniform="control_panels", minsize=245)
 
         self.source_var = tk.StringVar(value="webcam")
         self.tracker_var = tk.StringVar(value="botsort")
@@ -127,14 +126,15 @@ class AutoCamTrackerApp:
             source_controls,
             textvariable=self.source_var,
             values=["webcam", "video_file", "screen_region"],
-            width=21,
+            width=17,
             state="readonly",
         ).grid(row=0, column=1, sticky="ew", padx=4)
-        ttk.Button(source_controls, text="Browse Video", width=18, command=self.choose_video_file).grid(row=1, column=0, sticky="ew", padx=4, pady=(8, 0))
-        ttk.Button(source_controls, text="Screen Region", width=18, command=self.select_screen_region).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(source_controls, text="Browse Video", command=self.choose_video_file).grid(row=1, column=0, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(source_controls, text="Screen Region", command=self.select_screen_region).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
 
-        ttk.Label(source_controls, textvariable=self.video_path_var, wraplength=320).grid(row=2, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 0))
-        ttk.Label(source_controls, textvariable=self.screen_region_var, wraplength=320).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
+        ttk.Label(source_controls, textvariable=self.video_path_var, wraplength=220).grid(row=2, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 0))
+        ttk.Label(source_controls, textvariable=self.screen_region_var, wraplength=220).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
+        source_controls.columnconfigure(0, weight=1)
         source_controls.columnconfigure(1, weight=1)
 
         ttk.Label(tracking_controls, text="Model").grid(row=0, column=0, sticky="w", padx=4)
@@ -142,18 +142,18 @@ class AutoCamTrackerApp:
             tracking_controls,
             textvariable=self.model_var,
             values=[],
-            width=21,
+            width=17,
             state="readonly",
         )
         self.model_box.grid(row=0, column=1, padx=4, sticky="ew")
-        ttk.Button(tracking_controls, text="Refresh", width=12, command=self.refresh_model_options).grid(row=0, column=2, padx=4)
+        ttk.Button(tracking_controls, text="Refresh", command=self.refresh_model_options).grid(row=0, column=2, sticky="ew", padx=4)
 
         ttk.Label(tracking_controls, text="Tracker").grid(row=1, column=0, sticky="w", padx=4, pady=(8, 0))
         ttk.Combobox(
             tracking_controls,
             textvariable=self.tracker_var,
             values=["botsort", "deepocsort"],
-            width=15,
+            width=13,
             state="readonly",
         ).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
 
@@ -162,28 +162,28 @@ class AutoCamTrackerApp:
             tracking_controls,
             textvariable=self.framing_var,
             values=["wide", "medium", "close"],
-            width=15,
+            width=13,
             state="readonly",
         )
         framing_box.grid(row=2, column=1, sticky="ew", padx=4, pady=(8, 0))
         framing_box.bind("<<ComboboxSelected>>", lambda _: self.apply_ui_config())
-        ttk.Button(tracking_controls, text="Clear Selection", width=18, command=self.clear_selection).grid(row=3, column=0, columnspan=3, sticky="ew", padx=4, pady=(10, 0))
-        ttk.Button(tracking_controls, text="Auto Track", width=18, command=self.auto_select_one).grid(row=4, column=0, columnspan=2, sticky="ew", padx=4, pady=(8, 0))
-        ttk.Button(tracking_controls, text="Reset", width=14, command=self.reset_tracking).grid(row=4, column=2, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(tracking_controls, text="Clear Selection", command=self.clear_selection).grid(row=3, column=0, columnspan=3, sticky="ew", padx=4, pady=(10, 0))
+        ttk.Button(tracking_controls, text="Auto Track", command=self.auto_select_one).grid(row=4, column=0, columnspan=2, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(tracking_controls, text="Reset", command=self.reset_tracking).grid(row=4, column=2, sticky="ew", padx=4, pady=(8, 0))
         tracking_controls.columnconfigure(1, weight=1)
         tracking_controls.columnconfigure(2, weight=1)
 
-        ttk.Button(playback_controls, text="Start", width=16, command=self.start).grid(row=0, column=0, sticky="ew", padx=4, pady=4)
-        ttk.Button(playback_controls, text="Pause", width=16, command=self.pause).grid(row=0, column=1, sticky="ew", padx=4, pady=4)
-        ttk.Button(playback_controls, text="Stop", width=16, command=self.stop).grid(row=1, column=0, sticky="ew", padx=4, pady=4)
-        ttk.Button(playback_controls, text="Record", width=16, command=self.toggle_recording).grid(row=1, column=1, sticky="ew", padx=4, pady=4)
+        ttk.Button(playback_controls, text="Start", command=self.start).grid(row=0, column=0, sticky="ew", padx=4, pady=4)
+        ttk.Button(playback_controls, text="Pause", command=self.pause).grid(row=0, column=1, sticky="ew", padx=4, pady=4)
+        ttk.Button(playback_controls, text="Stop", command=self.stop).grid(row=1, column=0, sticky="ew", padx=4, pady=4)
+        ttk.Button(playback_controls, text="Record", command=self.toggle_recording).grid(row=1, column=1, sticky="ew", padx=4, pady=4)
 
         ttk.Label(playback_controls, text="Speed").grid(row=2, column=0, sticky="w", padx=4, pady=(8, 0))
         ttk.Combobox(
             playback_controls,
             textvariable=self.playback_speed_var,
             values=["0.25x", "0.5x", "1x", "1.25x", "1.5x", "3x", "4x", "5x", "6x"],
-            width=15,
+            width=13,
             state="readonly",
         ).grid(row=2, column=1, sticky="ew", padx=4, pady=(8, 0))
         playback_controls.columnconfigure(0, weight=1)
@@ -198,7 +198,7 @@ class AutoCamTrackerApp:
         ttk.Entry(view_controls, textvariable=self.view_width_var, width=10).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
         ttk.Label(view_controls, text="Height").grid(row=2, column=0, sticky="w", padx=4, pady=(8, 0))
         ttk.Entry(view_controls, textvariable=self.view_height_var, width=10).grid(row=2, column=1, sticky="ew", padx=4, pady=(8, 0))
-        ttk.Button(view_controls, text="Apply Size", width=16, command=self.apply_view_size).grid(row=3, column=0, columnspan=2, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(view_controls, text="Apply Size", command=self.apply_view_size).grid(row=3, column=0, columnspan=2, sticky="ew", padx=4, pady=(8, 0))
         view_controls.columnconfigure(1, weight=1)
 
         main.columnconfigure(0, weight=1)
