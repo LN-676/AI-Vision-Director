@@ -20,9 +20,10 @@ import sys
 import tempfile
 from time import time
 from typing import Any, Iterable, Literal
+from urllib.parse import urlparse
 
 
-SourceType = Literal["webcam", "video_file", "screen_region"]
+SourceType = Literal["webcam", "video_file", "video_url", "screen_region"]
 TrackerName = Literal["botsort", "deepocsort"]
 
 
@@ -50,6 +51,7 @@ class InputConfig:
     source_type: SourceType = "webcam"
     camera_index: int = 0
     video_path: str | None = None
+    video_url: str | None = None
     screen_region: tuple[int, int, int, int] | None = None
     model_path: str = "yolo11n.pt"
     tracker_name: TrackerName = "botsort"
@@ -109,7 +111,7 @@ class VideoDetector:
             self.tracker_adapter = None
 
     def open_source(self) -> None:
-        if self.config.source_type in {"webcam", "video_file"}:
+        if self.config.source_type in {"webcam", "video_file", "video_url"}:
             import cv2
 
             self._cv2 = cv2
@@ -121,15 +123,20 @@ class VideoDetector:
                 if self.capture is None:
                     raise RuntimeError(self._camera_error_message(self.config.camera_index))
                 return
-            else:
+            elif self.config.source_type == "video_file":
                 if not self.config.video_path:
                     raise ValueError("video_path is required for video_file input")
                 source = str(self._resolve_input_path(self.config.video_path))
                 backend = cv2.CAP_ANY
+            elif self.config.source_type == "video_url":
+                if not self.config.video_url:
+                    raise ValueError("video_url is required for video_url input")
+                source = self._resolve_video_url(self.config.video_url)
+                backend = cv2.CAP_ANY
 
             self.capture = cv2.VideoCapture(source, backend)
             if not self.capture.isOpened():
-                raise RuntimeError(f"Unable to open video file: {source}")
+                raise RuntimeError(f"Unable to open video source: {source}")
             self._configure_capture(cv2, self.capture)
             self.source_fps = self._read_capture_fps(cv2)
             self.source_frame_count = self._read_capture_frame_count(cv2)
@@ -147,7 +154,7 @@ class VideoDetector:
             raise ValueError(f"Unsupported source_type: {self.config.source_type}")
 
     def read_frame(self) -> Any | None:
-        if self.config.source_type in {"webcam", "video_file"}:
+        if self.config.source_type in {"webcam", "video_file", "video_url"}:
             if self.capture is None:
                 raise RuntimeError("Input source is not open")
             ok, frame = self.capture.read()
@@ -257,7 +264,7 @@ class VideoDetector:
         return self.frame_index
 
     def seek_video_frame(self, frame_index: int) -> bool:
-        if self.config.source_type != "video_file" or self.capture is None or self._cv2 is None:
+        if self.config.source_type not in {"video_file", "video_url"} or self.capture is None or self._cv2 is None:
             return False
         target_frame = max(0, int(frame_index))
         if self.source_frame_count is not None:
@@ -278,7 +285,7 @@ class VideoDetector:
                 reset()
 
     def skip_video_frames(self, frame_count: int) -> int:
-        if self.config.source_type != "video_file" or self.capture is None:
+        if self.config.source_type not in {"video_file", "video_url"} or self.capture is None:
             return 0
 
         skipped = 0
@@ -416,6 +423,66 @@ class VideoDetector:
             if candidate.exists():
                 return candidate.resolve()
         return PROJECT_ROOT / path
+
+    @staticmethod
+    def _validate_video_url(video_url: str) -> str:
+        value = video_url.strip()
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https", "rtsp", "rtmp"} or not parsed.netloc:
+            raise ValueError(
+                "Video URL must start with http://, https://, rtsp://, or rtmp://"
+            )
+        return value
+
+    @classmethod
+    def _resolve_video_url(cls, video_url: str) -> str:
+        value = cls._validate_video_url(video_url)
+        parsed = urlparse(value)
+        if parsed.scheme in {"rtsp", "rtmp"}:
+            return value
+        return cls._extract_stream_url(value)
+
+    @staticmethod
+    def _extract_stream_url(video_url: str) -> str:
+        try:
+            import yt_dlp
+        except ImportError as exc:
+            raise RuntimeError(
+                "Network video URLs require yt-dlp. Install dependencies with "
+                "`.venv/bin/python -m pip install -r requirements.txt`."
+            ) from exc
+
+        options = {
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "skip_download": True,
+            "format": "best[protocol^=http][vcodec!=none]/best[protocol^=m3u8][vcodec!=none]/best[vcodec!=none]/best",
+        }
+        try:
+            with yt_dlp.YoutubeDL(options) as downloader:
+                info = downloader.extract_info(video_url, download=False)
+        except Exception as exc:
+            raise RuntimeError(f"Unable to resolve video URL: {video_url}") from exc
+
+        if not isinstance(info, dict):
+            raise RuntimeError(f"Unable to resolve video URL: {video_url}")
+
+        stream_url = info.get("url")
+        if stream_url:
+            return str(stream_url)
+
+        formats = info.get("formats") or []
+        for item in reversed(formats):
+            if not isinstance(item, dict):
+                continue
+            candidate = item.get("url")
+            vcodec = item.get("vcodec")
+            protocol = str(item.get("protocol") or "")
+            if candidate and vcodec != "none" and protocol.startswith(("http", "m3u8")):
+                return str(candidate)
+
+        raise RuntimeError(f"No playable video stream found for URL: {video_url}")
 
     @staticmethod
     def _camera_error_message(camera_index: int) -> str:

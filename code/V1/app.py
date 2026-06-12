@@ -80,6 +80,8 @@ class AutoCamTrackerApp:
         self.last_frame_shape: tuple[int, int, int] | tuple[int, int] | None = None
         self.display_width = self.config.output_width
         self.display_height = self.config.output_height
+        self.rendered_image_width = self.display_width
+        self.rendered_image_height = self.display_height
         self.timeline_dragging = False
 
         self.before_image_ref = None
@@ -114,6 +116,8 @@ class AutoCamTrackerApp:
         self.playback_speed_var = tk.StringVar(value="1x")
         self.camera_index_var = tk.StringVar(value="0")
         self.video_path_var = tk.StringVar(value="No video selected")
+        self.video_url_var = tk.StringVar(value="")
+        self.video_url_status_var = tk.StringVar(value="No video URL selected")
         self.screen_region_var = tk.StringVar(value="No screen region selected")
         self.view_width_var = tk.StringVar(value=str(self.config.output_width))
         self.view_height_var = tk.StringVar(value=str(self.config.output_height))
@@ -125,15 +129,22 @@ class AutoCamTrackerApp:
         ttk.Combobox(
             source_controls,
             textvariable=self.source_var,
-            values=["webcam", "video_file", "screen_region"],
+            values=["webcam", "video_file", "video_url", "screen_region"],
             width=17,
             state="readonly",
         ).grid(row=0, column=1, sticky="ew", padx=4)
         ttk.Button(source_controls, text="Browse Video", command=self.choose_video_file).grid(row=1, column=0, sticky="ew", padx=4, pady=(8, 0))
         ttk.Button(source_controls, text="Screen Region", command=self.select_screen_region).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
 
-        ttk.Label(source_controls, textvariable=self.video_path_var, wraplength=220).grid(row=2, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 0))
-        ttk.Label(source_controls, textvariable=self.screen_region_var, wraplength=220).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
+        ttk.Label(source_controls, text="URL").grid(row=2, column=0, sticky="w", padx=4, pady=(8, 0))
+        url_entry = ttk.Entry(source_controls, textvariable=self.video_url_var)
+        url_entry.grid(row=2, column=1, sticky="ew", padx=4, pady=(8, 0))
+        url_entry.bind("<Return>", self.apply_video_url)
+        url_entry.bind("<FocusOut>", self.apply_video_url)
+
+        ttk.Label(source_controls, textvariable=self.video_path_var, wraplength=220).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 0))
+        ttk.Label(source_controls, textvariable=self.video_url_status_var, wraplength=220).grid(row=4, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
+        ttk.Label(source_controls, textvariable=self.screen_region_var, wraplength=220).grid(row=5, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
         source_controls.columnconfigure(0, weight=1)
         source_controls.columnconfigure(1, weight=1)
 
@@ -255,6 +266,7 @@ class AutoCamTrackerApp:
             source_type=self.source_var.get(),
             camera_index=camera_index,
             video_path=self.input_config.video_path,
+            video_url=self._normalized_video_url(),
             screen_region=self.input_config.screen_region,
             model_path=self.model_options.get(
                 self.model_var.get(),
@@ -326,6 +338,16 @@ class AutoCamTrackerApp:
             self.input_config.video_path = path
             self.video_path_var.set(f"Video: {self._short_label(Path(path).name)}")
 
+    def apply_video_url(self, _event=None) -> None:
+        video_url = self._normalized_video_url()
+        if video_url is None:
+            self.input_config.video_url = None
+            self.video_url_status_var.set("No video URL selected")
+            return
+        self.source_var.set("video_url")
+        self.input_config.video_url = video_url
+        self.video_url_status_var.set(f"URL: {self._short_label(video_url)}")
+
     def refresh_model_options(self) -> None:
         model_files = self._discover_model_files()
         options = {self.config.default_model: self.config.default_model}
@@ -339,6 +361,7 @@ class AutoCamTrackerApp:
 
     def select_screen_region(self) -> None:
         self.pause()
+        self._clear_screen_region_selection()
         screenshot = self._capture_screen_selection_background()
         selector = tk.Toplevel(self.root)
         selector.title("Select screen region")
@@ -422,16 +445,18 @@ class AutoCamTrackerApp:
         self.target_tracker.auto_select_one(candidates)
 
     def apply_view_size(self) -> None:
-        width = self._parse_dimension(self.view_width_var.get(), self.display_width)
-        height = self._parse_dimension(self.view_height_var.get(), self.display_height)
+        width_limit = self._parse_dimension(self.view_width_var.get(), self.display_width)
+        height_limit = self._parse_dimension(self.view_height_var.get(), self.display_height)
+        width, height = self._fit_size_to_source_aspect(width_limit, height_limit)
         self.auto_stretch_var.set(False)
         self._set_display_size(width, height, update_fields=True)
 
     def on_views_resize(self, event) -> None:
         if not self.auto_stretch_var.get():
             return
-        width = max(160, (event.width - 24) // 2)
-        height = max(90, event.height - 72)
+        width_limit = max(160, (event.width - 24) // 2)
+        height_limit = max(90, event.height - 72)
+        width, height = self._fit_size_to_source_aspect(width_limit, height_limit)
         self._set_display_size(width, height, update_fields=True)
 
     def on_timeline_press(self, _event) -> None:
@@ -443,7 +468,7 @@ class AutoCamTrackerApp:
 
     def on_timeline_release(self, _event) -> None:
         self.timeline_dragging = False
-        if self.detector is None or self.input_config.source_type != "video_file":
+        if not self._is_video_source_active():
             return
 
         target_frame = int(self.timeline_var.get())
@@ -461,8 +486,10 @@ class AutoCamTrackerApp:
             return
 
         frame_height, frame_width = self.last_frame_shape[:2]
-        image_width = max(1, self.display_width)
-        image_height = max(1, self.display_height)
+        image_width = max(1, self.rendered_image_width)
+        image_height = max(1, self.rendered_image_height)
+        if event.x < 0 or event.y < 0 or event.x > image_width or event.y > image_height:
+            return
         frame_x = event.x * frame_width / image_width
         frame_y = event.y * frame_height / image_height
 
@@ -517,6 +544,7 @@ class AutoCamTrackerApp:
 
     def _process_frame(self, frame, detections):
         self.last_frame_shape = frame.shape
+        self._sync_reframer_to_source_size(frame.shape)
         candidates = self.store.update(detections, frame.shape)
         selected_targets = self.target_tracker.update_from_store(self.store)
         after_frame, framing_status = self.reframer.render(frame, selected_targets)
@@ -534,7 +562,7 @@ class AutoCamTrackerApp:
         self._sync_timeline_from_detector()
 
     def _next_loop_delay_ms(self) -> int:
-        if self.detector is None or self.input_config.source_type != "video_file":
+        if not self._is_video_source_active():
             return self.config.update_interval_ms
 
         source_fps = self.detector.get_source_fps()
@@ -546,7 +574,7 @@ class AutoCamTrackerApp:
         return max(1, int(round(target_interval_ms - elapsed_ms)))
 
     def _drop_late_video_frames(self) -> None:
-        if self.detector is None or self.input_config.source_type != "video_file":
+        if not self._is_video_source_active():
             return
 
         source_fps = self.detector.get_source_fps()
@@ -579,7 +607,7 @@ class AutoCamTrackerApp:
         return f"{source_fps:.1f}"
 
     def _sync_timeline_from_detector(self) -> None:
-        if self.detector is None or self.input_config.source_type != "video_file":
+        if not self._is_video_source_active():
             self.timeline_scale.configure(to=0)
             self.timeline_var.set(0)
             self.timeline_label_var.set("00:00 / 00:00")
@@ -611,6 +639,21 @@ class AutoCamTrackerApp:
         self.last_frame_shape = None
         self.skipped_frames = 0
 
+    def _clear_screen_region_selection(self) -> None:
+        self.input_config.screen_region = None
+        self.screen_region_var.set("No screen region selected")
+        if self.detector is not None and self.detector.config.source_type == "screen_region":
+            self._close_detector()
+            self.detector = None
+            self.active_input_signature = None
+        self._reset_runtime_state()
+
+    def _is_video_source_active(self) -> bool:
+        return (
+            self.detector is not None
+            and self.input_config.source_type in {"video_file", "video_url"}
+        )
+
     def _set_display_size(self, width: int, height: int, update_fields: bool = False) -> None:
         width = max(160, min(3840, int(width)))
         height = max(90, min(2160, int(height)))
@@ -619,13 +662,35 @@ class AutoCamTrackerApp:
 
         self.display_width = width
         self.display_height = height
-        self.config.output_width = width
-        self.config.output_height = height
-        self.reframer.config.output_width = width
-        self.reframer.config.output_height = height
         if update_fields:
             self.view_width_var.set(str(width))
             self.view_height_var.set(str(height))
+
+    def _sync_reframer_to_source_size(
+        self,
+        frame_shape: tuple[int, int, int] | tuple[int, int],
+    ) -> None:
+        frame_h, frame_w = frame_shape[:2]
+        self.config.output_width = frame_w
+        self.config.output_height = frame_h
+        self.reframer.config.output_width = frame_w
+        self.reframer.config.output_height = frame_h
+        if self.auto_stretch_var.get():
+            width, height = self._fit_size_to_source_aspect(self.display_width, self.display_height)
+            self._set_display_size(width, height, update_fields=True)
+
+    def _fit_size_to_source_aspect(self, width_limit: int, height_limit: int) -> tuple[int, int]:
+        if self.last_frame_shape is not None:
+            frame_h, frame_w = self.last_frame_shape[:2]
+        else:
+            frame_w, frame_h = self.config.output_width, self.config.output_height
+        aspect = max(1, frame_w) / max(1, frame_h)
+        width = max(160, int(width_limit))
+        height = max(90, int(round(width / aspect)))
+        if height > height_limit:
+            height = max(90, int(height_limit))
+            width = max(160, int(round(height * aspect)))
+        return width, height
 
     @staticmethod
     def _parse_dimension(value: str, fallback: int) -> int:
@@ -646,7 +711,7 @@ class AutoCamTrackerApp:
     def _close_detector(self) -> None:
         if self.detector is None:
             return
-        clear_temp_cache = self.detector.config.source_type == "video_file"
+        clear_temp_cache = self.detector.config.source_type in {"video_file", "video_url"}
         self.detector.close(clear_temp_cache=clear_temp_cache)
 
     @staticmethod
@@ -655,6 +720,7 @@ class AutoCamTrackerApp:
             config.source_type,
             config.camera_index,
             config.video_path,
+            config.video_url,
             config.screen_region,
             config.model_path,
             config.tracker_name,
@@ -685,6 +751,10 @@ class AutoCamTrackerApp:
             return value
         keep = max(8, max_length - 3)
         return f"{value[:keep]}..."
+
+    def _normalized_video_url(self) -> str | None:
+        value = self.video_url_var.get().strip()
+        return value or None
 
     def _draw_detections(self, frame, detections):
         import cv2
@@ -720,6 +790,7 @@ class AutoCamTrackerApp:
         size = (self.display_width, self.display_height)
         before_image = Image.fromarray(before_rgb).resize(size)
         after_image = Image.fromarray(after_rgb).resize(size)
+        self.rendered_image_width, self.rendered_image_height = size
 
         self.before_image_ref = ImageTk.PhotoImage(before_image)
         self.after_image_ref = ImageTk.PhotoImage(after_image)
