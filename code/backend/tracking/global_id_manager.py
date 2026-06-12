@@ -50,6 +50,16 @@ class GlobalIDManager:
 
         return vehicle
 
+
+    def create_next_vehicle(self):
+        if len(self.vehicles) == 0:
+            next_id = 1
+        else:
+            next_id = max(self.vehicles.keys()) + 1
+
+        self.create_vehicle_if_missing(next_id)
+        return next_id
+
     def bind_track_to_global(self, local_track_id, global_id):
         self.create_vehicle_if_missing(global_id)
         self.track_to_global[local_track_id] = global_id
