@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import tempfile
 import traceback
 
 
@@ -22,6 +23,7 @@ def main() -> int:
     results: list[tuple[str, str, str]] = []
 
     results.append(run_check("dependencies", check_dependencies))
+    results.append(run_check("identity_store", check_identity_store))
     results.append(run_check("model_load", check_model_load))
     results.append(run_check("video_input_pipeline", check_video_input_pipeline))
     results.append(run_check("webcam_probe", check_webcam_probe, warning_ok=True))
@@ -83,6 +85,34 @@ def check_model_load() -> str:
     )
     detector.load_model()
     return f"loaded {detector.config.model_path}"
+
+
+def check_identity_store() -> str:
+    sys.path.insert(0, str(PROJECT_ROOT / "code" / "V1"))
+    from vehicle_identity_store import VehicleIdentityStore
+    from video_detector import TrackedDetection
+
+    detection = TrackedDetection(
+        track_id=12,
+        bbox=(10.0, 20.0, 90.0, 80.0),
+        class_id=2,
+        class_name="car",
+        confidence=0.88,
+        center=(50.0, 50.0),
+        frame_index=1,
+        timestamp=1.0,
+        tracker_name="botsort",
+    )
+    signature = [0.1, 0.2, 0.7, 0.0]
+    with tempfile.TemporaryDirectory() as temp_dir:
+        store = VehicleIdentityStore(Path(temp_dir) / "identity.sqlite3")
+        vehicle_id = store.create_vehicle(detection, signature)
+        match = store.find_best_match(detection, signature, min_score=0.5)
+        store.close()
+
+    if match is None or match.vehicle_id != vehicle_id:
+        raise RuntimeError("identity store failed to match the inserted vehicle")
+    return f"vehicle_id={vehicle_id}; score={match.score:.2f}"
 
 
 def check_video_input_pipeline() -> str:

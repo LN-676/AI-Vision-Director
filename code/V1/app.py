@@ -17,7 +17,7 @@ from pathlib import Path
 import sys
 from time import time
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 try:
     from PIL import Image, ImageGrab, ImageTk
@@ -34,6 +34,7 @@ try:
     from pipeline_processor import PipelineProcessor
     from reframer import FramingConfig, Reframer
     from scene_cut import SceneCutDetector
+    from vehicle_identity_store import VehicleIdentityStore
 except ImportError:  # pragma: no cover
     from .video_detector import InputConfig, VideoDetector
     from .detection_store import DetectionStore
@@ -42,6 +43,7 @@ except ImportError:  # pragma: no cover
     from .pipeline_processor import PipelineProcessor
     from .reframer import FramingConfig, Reframer
     from .scene_cut import SceneCutDetector
+    from .vehicle_identity_store import VehicleIdentityStore
 
 
 @dataclass
@@ -51,6 +53,7 @@ class AppConfig:
     output_width: int = 640
     output_height: int = 360
     log_dir: Path = Path("outputs")
+    identity_db_path: Path = Path("outputs") / "vehicle_identity.sqlite3"
     model_dir: Path = Path(__file__).resolve().parents[1] / "model"
     default_model: str = "yolo11n.pt"
 
@@ -67,7 +70,8 @@ class AutoCamTrackerApp:
         self.input_config = InputConfig()
         self.detector: VideoDetector | None = None
         self.store = DetectionStore()
-        self.identity_manager = GlobalIdentityManager()
+        self.identity_store = VehicleIdentityStore(self.config.identity_db_path)
+        self.identity_manager = GlobalIdentityManager(identity_store=self.identity_store)
         self.scene_cut_detector = SceneCutDetector()
         self.reframer = Reframer(
             FramingConfig(
@@ -99,10 +103,12 @@ class AutoCamTrackerApp:
         self.rendered_image_width = self.display_width
         self.rendered_image_height = self.display_height
         self.timeline_dragging = False
+        self.refreshing_identity_panel = False
 
         self.before_image_ref = None
         self.after_image_ref = None
         self._build_ui()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.refresh_model_options()
 
     def _build_ui(self) -> None:
@@ -120,10 +126,11 @@ class AutoCamTrackerApp:
         tracking_controls.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         playback_controls = ttk.LabelFrame(controls, text="Playback", padding=8)
         playback_controls.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
-        view_controls = ttk.LabelFrame(controls, text="View", padding=8)
-        view_controls.grid(row=0, column=3, sticky="nsew", padx=4, pady=4)
-        for column in range(4):
-            controls.columnconfigure(column, weight=1, uniform="control_panels", minsize=245)
+        identity_controls = ttk.LabelFrame(controls, text="Identity DB", padding=8)
+        identity_controls.grid(row=0, column=3, sticky="nsew", padx=4, pady=4)
+        for column in range(3):
+            controls.columnconfigure(column, weight=0, minsize=207)
+        controls.columnconfigure(3, weight=1, minsize=245)
 
         self.source_var = tk.StringVar(value="webcam")
         self.tracker_var = tk.StringVar(value="botsort")
@@ -135,9 +142,7 @@ class AutoCamTrackerApp:
         self.video_url_var = tk.StringVar(value="")
         self.video_url_status_var = tk.StringVar(value="No video URL selected")
         self.screen_region_var = tk.StringVar(value="No screen region selected")
-        self.view_width_var = tk.StringVar(value=str(self.config.output_width))
-        self.view_height_var = tk.StringVar(value=str(self.config.output_height))
-        self.auto_stretch_var = tk.BooleanVar(value=True)
+        self.identity_summary_var = tk.StringVar(value="Vehicles: 0 | Observations: 0 | Rewrites: 0")
         self.timeline_var = tk.DoubleVar(value=0.0)
         self.timeline_label_var = tk.StringVar(value="00:00 / 00:00")
 
@@ -216,17 +221,39 @@ class AutoCamTrackerApp:
         playback_controls.columnconfigure(0, weight=1)
         playback_controls.columnconfigure(1, weight=1)
 
-        ttk.Checkbutton(
-            view_controls,
-            text="Stretch",
-            variable=self.auto_stretch_var,
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=4, pady=4)
-        ttk.Label(view_controls, text="Width").grid(row=1, column=0, sticky="w", padx=4, pady=(8, 0))
-        ttk.Entry(view_controls, textvariable=self.view_width_var, width=10).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
-        ttk.Label(view_controls, text="Height").grid(row=2, column=0, sticky="w", padx=4, pady=(8, 0))
-        ttk.Entry(view_controls, textvariable=self.view_height_var, width=10).grid(row=2, column=1, sticky="ew", padx=4, pady=(8, 0))
-        ttk.Button(view_controls, text="Apply Size", command=self.apply_view_size).grid(row=3, column=0, columnspan=2, sticky="ew", padx=4, pady=(8, 0))
-        view_controls.columnconfigure(1, weight=1)
+        ttk.Label(identity_controls, textvariable=self.identity_summary_var).grid(row=0, column=0, sticky="w", padx=4)
+        ttk.Button(identity_controls, text="Refresh", command=self.refresh_identity_db_panel).grid(row=0, column=1, sticky="ew", padx=4)
+        ttk.Button(identity_controls, text="Delete ID", command=self.delete_selected_identity).grid(row=0, column=2, sticky="ew", padx=4)
+        self.identity_tree = ttk.Treeview(
+            identity_controls,
+            columns=("gid", "type", "lid", "obs", "dup", "frame", "conf"),
+            show="headings",
+            height=5,
+        )
+        headings = {
+            "gid": "GID",
+            "type": "Type",
+            "lid": "LID",
+            "obs": "Obs",
+            "dup": "Rewrites",
+            "frame": "Frame",
+            "conf": "Conf",
+        }
+        widths = {"gid": 44, "type": 68, "lid": 48, "obs": 48, "dup": 72, "frame": 58, "conf": 52}
+        for column, label in headings.items():
+            self.identity_tree.heading(column, text=label)
+            self.identity_tree.column(column, width=widths[column], minwidth=36, anchor="center", stretch=False)
+        self.identity_tree.tag_configure("selected", background="#d7ecff")
+        self.identity_tree.tag_configure("rewritten", background="#fff4cc")
+        self.identity_tree.bind("<<TreeviewSelect>>", self.track_selected_identity_from_db)
+        self.identity_tree.bind("<Double-1>", self.edit_identity_display_name)
+        self.identity_tree.bind("<Delete>", self.delete_selected_identity)
+        self.identity_tree.bind("<BackSpace>", self.delete_selected_identity)
+        self.identity_tree.grid(row=1, column=0, columnspan=3, sticky="nsew", padx=4, pady=(8, 0))
+        identity_controls.columnconfigure(0, weight=1)
+        identity_controls.columnconfigure(1, weight=1)
+        identity_controls.columnconfigure(2, weight=0)
+        identity_controls.rowconfigure(1, weight=1)
 
         main.columnconfigure(0, weight=1)
         main.columnconfigure(1, weight=1)
@@ -267,6 +294,7 @@ class AutoCamTrackerApp:
 
         self.status_var = tk.StringVar(value="Status: idle")
         ttk.Label(main, textvariable=self.status_var).grid(row=2, column=0, columnspan=2, sticky="w")
+        self.refresh_identity_db_panel()
 
     def apply_ui_config(self) -> None:
         self.input_config = self._ui_input_config()
@@ -340,9 +368,11 @@ class AutoCamTrackerApp:
 
     def reset_tracking(self) -> None:
         self._reset_runtime_state()
+        self.refresh_identity_db_panel()
 
     def clear_selection(self) -> None:
         self.identity_manager.reset()
+        self.refresh_identity_db_panel()
 
     def choose_video_file(self) -> None:
         path = filedialog.askopenfilename(
@@ -467,27 +497,25 @@ class AutoCamTrackerApp:
         candidates = self.store.rank_candidates(self.last_frame_shape, strategy="stable")
         if not candidates or self.last_raw_frame is None:
             self.identity_manager.reset()
+            self.refresh_identity_db_panel()
             return
         detection = self._detection_for_track(candidates[0].track_id)
         if detection is None:
             self.identity_manager.reset()
+            self.refresh_identity_db_panel()
             return
         self.identity_manager.select_detection(detection, self.last_raw_frame)
-
-    def apply_view_size(self) -> None:
-        width_limit = self._parse_dimension(self.view_width_var.get(), self.display_width)
-        height_limit = self._parse_dimension(self.view_height_var.get(), self.display_height)
-        width, height = self._fit_size_to_source_aspect(width_limit, height_limit)
-        self.auto_stretch_var.set(False)
-        self._set_display_size(width, height, update_fields=True)
+        self.refresh_identity_db_panel()
 
     def on_views_resize(self, event) -> None:
-        if not self.auto_stretch_var.get():
-            return
         width_limit = max(160, (event.width - 24) // 2)
         height_limit = max(90, event.height - 72)
         width, height = self._fit_size_to_source_aspect(width_limit, height_limit)
-        self._set_display_size(width, height, update_fields=True)
+        if self._set_display_size(width, height) and self.current_frame_data is not None:
+            self._update_images(
+                self.current_frame_data.before_frame,
+                self.current_frame_data.after_frame,
+            )
 
     def on_timeline_press(self, _event) -> None:
         self.timeline_dragging = True
@@ -535,6 +563,7 @@ class AutoCamTrackerApp:
             return
 
         identity = self.identity_manager.select_detection(detection, self.last_raw_frame)
+        self.refresh_identity_db_panel()
         self.status_var.set(
             f"Status: selected global id {identity.global_vehicle_id} "
             f"(local track {candidate.track_id})"
@@ -600,6 +629,7 @@ class AutoCamTrackerApp:
         )
         self._update_images(frame_data.before_frame, frame_data.after_frame)
         self.current_frame_data = frame_data
+        self.refresh_identity_db_panel()
         return frame_data
 
     def _render_current_video_frame(self) -> None:
@@ -704,17 +734,15 @@ class AutoCamTrackerApp:
             and self.input_config.source_type in {"video_file", "video_url"}
         )
 
-    def _set_display_size(self, width: int, height: int, update_fields: bool = False) -> None:
+    def _set_display_size(self, width: int, height: int) -> bool:
         width = max(160, min(3840, int(width)))
         height = max(90, min(2160, int(height)))
         if width == self.display_width and height == self.display_height:
-            return
+            return False
 
         self.display_width = width
         self.display_height = height
-        if update_fields:
-            self.view_width_var.set(str(width))
-            self.view_height_var.set(str(height))
+        return True
 
     def _sync_reframer_to_source_size(
         self,
@@ -725,9 +753,150 @@ class AutoCamTrackerApp:
         self.config.output_height = frame_h
         self.reframer.config.output_width = frame_w
         self.reframer.config.output_height = frame_h
-        if self.auto_stretch_var.get():
-            width, height = self._fit_size_to_source_aspect(self.display_width, self.display_height)
-            self._set_display_size(width, height, update_fields=True)
+        width, height = self._fit_size_to_source_aspect(self.display_width, self.display_height)
+        self._set_display_size(width, height)
+
+    def refresh_identity_db_panel(self) -> None:
+        if not hasattr(self, "identity_tree"):
+            return
+        self.refreshing_identity_panel = True
+        summary = self.identity_store.summary()
+        self.identity_summary_var.set(
+            "Vehicles: "
+            f"{summary.vehicle_count} | Observations: {summary.observation_count} | "
+            f"Rewrites: {summary.duplicate_observation_count}"
+        )
+        for item in self.identity_tree.get_children():
+            self.identity_tree.delete(item)
+
+        selected_gid = self.identity_manager.selected_global_vehicle_id
+        for vehicle in summary.vehicles:
+            tags: tuple[str, ...] = ()
+            if vehicle.vehicle_id == selected_gid:
+                tags = ("selected",)
+            elif vehicle.duplicate_observation_count > 0:
+                tags = ("rewritten",)
+            self.identity_tree.insert(
+                "",
+                "end",
+                iid=str(vehicle.vehicle_id),
+                values=(
+                    vehicle.display_name,
+                    vehicle.class_name,
+                    vehicle.last_track_id if vehicle.last_track_id is not None else "--",
+                    vehicle.observation_count,
+                    vehicle.duplicate_observation_count,
+                    vehicle.last_frame_index,
+                    f"{vehicle.confidence:.2f}",
+                ),
+                tags=tags,
+            )
+        self.refreshing_identity_panel = False
+
+    def track_selected_identity_from_db(self, _event=None) -> str:
+        if self.refreshing_identity_panel:
+            return "break"
+
+        vehicle_ids = self._selected_identity_vehicle_ids()
+        if not vehicle_ids:
+            return "break"
+        vehicle_id = vehicle_ids[0]
+
+        if self.last_raw_frame is None:
+            self.status_var.set("Status: no current frame available for DB identity tracking")
+            return "break"
+
+        identity, score = self.identity_manager.select_stored_vehicle(
+            vehicle_id,
+            self.store.current_detections,
+            self.last_raw_frame,
+        )
+        self.refresh_identity_db_panel()
+        if identity is None:
+            self.status_var.set(f"Status: vehicle id {vehicle_id} was not found in Identity DB")
+            return "break"
+
+        label = self.identity_store.display_label(vehicle_id)
+        if identity.last_track_id is None:
+            self.status_var.set(
+                f"Status: selected DB vehicle {label}; searching current frame match "
+                f"(score {score:.2f})"
+            )
+        else:
+            self.status_var.set(
+                f"Status: tracking DB vehicle {label} on local track {identity.last_track_id} "
+                f"(score {score:.2f})"
+            )
+            if self.current_frame_data is not None:
+                self._update_images(
+                    self._draw_detections(self.last_raw_frame, self.store.current_detections),
+                    self.current_frame_data.after_frame,
+                )
+        return "break"
+
+    def edit_identity_display_name(self, event) -> str:
+        if self.identity_tree.identify_column(event.x) != "#1":
+            return "break"
+
+        item = self.identity_tree.identify_row(event.y)
+        if not item:
+            return "break"
+        try:
+            vehicle_id = int(item)
+        except ValueError:
+            return "break"
+
+        current_name = self.identity_tree.set(item, "gid")
+        new_name = simpledialog.askstring(
+            "Edit GID",
+            "Vehicle ID label:",
+            initialvalue=current_name,
+            parent=self.root,
+        )
+        if new_name is None:
+            return "break"
+
+        if self.identity_store.update_display_name(vehicle_id, new_name):
+            self.refresh_identity_db_panel()
+            label = self.identity_store.display_label(vehicle_id)
+            self.status_var.set(f"Status: renamed vehicle id {vehicle_id} to {label}")
+        return "break"
+
+    def delete_selected_identity(self, _event=None) -> str:
+        if not hasattr(self, "identity_tree"):
+            return "break"
+
+        vehicle_ids = self._selected_identity_vehicle_ids()
+        if not vehicle_ids:
+            self.status_var.set("Status: select an Identity DB row before deleting")
+            return "break"
+
+        deleted_ids: list[int] = []
+        for vehicle_id in vehicle_ids:
+            if self.identity_store.delete_vehicle(vehicle_id):
+                deleted_ids.append(vehicle_id)
+
+        if self.identity_manager.selected_global_vehicle_id in deleted_ids:
+            self.identity_manager.reset()
+
+        self.refresh_identity_db_panel()
+        if deleted_ids:
+            ids = ", ".join(str(vehicle_id) for vehicle_id in deleted_ids)
+            self.status_var.set(f"Status: deleted vehicle id {ids}")
+        else:
+            self.status_var.set("Status: selected vehicle id was already deleted")
+        return "break"
+
+    def _selected_identity_vehicle_ids(self) -> list[int]:
+        if not hasattr(self, "identity_tree"):
+            return []
+        vehicle_ids: list[int] = []
+        for item in self.identity_tree.selection():
+            try:
+                vehicle_ids.append(int(item))
+            except ValueError:
+                continue
+        return vehicle_ids
 
     def _fit_size_to_source_aspect(self, width_limit: int, height_limit: int) -> tuple[int, int]:
         if self.last_frame_shape is not None:
@@ -763,6 +932,14 @@ class AutoCamTrackerApp:
             return
         clear_temp_cache = self.detector.config.source_type in {"video_file", "video_url"}
         self.detector.close(clear_temp_cache=clear_temp_cache)
+
+    def on_close(self) -> None:
+        self.running = False
+        if self.detector is not None:
+            self._close_detector()
+            self.detector = None
+        self.identity_store.close()
+        self.root.destroy()
 
     @staticmethod
     def _input_signature(config: InputConfig) -> tuple[object, ...]:
@@ -819,7 +996,11 @@ class AutoCamTrackerApp:
         for detection in detections:
             x1, y1, x2, y2 = [int(value) for value in detection.bbox]
             global_id = self.identity_manager.global_id_for_detection(detection)
-            id_label = f"g:{global_id} l:{detection.track_id}" if global_id else f"id:{detection.track_id}"
+            if global_id:
+                gid_label = self.identity_store.display_label(global_id)
+                id_label = f"g:{gid_label} l:{detection.track_id}"
+            else:
+                id_label = f"id:{detection.track_id}"
             label = f"{id_label} {detection.class_name} {detection.confidence:.2f}"
             color = (0, 220, 255) if global_id else (80, 220, 80)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 3)
