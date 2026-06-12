@@ -1,0 +1,58 @@
+"""Vehicle ReID embedding extraction for AutoCamTracker V1."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass
+class ReIDEmbeddingConfig:
+    model_path: str = "yolo26n-reid.onnx"
+    enabled: bool = True
+
+
+class ReIDEmbeddingExtractor:
+    """Thin wrapper around Ultralytics' ReID encoder."""
+
+    def __init__(self, config: ReIDEmbeddingConfig | None = None) -> None:
+        self.config = config or ReIDEmbeddingConfig()
+        self.encoder: Any | None = None
+        self.available = False
+        self.error: str | None = None
+        if self.config.enabled:
+            self._load()
+
+    def extract(self, frame, bbox: tuple[float, float, float, float]) -> list[float] | None:
+        if not self.available or self.encoder is None:
+            return None
+        import numpy as np
+
+        x1, y1, x2, y2 = bbox
+        width = max(1.0, x2 - x1)
+        height = max(1.0, y2 - y1)
+        dets = np.array([[(x1 + x2) / 2.0, (y1 + y2) / 2.0, width, height]], dtype=np.float32)
+        try:
+            features = self.encoder(frame, dets)
+        except Exception as exc:
+            self.available = False
+            self.error = str(exc)
+            return None
+        if not features:
+            return None
+        feature = np.asarray(features[0], dtype=np.float32).reshape(-1)
+        norm = float(np.linalg.norm(feature))
+        if norm <= 1e-12:
+            return None
+        return (feature / norm).astype("float32").tolist()
+
+    def _load(self) -> None:
+        try:
+            from ultralytics.trackers.utils.reid import ReID
+
+            self.encoder = ReID(self.config.model_path)
+            self.available = True
+        except Exception as exc:
+            self.encoder = None
+            self.available = False
+            self.error = str(exc)

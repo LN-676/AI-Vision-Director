@@ -10,10 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 try:
+    from reid_embedding import ReIDEmbeddingExtractor
     from target_tracker import SelectedTarget
     from vehicle_identity_store import VehicleIdentityStore
     from video_detector import TrackedDetection
 except ImportError:  # pragma: no cover
+    from .reid_embedding import ReIDEmbeddingExtractor
     from .target_tracker import SelectedTarget
     from .vehicle_identity_store import VehicleIdentityStore
     from .video_detector import TrackedDetection
@@ -173,11 +175,13 @@ class GlobalIdentityManager:
         max_lost_frames: int = 150,
         searching_after_frames: int = 5,
         identity_store: VehicleIdentityStore | None = None,
+        embedding_extractor: ReIDEmbeddingExtractor | None = None,
     ) -> None:
         self.max_lost_frames = max_lost_frames
         self.searching_after_frames = searching_after_frames
         self.next_global_vehicle_id = 1
         self.identity_store = identity_store
+        self.embedding_extractor = embedding_extractor or ReIDEmbeddingExtractor()
         self.selected_identity: VehicleIdentity | None = None
         self.reacquire = ReacquireEngine()
         self.status = "idle"
@@ -205,7 +209,8 @@ class GlobalIdentityManager:
 
     def select_detection(self, detection: TrackedDetection, frame) -> VehicleIdentity:
         color_signature = self.reacquire.color_signature(frame, detection.bbox)
-        global_vehicle_id = self._resolve_global_vehicle_id(detection, color_signature)
+        appearance_embedding = self._appearance_embedding(frame, detection)
+        global_vehicle_id = self._resolve_global_vehicle_id(detection, color_signature, appearance_embedding)
         identity = VehicleIdentity(
             global_vehicle_id=global_vehicle_id,
             last_track_id=detection.track_id,
@@ -241,13 +246,16 @@ class GlobalIdentityManager:
 
         best_detection: TrackedDetection | None = None
         best_signature: object | None = None
+        best_embedding: object | None = None
         best_score = 0.0
         for detection in detections:
             signature = self.reacquire.color_signature(frame, detection.bbox)
-            score = self.identity_store.score_vehicle_match(vehicle_id, detection, signature) or 0.0
+            embedding = self._appearance_embedding(frame, detection)
+            score = self.identity_store.score_vehicle_match(vehicle_id, detection, signature, embedding) or 0.0
             if score > best_score:
                 best_detection = detection
                 best_signature = signature
+                best_embedding = embedding
                 best_score = score
 
         if best_detection is not None and best_score >= min_score:
@@ -268,7 +276,7 @@ class GlobalIdentityManager:
             self.last_reacquire_score = best_score
             self.camera_cut_seen = False
             self.reacquire.reset_pending()
-            self.identity_store.record_observation(vehicle_id, best_detection, best_signature)
+            self.identity_store.record_observation(vehicle_id, best_detection, best_signature, best_embedding)
             return identity, best_score
 
         identity = VehicleIdentity(
@@ -370,10 +378,12 @@ class GlobalIdentityManager:
         if signature is not None:
             identity.color_signature = signature
         if self.identity_store is not None:
+            embedding = self._appearance_embedding(frame, detection)
             self.identity_store.record_observation(
                 identity.global_vehicle_id,
                 detection,
                 identity.color_signature,
+                embedding,
             )
         if detection.track_id is not None and detection.track_id not in identity.track_aliases:
             identity.track_aliases.append(detection.track_id)
@@ -383,18 +393,24 @@ class GlobalIdentityManager:
         self,
         detection: TrackedDetection,
         color_signature: object | None,
+        appearance_embedding: object | None,
     ) -> int:
         if self.identity_store is None:
             global_vehicle_id = self.next_global_vehicle_id
             self.next_global_vehicle_id += 1
             return global_vehicle_id
 
-        match = self.identity_store.find_best_match(detection, color_signature)
+        match = self.identity_store.find_best_match(detection, color_signature, appearance_embedding)
         if match is not None:
-            self.identity_store.record_observation(match.vehicle_id, detection, color_signature)
+            self.identity_store.record_observation(match.vehicle_id, detection, color_signature, appearance_embedding)
             return match.vehicle_id
 
-        return self.identity_store.create_vehicle(detection, color_signature)
+        return self.identity_store.create_vehicle(detection, color_signature, appearance_embedding)
+
+    def _appearance_embedding(self, frame, detection: TrackedDetection) -> list[float] | None:
+        if self.embedding_extractor is None:
+            return None
+        return self.embedding_extractor.extract(frame, detection.bbox)
 
     @staticmethod
     def _color_signature_array(values: list[float] | None):

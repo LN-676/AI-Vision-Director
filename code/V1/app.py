@@ -184,7 +184,7 @@ class AutoCamTrackerApp:
         ttk.Combobox(
             tracking_controls,
             textvariable=self.tracker_var,
-            values=["botsort", "deepocsort"],
+            values=["botsort", "botsort_reid", "deepocsort"],
             width=13,
             state="readonly",
         ).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
