@@ -128,8 +128,9 @@ class AutoCamTrackerApp:
         playback_controls.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
         identity_controls = ttk.LabelFrame(controls, text="Identity DB", padding=8)
         identity_controls.grid(row=0, column=3, sticky="nsew", padx=4, pady=4)
-        for column in range(3):
-            controls.columnconfigure(column, weight=0, minsize=207)
+        controls.columnconfigure(0, weight=0, minsize=169)
+        controls.columnconfigure(1, weight=0, minsize=188)
+        controls.columnconfigure(2, weight=0, minsize=207)
         controls.columnconfigure(3, weight=1, minsize=245)
 
         self.source_var = tk.StringVar(value="webcam")
