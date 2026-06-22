@@ -1,0 +1,92 @@
+import asyncio
+import json
+from types import SimpleNamespace
+from time import monotonic, sleep
+import unittest
+
+try:
+    from tracking_server import (
+        TrackingServerConfig,
+        TrackingWebSocketServer,
+        frame_tracking_message,
+        tracking_message,
+    )
+except ImportError:  # pragma: no cover
+    from .tracking_server import (
+        TrackingServerConfig,
+        TrackingWebSocketServer,
+        frame_tracking_message,
+        tracking_message,
+    )
+
+
+class TrackingMessageTests(unittest.TestCase):
+    def test_normalizes_pixel_error(self) -> None:
+        frame_data = SimpleNamespace(
+            selected_targets=[SimpleNamespace(confidence=0.91)],
+            tracking_status="tracking",
+            framing_status=SimpleNamespace(error_x=160.0, error_y=-90.0),
+            selected_global_vehicle_id=12,
+            selected_local_track_id=7,
+        )
+
+        message = frame_tracking_message(frame_data, (360, 640, 3), sequence=42)
+
+        self.assertTrue(message["target_locked"])
+        self.assertEqual(message["target_id"], 12)
+        self.assertAlmostEqual(message["error_x"], 0.5)
+        self.assertAlmostEqual(message["error_y"], -0.5)
+        self.assertEqual(message["sequence"], 42)
+
+    def test_lost_target_emits_stop(self) -> None:
+        frame_data = SimpleNamespace(
+            selected_targets=[],
+            tracking_status="lost",
+        )
+
+        message = frame_tracking_message(frame_data, (360, 640, 3))
+
+        self.assertFalse(message["target_locked"])
+        self.assertEqual(message["error_x"], 0.0)
+        self.assertEqual(message["error_y"], 0.0)
+
+    def test_wire_values_are_clamped(self) -> None:
+        message = tracking_message(
+            target_locked=True,
+            error_x=8.0,
+            error_y=-4.0,
+            confidence=3.0,
+        )
+
+        self.assertEqual(message["error_x"], 1.0)
+        self.assertEqual(message["error_y"], -1.0)
+        self.assertEqual(message["confidence"], 1.0)
+
+    def test_server_round_trip(self) -> None:
+        server = TrackingWebSocketServer(TrackingServerConfig(host="127.0.0.1", port=18765))
+        server.start()
+        deadline = monotonic() + 2.0
+        while not server.is_running and monotonic() < deadline:
+            sleep(0.01)
+        self.assertTrue(server.is_running)
+        try:
+            initial, pulse = asyncio.run(self._receive_server_messages(server))
+        finally:
+            server.stop()
+
+        self.assertFalse(initial["target_locked"])
+        self.assertTrue(pulse["target_locked"])
+        self.assertAlmostEqual(pulse["error_x"], 0.12)
+
+    async def _receive_server_messages(self, server: TrackingWebSocketServer):
+        from websockets.asyncio.client import connect
+
+        async with connect("ws://127.0.0.1:18765/ws/tracking") as websocket:
+            initial = json.loads(await asyncio.wait_for(websocket.recv(), timeout=2.0))
+            server.publish_test_pulse()
+            pulse = json.loads(await asyncio.wait_for(websocket.recv(), timeout=2.0))
+            return initial, pulse
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -23,7 +23,7 @@ from typing import Any, Iterable, Literal
 from urllib.parse import urlparse
 
 
-SourceType = Literal["webcam", "video_file", "video_url", "screen_region"]
+SourceType = Literal["webcam", "video_file", "video_url", "screen_region", "iphone"]
 TrackerName = Literal["botsort", "deepocsort"]
 
 

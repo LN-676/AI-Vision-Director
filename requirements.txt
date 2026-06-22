@@ -6,3 +6,4 @@ pillow==12.2.0
 yt-dlp>=2024.8.6
 onnx>=1.21.0
 onnxruntime>=1.26.0
+websockets>=13.0,<17.0

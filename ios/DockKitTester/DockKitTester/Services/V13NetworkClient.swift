@@ -4,27 +4,67 @@ import Combine
 @MainActor
 final class V13NetworkClient: ObservableObject {
     enum ConnectionStatus: String {
-        case stub = "Stub / Offline"
-        case receiving = "Receiving Test Data"
+        case offline = "Offline"
+        case connecting = "Connecting"
+        case connected = "Connected"
+        case receiving = "Receiving Tracking"
         case timedOut = "Timed Out"
+        case failed = "Connection Failed"
     }
 
-    @Published private(set) var status: ConnectionStatus = .stub
+    @Published private(set) var status: ConnectionStatus = .offline
     @Published private(set) var lastCommand: TrackingCommand?
+    @Published var serverURL: String {
+        didSet { UserDefaults.standard.set(serverURL, forKey: Self.serverURLKey) }
+    }
 
     var onCommand: ((TrackingCommand) async -> Void)?
     var onTimeout: (() async -> Void)?
 
     private let logger: AppLogger
     private var timeoutTask: Task<Void, Never>?
+    private var receiveTask: Task<Void, Never>?
+    private var reconnectTask: Task<Void, Never>?
+    private var socketTask: URLSessionWebSocketTask?
+    private var intentionalDisconnect = false
     private let timeout: Duration = .milliseconds(500)
+    private static let serverURLKey = "AutoCamTrackerServerURL"
 
     init(logger: AppLogger) {
         self.logger = logger
+        serverURL = UserDefaults.standard.string(forKey: Self.serverURLKey)
+            ?? "ws://192.168.1.100:8765/ws/tracking"
     }
 
     deinit {
         timeoutTask?.cancel()
+        receiveTask?.cancel()
+        reconnectTask?.cancel()
+        socketTask?.cancel(with: .goingAway, reason: nil)
+    }
+
+    func connect() async {
+        let value = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: value), ["ws", "wss"].contains(url.scheme?.lowercased() ?? "") else {
+            status = .failed
+            logger.log(.error, "Invalid WebSocket URL: \(value)")
+            await onTimeout?()
+            return
+        }
+
+        closeSocket()
+        intentionalDisconnect = false
+        status = .connecting
+        logger.log(.info, "Connecting to AutoCamTracker at \(url.absoluteString)")
+
+        let task = URLSession.shared.webSocketTask(with: url)
+        socketTask = task
+        task.resume()
+        status = .connected
+        receiveTask = Task { @MainActor [weak self, weak task] in
+            guard let self, let task else { return }
+            await self.receiveLoop(task: task)
+        }
     }
 
     func receive(data: Data) async {
@@ -56,11 +96,57 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func disconnect() async {
-        timeoutTask?.cancel()
-        status = .stub
+        intentionalDisconnect = true
+        closeSocket()
+        status = .offline
         lastCommand = nil
-        logger.log(.warning, "V1.3 client disconnected; requesting safety stop.")
+        logger.log(.warning, "AutoCamTracker client disconnected; requesting safety stop.")
         await onTimeout?()
+    }
+
+    private func receiveLoop(task: URLSessionWebSocketTask) async {
+        do {
+            while !Task.isCancelled, task === socketTask {
+                let message = try await task.receive()
+                switch message {
+                case .data(let data):
+                    await receive(data: data)
+                case .string(let text):
+                    await receive(data: Data(text.utf8))
+                @unknown default:
+                    logger.log(.warning, "Ignored an unknown WebSocket message type.")
+                }
+            }
+        } catch {
+            guard !intentionalDisconnect, task === socketTask else { return }
+            socketTask = nil
+            status = .failed
+            logger.log(.error, "WebSocket receive failed: \(error.localizedDescription)")
+            await triggerTimeout(reason: "WebSocket disconnected")
+            scheduleReconnect()
+        }
+    }
+
+    private func closeSocket() {
+        timeoutTask?.cancel()
+        receiveTask?.cancel()
+        reconnectTask?.cancel()
+        socketTask?.cancel(with: .goingAway, reason: nil)
+        socketTask = nil
+    }
+
+    private func scheduleReconnect() {
+        reconnectTask?.cancel()
+        reconnectTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
+            guard let self, !self.intentionalDisconnect else { return }
+            self.logger.log(.info, "Retrying AutoCamTracker WebSocket connection.")
+            await self.connect()
+        }
     }
 
     private func armTimeout() {

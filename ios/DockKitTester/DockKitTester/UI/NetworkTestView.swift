@@ -7,12 +7,30 @@ struct NetworkTestView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("V1.3 Network Stub")
+                Text("AutoCamTracker V1.41")
                     .font(.headline)
                 Spacer()
                 Text(client.status.rawValue)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+            }
+
+            TextField("ws://Mac-IP:8765/ws/tracking", text: $client.serverURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Button("Connect") {
+                    Task { await client.connect() }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Disconnect") {
+                    Task { await client.disconnect() }
+                }
+                .buttonStyle(.bordered)
             }
 
             if let command = client.lastCommand {
@@ -28,13 +46,13 @@ struct NetworkTestView: View {
                 .font(.system(.caption, design: .monospaced))
             }
 
-            Button("Inject Fake JSON") {
+            Button("Inject Local Fake JSON") {
                 Task { await client.sendFakeCommand() }
             }
             .buttonStyle(.bordered)
             .disabled(!canInjectCommand)
 
-            Text("Fake data drives the same control loop and triggers STOP after 500 ms without another message.")
+            Text("Wi-Fi and USB network links use the same WebSocket URL. Missing tracking data for 500 ms always triggers STOP.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -4,7 +4,7 @@ AutoCamTracker 是一個以影片、螢幕區域或 webcam 作為輸入的車輛
 
 ## 功能簡述
 
-- 支援 `webcam`、`video_file`、`video_url`、`screen_region` 四種輸入來源。
+- 支援 `webcam`、`video_file`、`video_url`、`screen_region`，並提供第一階段 `iphone` DockKit 控制連線入口。
 - 預設 detection / tracking 模型為 `code/model/yolo26s.pt`。
 - 預設 Identity ReID 模型為 `code/model/yolo26s-reid.onnx`。
 - Tracking buffer 依來源 FPS 設定為約 5 秒，降低短暫遮擋或漏檢造成的掉 ID。
@@ -74,6 +74,16 @@ macOS webcam 若無法開啟，請到 System Settings > Privacy & Security > Cam
 9. 需要持續收集特徵時，選 GID row 後按 `Auto Add Feature`，或直接點 bbox 啟動自動採樣；切換鏡頭後需重新啟動。
 10. 需要人工驗證單張特徵時，按 `Manual Add`；照片仍需通過品質與重複檢查。
 11. 使用 `Auto Feature Mode` 決定自動採樣保守程度。
+
+### iPhone / DockKit 第一階段連線
+
+1. 安裝依賴後啟動 V1.41：`.venv/bin/python -m pip install -r requirements.txt`。
+2. 在 `Input` 下拉選單選擇 `iphone`；V1.41 會在 `8765` port 啟動 WebSocket Server，畫面會顯示可連線網址。
+3. 在 iOS App 輸入顯示的 `ws://<Mac 位址>:8765/ws/tracking`，按 `Connect`。
+4. DockKit 進入 Manual Mode 並保持周圍淨空後，可按 V1.41 的 `Send iPhone Test Pulse`。它會送出約 650 ms 的低速右轉指令，然後明確送出 STOP。
+5. 第一階段尚未傳送 iPhone 相機影像。連線成功後可以切回 `webcam`、影片或螢幕來源；WebSocket Server 會保持運作，V1.41 選定目標後會以最多 20 Hz 發送正規化 tracking command。
+
+無線模式要求 Mac 與 iPhone 在可互相存取的同一區域網路。有線 USB-C 模式仍使用相同 WebSocket 協議，但 macOS 與 iOS 必須先透過 Personal Hotspot USB、USB Ethernet 或其他方式建立可互通的 IP 網路介面；單純接上充電線或 Xcode USB deploy 不會自動建立 App 的資料通道。
 
 ## V1.41 注意事項
 

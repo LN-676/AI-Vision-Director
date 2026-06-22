@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
+from queue import Empty, SimpleQueue
 import sys
 from time import time
 import tkinter as tk
@@ -37,6 +38,7 @@ try:
     from pipeline_processor import PipelineProcessor
     from reframer import FramingConfig, Reframer
     from scene_cut import SceneCutDetector
+    from tracking_server import TrackingWebSocketServer
     from vehicle_identity_store import VehicleIdentityStore
 except ImportError:  # pragma: no cover
     from .auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
@@ -48,6 +50,7 @@ except ImportError:  # pragma: no cover
     from .pipeline_processor import PipelineProcessor
     from .reframer import FramingConfig, Reframer
     from .scene_cut import SceneCutDetector
+    from .tracking_server import TrackingWebSocketServer
     from .vehicle_identity_store import VehicleIdentityStore
 
 
@@ -99,6 +102,8 @@ class AutoCamTrackerApp:
             scene_cut_detector=self.scene_cut_detector,
             reframer=self.reframer,
         )
+        self.iphone_status_queue: SimpleQueue[str] = SimpleQueue()
+        self.tracking_server = TrackingWebSocketServer(on_status=self._queue_iphone_status)
 
         self.running = False
         self.recording = False
@@ -130,6 +135,7 @@ class AutoCamTrackerApp:
         self.before_image_ref = None
         self.after_image_ref = None
         self._build_ui()
+        self.root.after(100, self._drain_iphone_status)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.refresh_model_options()
         self.refresh_reid_model_options()
@@ -174,13 +180,15 @@ class AutoCamTrackerApp:
         self.timeline_label_var = tk.StringVar(value="00:00 / 00:00")
 
         ttk.Label(source_controls, text="Input").grid(row=0, column=0, sticky="w", padx=4)
-        ttk.Combobox(
+        self.source_box = ttk.Combobox(
             source_controls,
             textvariable=self.source_var,
-            values=["webcam", "video_file", "video_url", "screen_region"],
+            values=["webcam", "video_file", "video_url", "screen_region", "iphone"],
             width=17,
             state="readonly",
-        ).grid(row=0, column=1, sticky="ew", padx=4)
+        )
+        self.source_box.grid(row=0, column=1, sticky="ew", padx=4)
+        self.source_box.bind("<<ComboboxSelected>>", self.on_source_selected)
         ttk.Button(source_controls, text="Browse Video", command=self.choose_video_file).grid(row=1, column=0, sticky="ew", padx=4, pady=(8, 0))
         ttk.Button(source_controls, text="Screen Region", command=self.select_screen_region).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
 
@@ -193,6 +201,13 @@ class AutoCamTrackerApp:
         ttk.Label(source_controls, textvariable=self.video_path_var, wraplength=220).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 0))
         ttk.Label(source_controls, textvariable=self.video_url_status_var, wraplength=220).grid(row=4, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
         ttk.Label(source_controls, textvariable=self.screen_region_var, wraplength=220).grid(row=5, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0))
+        self.iphone_connection_var = tk.StringVar(value="iPhone link: off")
+        ttk.Label(source_controls, textvariable=self.iphone_connection_var, wraplength=220).grid(
+            row=6, column=0, columnspan=2, sticky="w", padx=4, pady=(3, 0)
+        )
+        ttk.Button(source_controls, text="Send iPhone Test Pulse", command=self.send_iphone_test_pulse).grid(
+            row=7, column=0, columnspan=2, sticky="ew", padx=4, pady=(6, 0)
+        )
         source_controls.columnconfigure(0, weight=1)
         source_controls.columnconfigure(1, weight=1)
 
@@ -446,6 +461,13 @@ class AutoCamTrackerApp:
     def start(self) -> None:
         try:
             self.apply_ui_config()
+            if self.input_config.source_type == "iphone":
+                self._start_iphone_link()
+                self.running = False
+                self.status_var.set(
+                    "Status: iPhone phase-1 link ready; image streaming is reserved for phase 2"
+                )
+                return
             desired_signature = self._input_signature(self.input_config)
             can_resume_current_source = (
                 self.detector is not None
@@ -481,6 +503,7 @@ class AutoCamTrackerApp:
 
     def stop(self) -> None:
         self.running = False
+        self.tracking_server.publish_stop()
         if self.detector is not None:
             self._close_detector()
         self.detector = None
@@ -508,6 +531,41 @@ class AutoCamTrackerApp:
             self.source_var.set("video_file")
             self.input_config.video_path = path
             self.video_path_var.set(f"Video: {self._short_label(Path(path).name)}")
+
+    def on_source_selected(self, _event=None) -> None:
+        if self.source_var.get() == "iphone":
+            self._start_iphone_link()
+
+    def _start_iphone_link(self) -> None:
+        self.tracking_server.start()
+        self.iphone_connection_var.set("iPhone link: starting…")
+
+    def _queue_iphone_status(self, message: str) -> None:
+        self.iphone_status_queue.put(message)
+
+    def _drain_iphone_status(self) -> None:
+        try:
+            while True:
+                message = self.iphone_status_queue.get_nowait()
+                self.iphone_connection_var.set(f"iPhone link: {message}")
+        except Empty:
+            pass
+        try:
+            self.root.after(100, self._drain_iphone_status)
+        except tk.TclError:
+            pass
+
+    def send_iphone_test_pulse(self) -> None:
+        self._start_iphone_link()
+        if self.tracking_server.client_count == 0:
+            self.status_var.set("Status: waiting for iPhone before sending test pulse")
+            return
+
+        # A short, low-speed rightward pulse followed by an explicit safety stop.
+        for delay_ms in range(0, 600, 100):
+            self.root.after(delay_ms, self.tracking_server.publish_test_pulse)
+        self.root.after(650, self.tracking_server.publish_stop)
+        self.status_var.set("Status: sending 650 ms iPhone tracking test pulse")
 
     def apply_video_url(self, _event=None) -> None:
         video_url = self._normalized_video_url()
@@ -808,6 +866,7 @@ class AutoCamTrackerApp:
             self._stop_auto_feature_capture_for_scene_change()
         self._update_images(frame_data.before_frame, frame_data.after_frame)
         self.current_frame_data = frame_data
+        self.tracking_server.publish_frame(frame_data, frame.shape)
         self._run_auto_feature_sampling(frame)
         self.refresh_identity_db_panel()
         return frame_data
@@ -1337,6 +1396,8 @@ class AutoCamTrackerApp:
 
     def on_close(self) -> None:
         self.running = False
+        self.tracking_server.publish_stop()
+        self.tracking_server.stop()
         if self.identity_preview_window is not None:
             self.identity_preview_window.destroy()
             self.identity_preview_window = None
