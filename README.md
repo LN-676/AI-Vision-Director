@@ -1,6 +1,6 @@
-# AutoCamTracker V1.4
+# AutoCamTracker V1.41
 
-AutoCamTracker 是一個以影片、螢幕區域或 webcam 作為輸入的車輛偵測、單車追蹤、數位構圖與 GID 重新辨識工具。V1.4 加入自動 Master feature 採樣、GID 自動找回、防止錯車寫入 Master 的保護機制，以及更精簡的 Identity 操作流程。
+AutoCamTracker 是一個以影片、螢幕區域或 webcam 作為輸入的車輛偵測、單車追蹤、數位構圖與 GID 重新辨識工具。V1.41 加入更清楚的 GID / LID 顯示、Manual 單張特徵新增，以及不跨鏡頭延續的 Auto Add Feature。
 
 ## 功能簡述
 
@@ -8,7 +8,7 @@ AutoCamTracker 是一個以影片、螢幕區域或 webcam 作為輸入的車輛
 - 預設 detection / tracking 模型為 `code/model/yolo26s.pt`。
 - 預設 Identity ReID 模型為 `code/model/yolo26s-reid.onnx`。
 - Tracking buffer 依來源 FPS 設定為約 5 秒，降低短暫遮擋或漏檢造成的掉 ID。
-- Before 畫面以 50 px 紅色數字顯示 GID，並以 30 px 文字顯示 LID；目前選取車輛的 bbox 會顯示紅框。
+- Before 畫面以紅色數字顯示 GID，選取中的紅框 GID 為 65 px、其他 GID 為 50 px，LID 為 30 px。
 - After 畫面依選定車輛做數位變焦與置中構圖。
 - `GID` 是長期車輛身份，`LID` 是 YOLO / tracker 的短期 local track id。
 - 點選 bbox 會建立/選取 GID，並啟動自動 Master feature 採樣。
@@ -16,7 +16,7 @@ AutoCamTracker 是一個以影片、螢幕區域或 webcam 作為輸入的車輛
 - `Find GID` 會用該 GID 的 Master features 對目前畫面 detections 做 ReID matching。
 - `Auto ReID Th` 可調整 Find GID / 自動 GID reacquire 的 ReID 相似度門檻。
 - `Auto Add Feature` 可啟動目前 GID 的持續自動 Master feature 採樣。
-- `Manual Add` 每次按下會嘗試加入目前 GID 的一張 Master feature，供人工驗證使用。
+- `Manual Add` 會先停止背景自動採樣，每次按下最多只嘗試加入目前 GID 的一張 Master feature。
 - `Auto Add Feature` 僅在目前鏡頭場景內有效；偵測到切鏡後會自動停止，必須再次按下才能在新場景繼續採樣。
 - `Auto Feature Mode` 支援 `Balanced`、`Diverse`、`Strict`：
   - `Balanced`：一般使用，品質與多樣性平衡。
@@ -75,20 +75,20 @@ macOS webcam 若無法開啟，請到 System Settings > Privacy & Security > Cam
 10. 需要人工驗證單張特徵時，按 `Manual Add`；照片仍需通過品質與重複檢查。
 11. 使用 `Auto Feature Mode` 決定自動採樣保守程度。
 
-## V1.4 注意事項
+## V1.41 注意事項
 
-- V1.4 仍以單一車輛追蹤與互動式 GID 管理為主。
+- V1.41 仍以單一車輛追蹤與互動式 GID 管理為主。
 - `Auto Add Feature` 會寫入 Master gallery；如果 Master 已存在，新增 feature 會先通過 class 與 ReID 防污染檢查。
 - 如果 YOLO / tracker 產生 `LID=None`，目前部分 Find GID / tracking 流程仍可能看不到該 bbox，這是後續版本要改善的方向。
-- 若 GID 已被舊版本寫入錯車 feature，V1.4 會防止繼續污染，但不會自動清理既有髒資料。
+- 若 GID 已被舊版本寫入錯車 feature，V1.41 會防止繼續污染，但不會自動清理既有髒資料。
 - Identity DB 是本機資料，預設位於 `outputs/vehicle_identity.sqlite3`，不應作為 release 檔案上傳。
 - `outputs/`、`.venv/`、cache、測試輸出都不屬於乾淨 release 內容。
 
 ---
 
-# AutoCamTracker V1.4 English
+# AutoCamTracker V1.41 English
 
-AutoCamTracker is a vehicle detection, single-target tracking, digital reframing, and GID re-identification desktop tool. V1.4 adds automatic Master feature capture, GID reacquire controls, identity-write guards, and a simplified Identity DB workflow.
+AutoCamTracker is a vehicle detection, single-target tracking, digital reframing, and GID re-identification desktop tool. V1.41 adds clearer GID / LID labels, single-shot Manual feature capture, and scene-scoped Auto Add Feature behavior.
 
 ## Highlights
 
@@ -97,13 +97,13 @@ AutoCamTracker is a vehicle detection, single-target tracking, digital reframing
 - Defaults to `code/model/yolo26s-reid.onnx` for Identity ReID.
 - Keeps tracker lost-buffer at about 5 seconds based on source FPS.
 - `GID` is the long-lived vehicle identity; `LID` is the short-lived tracker id.
-- The Before view renders the numeric GID in red at 50 px, the LID at 30 px, and the selected bbox in red.
+- The Before view renders the selected red-box GID at 65 px, other GIDs at 50 px, and the LID at 30 px.
 - Clicking a bbox selects/creates a GID and starts automatic Master feature capture.
 - Selecting a GID row makes the next bbox click link that bbox to the selected GID.
 - `Find GID` matches current detections against the selected GID's Master gallery.
 - `Auto ReID Th` controls Find GID and automatic reacquire similarity threshold.
 - `Auto Feature Mode` supports `Balanced`, `Diverse`, and `Strict`.
-- `Manual Add` attempts one Master feature per click for validation.
+- `Manual Add` stops background automatic sampling and attempts at most one Master feature per click.
 - Automatic feature capture stops at a detected camera cut and must be started again for the new scene.
 - Automatic Master writes are guarded by dominant class and ReID checks once a GID already has Master features.
 - Hovering an Identity DB row previews that GID's first feature crop.

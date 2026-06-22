@@ -53,7 +53,7 @@ except ImportError:  # pragma: no cover
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.3"
+    window_title: str = "AutoCamTracker V1.41"
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360
@@ -1189,17 +1189,22 @@ class AutoCamTrackerApp:
         self._set_identity_mode(f"camera changed; Auto Add Feature stopped for GID {label}")
 
     def add_feature_to_selected_identity(self) -> str:
+        self.auto_feature_sampler.stop()
+        self.auto_feature_status_message = ""
         vehicle_ids = self._selected_identity_vehicle_ids()
         vehicle_id = vehicle_ids[0] if vehicle_ids else self.identity_manager.selected_global_vehicle_id
         if vehicle_id is None:
+            self._set_identity_mode("Manual Add stopped Auto Add Feature; select a GID")
             self.status_var.set("Status: select a GID before Add Feature")
             return "break"
         if self.last_raw_frame is None:
+            self._set_identity_mode("Manual Add stopped Auto Add Feature; waiting for current frame")
             self.status_var.set("Status: no current frame available for Add Feature")
             return "break"
 
         detection = self._detection_for_vehicle_id(vehicle_id)
         if detection is None:
+            self._set_identity_mode("Manual Add stopped Auto Add Feature; visible linked bbox required")
             self.status_var.set("Status: Link BBox to a visible vehicle before Add Feature")
             return "break"
 
@@ -1207,6 +1212,7 @@ class AutoCamTrackerApp:
         self.refresh_identity_db_panel()
         label = self.identity_store.display_label(vehicle_id)
         if result.accepted:
+            self._set_identity_mode(f"Manual Add added one feature {result.feature_id} to GID {label}")
             self.status_var.set(
                 f"Status: added master feature {result.feature_id} to GID {label} "
                 f"(quality {result.quality.score:.2f})"
@@ -1220,6 +1226,7 @@ class AutoCamTrackerApp:
         self.status_var.set(
             f"Status: rejected Add Feature for GID {label}: {result.reason}{duplicate}"
         )
+        self._set_identity_mode(f"Manual Add did not add a feature to GID {label}")
         return "break"
 
     def edit_identity_display_name(self, event) -> str:
@@ -1417,7 +1424,7 @@ class AutoCamTrackerApp:
             box_color = (0, 0, 255) if is_selected else (80, 220, 80)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 4 if is_selected else 3)
 
-            gid_height = 50
+            gid_height = 65 if is_selected else 50
             lid_height = 30
             gid_scale = cv2.getFontScaleFromHeight(font_face, gid_height, 3)
             lid_scale = cv2.getFontScaleFromHeight(font_face, lid_height, 2)
