@@ -56,7 +56,7 @@ except ImportError:  # pragma: no cover
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.42"
+    window_title: str = "AutoCamTracker V1.43"
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360
@@ -126,8 +126,6 @@ class AutoCamTrackerApp:
         self.rendered_image_height = self.display_height
         self.timeline_dragging = False
         self.refreshing_identity_panel = False
-        self.link_bbox_vehicle_id: int | None = None
-        self.add_vehicle_on_next_bbox = False
         self.selected_identity_tree_ids: set[int] = set()
         self.identity_preview_window: tk.Toplevel | None = None
         self.identity_preview_label: ttk.Label | None = None
@@ -157,7 +155,7 @@ class AutoCamTrackerApp:
         self.root.rowconfigure(0, weight=1)
 
         controls = ttk.Frame(main)
-        controls.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+        controls.grid(row=0, column=0, sticky="ew", pady=(0, 4))
 
         source_controls = ttk.LabelFrame(controls, text="Source", padding=5)
         source_controls.grid(row=0, column=0, sticky="nsew", padx=3, pady=2)
@@ -165,12 +163,11 @@ class AutoCamTrackerApp:
         tracking_controls.grid(row=0, column=1, sticky="nsew", padx=3, pady=2)
         playback_controls = ttk.LabelFrame(controls, text="Playback", padding=5)
         playback_controls.grid(row=0, column=2, sticky="nsew", padx=3, pady=2)
-        identity_controls = ttk.LabelFrame(controls, text="Identity DB", padding=4)
-        identity_controls.grid(row=0, column=3, sticky="nsew", padx=3, pady=2)
+        identity_controls = ttk.LabelFrame(main, text="Vehicle Database", padding=7)
+        identity_controls.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(6, 0), pady=2)
         controls.columnconfigure(0, weight=1, minsize=220)
         controls.columnconfigure(1, weight=1, minsize=250)
         controls.columnconfigure(2, weight=1, minsize=180)
-        controls.columnconfigure(3, weight=2, minsize=420)
 
         self.source_var = tk.StringVar(value="webcam")
         self.tracker_var = tk.StringVar(value="botsort")
@@ -186,7 +183,11 @@ class AutoCamTrackerApp:
         self.video_url_status_var = tk.StringVar(value="No video URL selected")
         self.screen_region_var = tk.StringVar(value="No screen region selected")
         self.identity_summary_var = tk.StringVar(value="Vehicles: 0 | Master: 0 | Pending: 0 | Candidate: 0")
-        self.identity_mode_var = tk.StringVar(value="Identity Mode: click bbox to select; Add Vehicle writes to DB")
+        self.identity_mode_var = tk.StringVar(value="Click a bbox to select a local track")
+        self.bbox_selection_var = tk.StringVar(value="BBox: none")
+        self.db_selection_var = tk.StringVar(value="Database: no GID selected")
+        self.link_state_var = tk.StringVar(value="Relation: not linked")
+        self.advanced_identity_visible = tk.BooleanVar(value=False)
         self.timeline_var = tk.DoubleVar(value=0.0)
         self.timeline_label_var = tk.StringVar(value="00:00 / 00:00")
 
@@ -243,16 +244,16 @@ class AutoCamTrackerApp:
         self.model_box.grid(row=0, column=1, padx=4, sticky="ew")
         ttk.Button(tracking_controls, text="Refresh", command=self.refresh_model_options).grid(row=0, column=2, sticky="ew", padx=4)
 
-        ttk.Label(tracking_controls, text="Tracker").grid(row=1, column=0, sticky="w", padx=4, pady=(8, 0))
+        ttk.Label(tracking_controls, text="Tracker").grid(row=1, column=0, sticky="w", padx=4, pady=(6, 0))
         ttk.Combobox(
             tracking_controls,
             textvariable=self.tracker_var,
             values=["botsort", "deepocsort"],
             width=13,
             state="readonly",
-        ).grid(row=1, column=1, sticky="ew", padx=4, pady=(8, 0))
+        ).grid(row=1, column=1, sticky="ew", padx=4, pady=(6, 0))
 
-        ttk.Label(tracking_controls, text="Framing").grid(row=2, column=0, sticky="w", padx=4, pady=(8, 0))
+        ttk.Label(tracking_controls, text="Framing").grid(row=1, column=2, sticky="w", padx=(10, 2), pady=(6, 0))
         framing_box = ttk.Combobox(
             tracking_controls,
             textvariable=self.framing_var,
@@ -260,13 +261,13 @@ class AutoCamTrackerApp:
             width=13,
             state="readonly",
         )
-        framing_box.grid(row=2, column=1, sticky="ew", padx=4, pady=(8, 0))
+        framing_box.grid(row=1, column=3, sticky="ew", padx=4, pady=(6, 0))
         framing_box.bind("<<ComboboxSelected>>", lambda _: self.apply_ui_config())
-        ttk.Button(tracking_controls, text="Clear Selection", command=self.clear_selection).grid(row=3, column=0, columnspan=3, sticky="ew", padx=4, pady=(10, 0))
-        ttk.Button(tracking_controls, text="Auto Track", command=self.auto_select_one).grid(row=4, column=0, columnspan=2, sticky="ew", padx=4, pady=(8, 0))
-        ttk.Button(tracking_controls, text="Reset", command=self.reset_tracking).grid(row=4, column=2, sticky="ew", padx=4, pady=(8, 0))
+        ttk.Button(tracking_controls, text="Auto Track", command=self.auto_select_one).grid(row=2, column=0, columnspan=2, sticky="ew", padx=4, pady=(7, 0))
+        ttk.Button(tracking_controls, text="Clear", command=self.clear_selection).grid(row=2, column=2, sticky="ew", padx=4, pady=(7, 0))
+        ttk.Button(tracking_controls, text="Reset", command=self.reset_tracking).grid(row=2, column=3, sticky="ew", padx=4, pady=(7, 0))
         tracking_controls.columnconfigure(1, weight=1)
-        tracking_controls.columnconfigure(2, weight=1)
+        tracking_controls.columnconfigure(3, weight=1)
 
         ttk.Button(playback_controls, text="Start", command=self.start).grid(row=0, column=0, sticky="ew", padx=4, pady=4)
         ttk.Button(playback_controls, text="Pause", command=self.pause).grid(row=0, column=1, sticky="ew", padx=4, pady=4)
@@ -284,47 +285,41 @@ class AutoCamTrackerApp:
         playback_controls.columnconfigure(0, weight=1)
         playback_controls.columnconfigure(1, weight=1)
 
-        ttk.Label(identity_controls, textvariable=self.identity_summary_var).grid(row=0, column=0, columnspan=4, sticky="w", padx=3)
-        ttk.Button(identity_controls, text="Refresh", width=9, command=self.refresh_identity_db_panel).grid(row=0, column=4, sticky="ew", padx=2)
-        ttk.Button(identity_controls, text="Delete ID", width=9, command=self.delete_selected_identity).grid(row=0, column=5, sticky="ew", padx=2)
-        ttk.Button(identity_controls, text="Add Vehicle", command=self.start_add_vehicle).grid(
-            row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=(4, 0)
+        header = ttk.Frame(identity_controls)
+        header.grid(row=0, column=0, sticky="ew")
+        header.columnconfigure(0, weight=1)
+        ttk.Label(header, textvariable=self.identity_summary_var).grid(row=0, column=0, sticky="w")
+        ttk.Button(header, text="Refresh", width=8, command=self.refresh_identity_db_panel).grid(row=0, column=1, padx=(6, 0))
+
+        selection_panel = ttk.LabelFrame(identity_controls, text="Current Selection", padding=6)
+        selection_panel.grid(row=1, column=0, sticky="ew", pady=(7, 0))
+        ttk.Label(selection_panel, textvariable=self.bbox_selection_var).grid(row=0, column=0, sticky="w")
+        ttk.Label(selection_panel, textvariable=self.db_selection_var).grid(row=1, column=0, sticky="w", pady=(3, 0))
+        ttk.Label(selection_panel, textvariable=self.link_state_var).grid(row=2, column=0, sticky="w", pady=(3, 0))
+
+        actions = ttk.Frame(identity_controls)
+        actions.grid(row=2, column=0, sticky="ew", pady=(7, 0))
+        actions.columnconfigure(0, weight=1)
+        actions.columnconfigure(1, weight=1)
+        self.add_vehicle_button = ttk.Button(
+            actions,
+            text="＋ Add Selected Vehicle",
+            command=self.add_selected_vehicle,
+            style="Accent.TButton",
         )
-        ttk.Button(identity_controls, text="Link BBox", command=self.start_link_bbox).grid(
-            row=1, column=2, columnspan=2, sticky="ew", padx=2, pady=(4, 0)
-        )
-        ttk.Button(identity_controls, text="Find GID", command=self.track_selected_identity_from_db).grid(
-            row=1, column=4, columnspan=2, sticky="ew", padx=2, pady=(4, 0)
-        )
-        ttk.Button(identity_controls, text="Auto Add Feature", command=self.start_auto_add_feature).grid(
-            row=2, column=0, columnspan=3, sticky="ew", padx=2, pady=(4, 0)
-        )
-        ttk.Button(
-            identity_controls,
-            text="Manual Add 1 Photo",
-            command=self.add_feature_to_selected_identity,
-        ).grid(row=2, column=3, columnspan=3, sticky="ew", padx=2, pady=(4, 0))
-        ttk.Label(identity_controls, text="Auto ReID Th").grid(row=3, column=0, columnspan=2, sticky="w", padx=3, pady=(5, 0))
-        threshold_entry = ttk.Entry(identity_controls, textvariable=self.auto_reid_threshold_var, width=7)
-        threshold_entry.grid(row=3, column=2, sticky="ew", padx=2, pady=(5, 0))
-        threshold_entry.bind("<Return>", self.apply_auto_reid_threshold)
-        threshold_entry.bind("<FocusOut>", self.apply_auto_reid_threshold)
-        ttk.Label(identity_controls, text="0.00-1.00").grid(row=3, column=3, columnspan=3, sticky="w", padx=3, pady=(5, 0))
-        ttk.Label(identity_controls, text="Auto Feature Mode").grid(row=4, column=0, columnspan=3, sticky="w", padx=3, pady=(5, 0))
-        feature_mode_box = ttk.Combobox(
-            identity_controls,
-            textvariable=self.auto_feature_mode_var,
-            values=["Balanced", "Diverse", "Strict"],
-            width=10,
-            state="readonly",
-        )
-        feature_mode_box.grid(row=4, column=3, columnspan=3, sticky="ew", padx=3, pady=(5, 0))
-        feature_mode_box.bind("<<ComboboxSelected>>", self.apply_auto_feature_mode)
+        self.add_vehicle_button.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.link_bbox_button = ttk.Button(actions, text="Link BBox → GID", command=self.link_selected_bbox)
+        self.link_bbox_button.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+        self.find_gid_button = ttk.Button(actions, text="Find GID", command=self.track_selected_identity_from_db)
+        self.find_gid_button.grid(row=2, column=0, sticky="ew", pady=(5, 0), padx=(0, 3))
+        self.delete_vehicle_button = ttk.Button(actions, text="Delete Vehicle", command=self.delete_selected_identity)
+        self.delete_vehicle_button.grid(row=2, column=1, sticky="ew", pady=(5, 0), padx=(3, 0))
+
         self.identity_tree = ttk.Treeview(
             identity_controls,
             columns=("gid", "type", "lid", "master", "pending", "candidate", "frame", "conf"),
             show="headings",
-            height=3,
+            height=12,
         )
         headings = {
             "gid": "GID",
@@ -349,42 +344,78 @@ class AutoCamTrackerApp:
         self.identity_tree.bind("<BackSpace>", self.delete_selected_identity)
         self.identity_tree.bind("<Motion>", self.on_identity_tree_motion)
         self.identity_tree.bind("<Leave>", self.hide_identity_preview)
-        self.identity_tree.grid(row=5, column=0, columnspan=6, sticky="nw", padx=3, pady=(6, 0))
-        ttk.Label(identity_controls, text="ReID Model").grid(row=6, column=0, sticky="w", padx=3, pady=(6, 0))
-        self.reid_model_box = ttk.Combobox(
+        self.identity_tree.grid(row=3, column=0, sticky="nsew", pady=(7, 0))
+
+        feature_actions = ttk.LabelFrame(identity_controls, text="Features", padding=6)
+        feature_actions.grid(row=4, column=0, sticky="ew", pady=(7, 0))
+        feature_actions.columnconfigure(0, weight=1)
+        feature_actions.columnconfigure(1, weight=1)
+        self.manual_feature_button = ttk.Button(
+            feature_actions,
+            text="Manual Add 1 Photo",
+            command=self.add_feature_to_selected_identity,
+        )
+        self.manual_feature_button.grid(row=0, column=0, sticky="ew", padx=(0, 3))
+        self.auto_feature_button = ttk.Button(
+            feature_actions,
+            text="Start Auto Add",
+            command=self.toggle_auto_add_feature,
+        )
+        self.auto_feature_button.grid(row=0, column=1, sticky="ew", padx=(3, 0))
+
+        ttk.Checkbutton(
             identity_controls,
+            text="Advanced ReID settings",
+            variable=self.advanced_identity_visible,
+            command=self.toggle_identity_advanced,
+        ).grid(row=5, column=0, sticky="w", pady=(7, 0))
+
+        self.identity_advanced_frame = ttk.Frame(identity_controls)
+        self.identity_advanced_frame.grid(row=6, column=0, sticky="ew", pady=(3, 0))
+        self.identity_advanced_frame.columnconfigure(1, weight=1)
+        ttk.Label(self.identity_advanced_frame, text="Auto ReID Th").grid(row=0, column=0, sticky="w")
+        threshold_entry = ttk.Entry(self.identity_advanced_frame, textvariable=self.auto_reid_threshold_var, width=7)
+        threshold_entry.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        threshold_entry.bind("<Return>", self.apply_auto_reid_threshold)
+        threshold_entry.bind("<FocusOut>", self.apply_auto_reid_threshold)
+        ttk.Label(self.identity_advanced_frame, text="Feature Mode").grid(row=1, column=0, sticky="w", pady=(5, 0))
+        feature_mode_box = ttk.Combobox(
+            self.identity_advanced_frame,
+            textvariable=self.auto_feature_mode_var,
+            values=["Balanced", "Diverse", "Strict"],
+            width=10,
+            state="readonly",
+        )
+        feature_mode_box.grid(row=1, column=1, sticky="ew", padx=(6, 0), pady=(5, 0))
+        feature_mode_box.bind("<<ComboboxSelected>>", self.apply_auto_feature_mode)
+        ttk.Label(self.identity_advanced_frame, text="ReID Model").grid(row=2, column=0, sticky="w", pady=(5, 0))
+        self.reid_model_box = ttk.Combobox(
+            self.identity_advanced_frame,
             textvariable=self.reid_model_var,
             values=[],
             width=18,
             state="readonly",
         )
-        self.reid_model_box.grid(row=6, column=1, columnspan=3, sticky="ew", padx=3, pady=(6, 0))
+        self.reid_model_box.grid(row=2, column=1, sticky="ew", padx=(6, 0), pady=(5, 0))
         self.reid_model_box.bind("<<ComboboxSelected>>", lambda _: self.apply_reid_model_config())
-        ttk.Button(identity_controls, text="Refresh Models", width=15, command=self.refresh_reid_model_options).grid(
-            row=5,
-            column=4,
-            columnspan=2,
-            sticky="ew",
-            padx=3,
-            pady=(6, 0),
+        ttk.Button(self.identity_advanced_frame, text="Refresh Models", command=self.refresh_reid_model_options).grid(
+            row=3, column=0, columnspan=2, sticky="ew", pady=(5, 0)
         )
         ttk.Label(identity_controls, textvariable=self.identity_mode_var, wraplength=390).grid(
-            row=6,
+            row=7,
             column=0,
-            columnspan=6,
-            sticky="e",
-            padx=3,
-            pady=(5, 0),
+            sticky="w",
+            pady=(7, 0),
         )
-        for column in range(6):
-            identity_controls.columnconfigure(column, weight=0)
-        identity_controls.rowconfigure(4, weight=0)
+        identity_controls.columnconfigure(0, weight=1)
+        identity_controls.rowconfigure(3, weight=1)
+        self.identity_advanced_frame.grid_remove()
 
         main.columnconfigure(0, weight=1)
-        main.columnconfigure(1, weight=1)
+        main.columnconfigure(1, weight=0, minsize=400)
         main.rowconfigure(1, weight=1)
         views = ttk.Frame(main)
-        views.grid(row=1, column=0, columnspan=2, sticky="nsew")
+        views.grid(row=1, column=0, sticky="nsew")
         views.columnconfigure(0, weight=1)
         views.columnconfigure(1, weight=1)
         views.rowconfigure(1, weight=1)
@@ -393,11 +424,11 @@ class AutoCamTrackerApp:
         ttk.Label(views, text="Before · Detection", style="PreviewTitle.TLabel").grid(row=0, column=0, pady=(2, 0))
         ttk.Label(views, text="After · Reframe", style="PreviewTitle.TLabel").grid(row=0, column=1, pady=(2, 0))
 
-        self.before_label = ttk.Label(views, style="Preview.TLabel")
+        self.before_label = tk.Label(views, background="#202124", foreground="#f1f3f4", borderwidth=0)
         self.before_label.grid(row=1, column=0, padx=(2, 4), pady=4, sticky="nsew")
         self.before_label.configure(cursor="hand2", anchor="center")
         self.before_label.bind("<Button-1>", self.on_before_click)
-        self.after_label = ttk.Label(views, style="Preview.TLabel")
+        self.after_label = tk.Label(views, background="#202124", foreground="#f1f3f4", borderwidth=0)
         self.after_label.grid(row=1, column=1, padx=(4, 2), pady=4, sticky="nsew")
         self.after_label.configure(anchor="center")
 
@@ -545,8 +576,9 @@ class AutoCamTrackerApp:
         self.identity_manager.reset()
         self.auto_feature_sampler.stop()
         self.auto_feature_status_message = ""
-        self.link_bbox_vehicle_id = None
-        self.add_vehicle_on_next_bbox = False
+        if hasattr(self, "identity_tree"):
+            self.identity_tree.selection_remove(*self.identity_tree.selection())
+        self.selected_identity_tree_ids.clear()
         self._set_identity_mode("click bbox to select a local track")
         self.refresh_identity_db_panel()
 
@@ -857,46 +889,13 @@ class AutoCamTrackerApp:
             self.status_var.set("Status: selected candidate is no longer visible")
             return
 
-        if self.add_vehicle_on_next_bbox:
-            self.add_vehicle_on_next_bbox = False
-            self.link_bbox_vehicle_id = None
-            vehicle_id = self.identity_store.create_vehicle(
-                detection,
-                {"created_manually": True},
-            )
-            self.identity_manager.link_detection(vehicle_id, detection, self.last_raw_frame)
-            self.refresh_identity_db_panel()
-            self.selected_identity_tree_ids = {vehicle_id}
-            self.refresh_identity_db_panel()
-            self._set_identity_mode(f"added vehicle GID {vehicle_id}")
-            self.status_var.set(
-                f"Status: added local track {candidate.track_id} as new GID {vehicle_id}; "
-                "use Manual Add 1 Photo to save a feature"
-            )
-            return
-
-        if self.link_bbox_vehicle_id is not None:
-            vehicle_id = self.link_bbox_vehicle_id
-            self.link_bbox_vehicle_id = None
-            identity = self.identity_manager.link_detection(vehicle_id, detection, self.last_raw_frame)
-            self.refresh_identity_db_panel()
-            if identity is None:
-                self.status_var.set(f"Status: vehicle id {vehicle_id} was not found for bbox link")
-                self._set_identity_mode(f"GID {vehicle_id} not found")
-                return
-            label = self.identity_store.display_label(vehicle_id)
-            self._set_identity_mode(f"linked bbox to GID {label}")
-            self.status_var.set(
-                f"Status: linked bbox local track {candidate.track_id} to GID {label}"
-            )
-            return
-
-        identity = self.identity_manager.select_detection(detection, self.last_raw_frame, persist=False)
-        self.refresh_identity_db_panel()
-        self._set_identity_mode("bbox selected; press Add Vehicle to save it")
+        self.identity_manager.select_detection(detection, self.last_raw_frame, persist=False)
+        self._refresh_selection_panel()
+        self._redraw_current_selection()
+        self._set_identity_mode("BBox selected; choose Add Vehicle or select a GID to link")
         self.status_var.set(
             f"Status: selected local track {candidate.track_id}; "
-            "press Add Vehicle to write it to Identity DB"
+            "choose an action in Vehicle Database"
         )
 
     def toggle_recording(self) -> None:
@@ -1062,11 +1061,10 @@ class AutoCamTrackerApp:
         self.last_raw_frame = None
         self.current_frame_data = None
         self.skipped_frames = 0
-        self.link_bbox_vehicle_id = None
-        self.add_vehicle_on_next_bbox = False
         self.auto_feature_sampler.stop()
         self.auto_feature_status_message = ""
         self._set_identity_mode("click bbox to select a local track")
+        self._refresh_selection_panel()
 
     def _clear_screen_region_selection(self) -> None:
         self.input_config.screen_region = None
@@ -1152,6 +1150,7 @@ class AutoCamTrackerApp:
         if restore_selection:
             self.identity_tree.selection_set(restore_selection)
         self.refreshing_identity_panel = False
+        self._refresh_selection_panel()
 
     def on_identity_tree_select(self, _event=None) -> str:
         if self.refreshing_identity_panel:
@@ -1160,15 +1159,9 @@ class AutoCamTrackerApp:
         if self.selected_identity_tree_ids:
             vehicle_id = sorted(self.selected_identity_tree_ids)[0]
             label = self.identity_store.display_label(vehicle_id)
-            self.link_bbox_vehicle_id = None
-            self.add_vehicle_on_next_bbox = False
-            self._set_identity_mode(f"selected GID {label}; choose Link BBox, Find GID, or Add Feature")
+            self._set_identity_mode(f"Selected GID {label}; choose Link, Find, or Feature action")
         else:
-            self.link_bbox_vehicle_id = None
-            if self.add_vehicle_on_next_bbox:
-                self._set_identity_mode("Add Vehicle active; click one visible bbox")
-            else:
-                self._set_identity_mode("click bbox to select a local track")
+            self._set_identity_mode("Click a bbox or select a database vehicle")
         selected_gid = self.identity_manager.selected_global_vehicle_id
         for item in self.identity_tree.get_children():
             try:
@@ -1185,6 +1178,7 @@ class AutoCamTrackerApp:
             elif master_count <= 0:
                 tags = ("no_master",)
             self.identity_tree.item(item, tags=tags)
+        self._refresh_selection_panel()
         return "break"
 
     def on_identity_tree_motion(self, event) -> None:
@@ -1285,29 +1279,54 @@ class AutoCamTrackerApp:
                 )
         return "break"
 
-    def start_link_bbox(self) -> str:
+    def link_selected_bbox(self) -> str:
         vehicle_ids = self._selected_identity_vehicle_ids()
         if not vehicle_ids:
             self.status_var.set("Status: select a GID before Link BBox")
             return "break"
-        self.link_bbox_vehicle_id = vehicle_ids[0]
-        self.add_vehicle_on_next_bbox = False
-        label = self.identity_store.display_label(self.link_bbox_vehicle_id)
-        self._set_identity_mode(f"Link BBox to GID {label}; click a visible bbox")
-        self.status_var.set(f"Status: click a visible bbox to link it to GID {label}")
+        detection = self._current_visible_detection()
+        if detection is None or self.last_raw_frame is None:
+            self.status_var.set("Status: click a visible bbox before Link BBox")
+            return "break"
+        vehicle_id = vehicle_ids[0]
+        identity = self.identity_manager.link_detection(vehicle_id, detection, self.last_raw_frame)
+        if identity is None:
+            self.status_var.set(f"Status: vehicle id {vehicle_id} no longer exists")
+            return "break"
+        label = self.identity_store.display_label(vehicle_id)
+        self.refresh_identity_db_panel()
+        self._redraw_current_selection()
+        self._set_identity_mode(f"Linked LID {detection.track_id} to GID {label}")
+        self.status_var.set(f"Status: linked local track {detection.track_id} to GID {label}")
         return "break"
 
-    def start_add_vehicle(self) -> str:
-        if self.last_raw_frame is None:
-            self.status_var.set("Status: start a video source before Add Vehicle")
+    def add_selected_vehicle(self) -> str:
+        detection = self._current_visible_detection()
+        if detection is None or self.last_raw_frame is None:
+            self.status_var.set("Status: click a visible bbox before Add Vehicle")
             return "break"
-        self.identity_tree.selection_remove(*self.identity_tree.selection())
-        self.selected_identity_tree_ids.clear()
-        self.link_bbox_vehicle_id = None
-        self.add_vehicle_on_next_bbox = True
-        self._set_identity_mode("Add Vehicle active; click one visible bbox")
-        self.status_var.set("Status: click one visible tracked bbox to add it to Identity DB")
+        vehicle_id = self.identity_store.create_vehicle(detection, {"created_manually": True})
+        self.identity_manager.link_detection(vehicle_id, detection, self.last_raw_frame)
+        self.selected_identity_tree_ids = {vehicle_id}
+        self.refresh_identity_db_panel()
+        self._redraw_current_selection()
+        self._set_identity_mode(f"Added GID {vehicle_id}; add one photo or start Auto Add")
+        self.status_var.set(
+            f"Status: added local track {detection.track_id} as GID {vehicle_id}"
+        )
         return "break"
+
+    def toggle_auto_add_feature(self) -> str:
+        if self.auto_feature_sampler.active_vehicle_id is not None:
+            vehicle_id = self.auto_feature_sampler.active_vehicle_id
+            self.auto_feature_sampler.stop()
+            self.auto_feature_status_message = ""
+            label = self.identity_store.display_label(vehicle_id)
+            self._set_identity_mode(f"Auto Add stopped for GID {label}")
+            self.status_var.set(f"Status: stopped automatic feature capture for GID {label}")
+            self._refresh_selection_panel()
+            return "break"
+        return self.start_auto_add_feature()
 
     def start_auto_add_feature(self) -> str:
         vehicle_ids = self._selected_identity_vehicle_ids()
@@ -1372,10 +1391,12 @@ class AutoCamTrackerApp:
         self.auto_feature_sampler.stop()
         self.auto_feature_status_message = ""
         self._set_identity_mode(f"camera changed; Auto Add Feature stopped for GID {label}")
+        self._refresh_selection_panel()
 
     def add_feature_to_selected_identity(self) -> str:
         self.auto_feature_sampler.stop()
         self.auto_feature_status_message = ""
+        self._refresh_selection_panel()
         vehicle_ids = self._selected_identity_vehicle_ids()
         vehicle_id = vehicle_ids[0] if vehicle_ids else self.identity_manager.selected_global_vehicle_id
         if vehicle_id is None:
@@ -1453,6 +1474,13 @@ class AutoCamTrackerApp:
             self.status_var.set("Status: select an Identity DB row before deleting")
             return "break"
 
+        labels = ", ".join(self.identity_store.display_label(vehicle_id) for vehicle_id in vehicle_ids)
+        if not messagebox.askyesno(
+            "Delete Vehicle",
+            f"Delete GID {labels} and all saved features? This cannot be undone.",
+        ):
+            return "break"
+
         deleted_ids: list[int] = []
         for vehicle_id in vehicle_ids:
             if self.identity_store.delete_vehicle(vehicle_id):
@@ -1461,8 +1489,10 @@ class AutoCamTrackerApp:
 
         if self.identity_manager.selected_global_vehicle_id in deleted_ids:
             self.identity_manager.reset()
-        if self.link_bbox_vehicle_id in deleted_ids:
-            self.link_bbox_vehicle_id = None
+        if self.auto_feature_sampler.active_vehicle_id in deleted_ids:
+            self.auto_feature_sampler.stop()
+            self.auto_feature_status_message = ""
+        self.selected_identity_tree_ids.difference_update(deleted_ids)
 
         self.refresh_identity_db_panel()
         if deleted_ids:
@@ -1484,6 +1514,76 @@ class AutoCamTrackerApp:
             except ValueError:
                 continue
         return vehicle_ids
+
+    def _current_visible_detection(self):
+        track_id = self.identity_manager.selected_local_track_id
+        if track_id is None:
+            return None
+        return self._detection_for_track(track_id)
+
+    def _redraw_current_selection(self) -> None:
+        if self.last_raw_frame is None or self.current_frame_data is None:
+            return
+        self._update_images(
+            self._draw_detections(self.last_raw_frame, self.store.current_detections),
+            self.current_frame_data.after_frame,
+        )
+
+    def _refresh_selection_panel(self) -> None:
+        if not hasattr(self, "bbox_selection_var") or not hasattr(self, "add_vehicle_button"):
+            return
+
+        detection = self._current_visible_detection()
+        if detection is None:
+            self.bbox_selection_var.set("BBox: none — click a visible detection")
+        else:
+            self.bbox_selection_var.set(
+                f"BBox: LID {detection.track_id} · {detection.class_name} · {detection.confidence:.0%}"
+            )
+
+        vehicle_ids = self._selected_identity_vehicle_ids()
+        vehicle_id = vehicle_ids[0] if vehicle_ids else None
+        if vehicle_id is None:
+            self.db_selection_var.set("Database: no GID selected")
+        else:
+            self.db_selection_var.set(f"Database: GID {self.identity_store.display_label(vehicle_id)}")
+
+        identity = self.identity_manager.selected_identity
+        is_linked = bool(
+            detection is not None
+            and vehicle_id is not None
+            and identity is not None
+            and identity.global_vehicle_id == vehicle_id
+            and identity.last_track_id == detection.track_id
+        )
+        if is_linked:
+            self.link_state_var.set("Relation: linked")
+        elif detection is not None and vehicle_id is not None:
+            self.link_state_var.set("Relation: ready to link")
+        else:
+            self.link_state_var.set("Relation: select both BBox and GID")
+
+        self._set_button_enabled(self.add_vehicle_button, detection is not None)
+        self._set_button_enabled(self.link_bbox_button, detection is not None and vehicle_id is not None)
+        self._set_button_enabled(self.find_gid_button, vehicle_id is not None)
+        self._set_button_enabled(self.delete_vehicle_button, vehicle_id is not None)
+
+        feature_detection = self._detection_for_vehicle_id(vehicle_id) if vehicle_id is not None else None
+        feature_ready = vehicle_id is not None and feature_detection is not None
+        self._set_button_enabled(self.manual_feature_button, feature_ready)
+        auto_active = self.auto_feature_sampler.active_vehicle_id is not None
+        self.auto_feature_button.configure(text="Stop Auto Add" if auto_active else "Start Auto Add")
+        self._set_button_enabled(self.auto_feature_button, auto_active or feature_ready)
+
+    @staticmethod
+    def _set_button_enabled(button, enabled: bool) -> None:
+        button.state(["!disabled"] if enabled else ["disabled"])
+
+    def toggle_identity_advanced(self) -> None:
+        if self.advanced_identity_visible.get():
+            self.identity_advanced_frame.grid()
+        else:
+            self.identity_advanced_frame.grid_remove()
 
     def _fit_size_to_source_aspect(self, width_limit: int, height_limit: int) -> tuple[int, int]:
         if self.last_frame_shape is not None:
@@ -1606,8 +1706,7 @@ class AutoCamTrackerApp:
             x1, y1, x2, y2 = [int(value) for value in detection.bbox]
             global_id = self.identity_manager.global_id_for_detection(detection)
             font_face = cv2.FONT_HERSHEY_SIMPLEX
-            selected_gid = self.identity_manager.selected_global_vehicle_id
-            is_selected = global_id is not None and global_id == selected_gid
+            is_selected = self.identity_manager.is_selected_detection(detection)
             box_color = (0, 0, 255) if is_selected else (80, 220, 80)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 4 if is_selected else 3)
 
