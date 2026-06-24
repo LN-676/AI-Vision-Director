@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
 class TrackingMessageTests(unittest.TestCase):
     def test_normalizes_pixel_error(self) -> None:
         frame_data = SimpleNamespace(
-            selected_targets=[SimpleNamespace(confidence=0.91)],
+            selected_targets=[SimpleNamespace(confidence=0.91, status="tracking", lost_frame_count=0)],
             tracking_status="tracking",
             framing_status=SimpleNamespace(error_x=160.0, error_y=-90.0),
             selected_global_vehicle_id=12,
@@ -49,6 +49,17 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertFalse(message["target_locked"])
         self.assertEqual(message["error_x"], 0.0)
         self.assertEqual(message["error_y"], 0.0)
+
+    def test_stale_selected_bbox_emits_stop(self) -> None:
+        frame_data = SimpleNamespace(
+            selected_targets=[SimpleNamespace(confidence=0.91, status="lost", lost_frame_count=1)],
+            tracking_status="tracking",
+        )
+
+        message = frame_tracking_message(frame_data, (360, 640, 3), sequence=43)
+
+        self.assertFalse(message["target_locked"])
+        self.assertEqual(message["sequence"], 43)
 
     def test_wire_values_are_clamped(self) -> None:
         message = tracking_message(

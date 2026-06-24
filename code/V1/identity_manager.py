@@ -30,6 +30,7 @@ class VehicleIdentity:
     lost_frames: int = 0
     status: str = "tracking"
     track_aliases: list[int] = field(default_factory=list)
+    velocity: tuple[float, float] = (0.0, 0.0)
 
 
 class ReacquireEngine:
@@ -357,7 +358,7 @@ class GlobalIdentityManager:
 
         ranked = self.feature_gallery.rank_detections_for_vehicle(
             identity.global_vehicle_id,
-            detections,
+            self._spatial_reid_candidates(identity, detections, frame.shape),
             frame,
         )
         if not ranked:
@@ -440,6 +441,15 @@ class GlobalIdentityManager:
         if self.selected_identity is None:
             return
         identity = self.selected_identity
+        frame_delta = max(1, detection.frame_index - identity.last_frame_index)
+        measured_velocity = (
+            (detection.center[0] - identity.last_center[0]) / frame_delta,
+            (detection.center[1] - identity.last_center[1]) / frame_delta,
+        )
+        identity.velocity = (
+            identity.velocity[0] * 0.65 + measured_velocity[0] * 0.35,
+            identity.velocity[1] * 0.65 + measured_velocity[1] * 0.35,
+        )
         identity.last_track_id = detection.track_id
         identity.class_name = detection.class_name
         identity.confidence = detection.confidence
@@ -456,6 +466,43 @@ class GlobalIdentityManager:
         if detection.track_id is not None and detection.track_id not in identity.track_aliases:
             identity.track_aliases.append(detection.track_id)
             identity.track_aliases = identity.track_aliases[-12:]
+
+    def _spatial_reid_candidates(
+        self,
+        identity: VehicleIdentity,
+        detections: list[TrackedDetection],
+        frame_shape,
+    ) -> list[TrackedDetection]:
+        if not detections:
+            return []
+        frame_h, frame_w = frame_shape[:2]
+        diagonal = max(1.0, float((frame_w**2 + frame_h**2) ** 0.5))
+        predicted = (
+            identity.last_center[0] + identity.velocity[0] * max(1, identity.lost_frames + 1),
+            identity.last_center[1] + identity.velocity[1] * max(1, identity.lost_frames + 1),
+        )
+        radius = diagonal * min(0.65, 0.18 + identity.lost_frames * 0.025)
+        ranked = sorted(
+            detections,
+            key=lambda detection: (
+                (detection.center[0] - predicted[0]) ** 2
+                + (detection.center[1] - predicted[1]) ** 2
+            ),
+        )
+        nearby = [
+            detection
+            for detection in ranked
+            if (
+                (detection.center[0] - predicted[0]) ** 2
+                + (detection.center[1] - predicted[1]) ** 2
+            )
+            <= radius**2
+        ]
+        if nearby:
+            return nearby[:3]
+        if identity.lost_frames >= 8:
+            return ranked[:6]
+        return []
 
     def _identity_from_detection(
         self,

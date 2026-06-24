@@ -35,4 +35,37 @@ final class TrackingCommandTests: XCTestCase {
         XCTAssertEqual(clamp(-2.0, min: -1.0, max: 1.0), -1.0)
         XCTAssertEqual(clamp(0.2, min: -1.0, max: 1.0), 0.2)
     }
+
+    func testTrackingRequiresConfidenceAndFiniteErrors() {
+        XCTAssertTrue(makeCommand(sequence: 1, confidence: 0.8).isTrackable())
+        XCTAssertFalse(makeCommand(sequence: 2, confidence: 0.2).isTrackable())
+        XCTAssertFalse(makeCommand(sequence: 3, confidence: 0.8, errorX: .infinity).isTrackable())
+    }
+
+    func testSequenceValidatorRejectsDuplicateAndOutOfOrderCommands() {
+        var validator = TrackingCommandSequenceValidator()
+
+        XCTAssertTrue(validator.accept(makeCommand(sequence: 10)))
+        XCTAssertFalse(validator.accept(makeCommand(sequence: 10)))
+        XCTAssertFalse(validator.accept(makeCommand(sequence: 9)))
+        XCTAssertTrue(validator.accept(makeCommand(sequence: 11)))
+        validator.reset()
+        XCTAssertTrue(validator.accept(makeCommand(sequence: 1)))
+    }
+
+    private func makeCommand(
+        sequence: Int64,
+        confidence: Double = 0.9,
+        errorX: Double = 0.1
+    ) -> TrackingCommand {
+        TrackingCommand(
+            type: "tracking",
+            sequence: sequence,
+            targetLocked: true,
+            targetId: 7,
+            errorX: errorX,
+            errorY: 0,
+            confidence: confidence
+        )
+    }
 }

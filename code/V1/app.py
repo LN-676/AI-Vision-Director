@@ -841,7 +841,7 @@ class AutoCamTrackerApp:
             self.identity_manager.reset()
             self.refresh_identity_db_panel()
             return
-        self.identity_manager.select_detection(detection, self.last_raw_frame, persist=False)
+        identity = self.identity_manager.select_detection(detection, self.last_raw_frame, persist=False)
         self.refresh_identity_db_panel()
         self.status_var.set(
             "Status: auto tracking local track "
@@ -1121,6 +1121,7 @@ class AutoCamTrackerApp:
 
     def _reset_runtime_state(self) -> None:
         self.pipeline.reset()
+        self.feature_gallery.reset_runtime_cache()
         self.identity_session_links.clear()
         self.last_frame_shape = None
         self.last_raw_frame = None

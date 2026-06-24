@@ -45,4 +45,27 @@ struct TrackingCommand: Codable, Equatable, Sendable {
         case errorY = "error_y"
         case timestampMs = "timestamp_ms"
     }
+
+    func isTrackable(minimumConfidence: Double = 0.35) -> Bool {
+        targetLocked
+            && confidence >= minimumConfidence
+            && confidence.isFinite
+            && errorX.isFinite
+            && errorY.isFinite
+    }
+}
+
+struct TrackingCommandSequenceValidator: Sendable {
+    private(set) var lastSequence: Int64?
+
+    mutating func accept(_ command: TrackingCommand) -> Bool {
+        guard let sequence = command.sequence else { return true }
+        guard lastSequence.map({ sequence > $0 }) ?? true else { return false }
+        lastSequence = sequence
+        return true
+    }
+
+    mutating func reset() {
+        lastSequence = nil
+    }
 }

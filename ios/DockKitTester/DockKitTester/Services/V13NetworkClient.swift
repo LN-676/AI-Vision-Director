@@ -28,6 +28,7 @@ final class V13NetworkClient: ObservableObject {
     private var reconnectTask: Task<Void, Never>?
     private var socketTask: URLSessionWebSocketTask?
     private var intentionalDisconnect = false
+    private var sequenceValidator = TrackingCommandSequenceValidator()
     private let timeout: Duration = .milliseconds(500)
     private static let serverURLKey = "AutoCamTrackerServerURL"
 
@@ -54,6 +55,7 @@ final class V13NetworkClient: ObservableObject {
         }
 
         closeSocket()
+        sequenceValidator.reset()
         intentionalDisconnect = false
         status = .connecting
         logger.log(.info, "Connecting to AutoCamTracker at \(url.absoluteString)")
@@ -74,6 +76,11 @@ final class V13NetworkClient: ObservableObject {
             guard command.type == "tracking" else {
                 logger.log(.error, "V1.5 JSON rejected: type must be 'tracking'.")
                 await triggerTimeout(reason: "invalid message type")
+                return
+            }
+            guard sequenceValidator.accept(command) else {
+                logger.log(.error, "V1.5 JSON rejected: duplicate or out-of-order sequence.")
+                await triggerTimeout(reason: "stale tracking command")
                 return
             }
             status = .receiving
@@ -111,6 +118,7 @@ final class V13NetworkClient: ObservableObject {
         closeSocket()
         status = .offline
         lastCommand = nil
+        sequenceValidator.reset()
         cameraFramesSent = 0
         logger.log(.warning, "AutoCamTracker client disconnected; requesting safety stop.")
         await onTimeout?()

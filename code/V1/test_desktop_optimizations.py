@@ -13,6 +13,8 @@ if str(V1_DIR) not in sys.path:
     sys.path.insert(0, str(V1_DIR))
 
 from desktop_state import IdentitySessionLinks
+from feature_gallery import FeatureGallery
+from identity_manager import GlobalIdentityManager
 from pipeline_worker import DetectionWorker
 from vehicle_identity_store import VehicleIdentityStore
 from video_detector import TrackedDetection
@@ -102,6 +104,85 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
             finally:
                 observer.close()
                 store.close()
+
+
+class ReIDRuntimeOptimizationTests(unittest.TestCase):
+    def test_embedding_is_reused_for_stable_local_track(self) -> None:
+        import cv2
+        import numpy as np
+
+        frame = np.zeros((180, 260, 3), dtype=np.uint8)
+        rng = np.random.default_rng(17)
+        frame[30:130, 50:170] = rng.integers(35, 225, size=(100, 120, 3), dtype=np.uint8)
+        cv2.rectangle(frame, (50, 30), (170, 130), (255, 255, 255), 2)
+
+        class CountingExtractor:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def extract(self, _frame, bbox):
+                self.calls += 1
+                vector = np.asarray([bbox[0] + bbox[2], bbox[1] + bbox[3], 1.0], dtype=np.float32)
+                vector /= np.linalg.norm(vector)
+                return vector.tolist()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "identity.sqlite3"
+            store = VehicleIdentityStore(db_path)
+            first = detection(track_id=7, frame_index=1)
+            first.bbox = (50.0, 30.0, 170.0, 130.0)
+            first.center = (110.0, 80.0)
+            vehicle_id = store.create_vehicle(first)
+            gallery = FeatureGallery(db_path)
+            extractor = CountingExtractor()
+            gallery.embedding_extractor = extractor
+            self.assertTrue(gallery.add_master_feature(vehicle_id, first, frame).accepted)
+
+            for frame_index in (2, 3, 4):
+                candidate = detection(track_id=11, frame_index=frame_index)
+                candidate.bbox = (51.0, 30.0, 171.0, 130.0)
+                candidate.center = (111.0, 80.0)
+                self.assertTrue(gallery.rank_detections_for_vehicle(vehicle_id, [candidate], frame))
+
+            self.assertEqual(extractor.calls, 2)
+            gallery.close()
+            store.close()
+
+    def test_reid_search_prioritizes_predicted_track_corridor(self) -> None:
+        import numpy as np
+
+        class RecordingGallery:
+            def __init__(self) -> None:
+                self.seen_track_ids: list[int | None] = []
+
+            def has_master_features(self, _vehicle_id: int) -> bool:
+                return True
+
+            def rank_detections_for_vehicle(self, _vehicle_id, detections, _frame):
+                self.seen_track_ids = [item.track_id for item in detections]
+                return []
+
+        frame = np.full((360, 640, 3), 90, dtype=np.uint8)
+        gallery = RecordingGallery()
+        manager = GlobalIdentityManager(feature_gallery=gallery)  # type: ignore[arg-type]
+        initial = detection(track_id=1, frame_index=1)
+        initial.center = (100.0, 180.0)
+        initial.bbox = (60.0, 140.0, 140.0, 220.0)
+        manager.select_detection(initial, frame, persist=True)
+        moved = detection(track_id=1, frame_index=2)
+        moved.center = (120.0, 180.0)
+        moved.bbox = (80.0, 140.0, 160.0, 220.0)
+        manager.update([moved], frame)
+
+        nearby = detection(track_id=2, frame_index=3)
+        nearby.center = (145.0, 180.0)
+        far = detection(track_id=3, frame_index=3)
+        far.center = (560.0, 50.0)
+        manager.update([far, nearby], frame)
+
+        self.assertEqual(gallery.seen_track_ids, [2])
+        self.assertEqual(manager.selected_global_vehicle_id, 1)
+        self.assertEqual(manager.selected_local_track_id, 1)
 
 
 if __name__ == "__main__":

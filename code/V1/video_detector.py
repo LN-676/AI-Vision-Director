@@ -160,7 +160,7 @@ class VideoDetector:
         elif self.config.source_type == "iphone":
             if self.frame_provider is None:
                 raise ValueError("frame_provider is required for iphone input")
-            self.source_fps = 8.0
+            self.source_fps = 15.0
             self.source_frame_count = None
             self._configure_tracker_buffer()
 

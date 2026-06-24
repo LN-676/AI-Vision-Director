@@ -46,7 +46,7 @@ struct GimbalVelocityCalculator: Sendable {
     }
 
     mutating func velocity(for tracking: TrackingCommand) -> GimbalVelocity {
-        guard tracking.targetLocked else {
+        guard tracking.isTrackable() else {
             reset()
             return .zero
         }

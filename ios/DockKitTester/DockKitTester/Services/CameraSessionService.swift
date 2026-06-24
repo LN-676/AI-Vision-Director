@@ -276,7 +276,9 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private var lastFrameTime = 0.0
-    private let minimumFrameInterval = 1.0 / 8.0
+    // Fifteen FPS is a practical tracking target for the 640 px JPEG stream:
+    // responsive enough for the control loop without saturating Wi-Fi or the CPU.
+    private let minimumFrameInterval = 1.0 / 15.0
     private let orientationLock = NSLock()
     private var orientation: CameraStreamOrientation = .portrait
 

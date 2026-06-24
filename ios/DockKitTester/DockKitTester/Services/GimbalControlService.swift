@@ -53,8 +53,8 @@ final class GimbalControlService: ObservableObject {
         let velocity = calculator.velocity(for: trackingCommand)
         currentVelocity = velocity
 
-        guard trackingCommand.targetLocked else {
-            await emergencyStop(reason: "target_locked=false")
+        guard trackingCommand.isTrackable() else {
+            await emergencyStop(reason: "target unavailable or confidence below safety threshold")
             return
         }
 

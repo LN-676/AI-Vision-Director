@@ -59,6 +59,19 @@ class DetectionFeatureMatch:
     matches: list[FeatureMatch]
 
 
+@dataclass
+class _CachedDetectionEmbedding:
+    embedding: list[float]
+    frame_index: int
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass
+class _CachedGalleryFeature:
+    match: FeatureMatch
+    embedding: list[float]
+
+
 class FeatureIndexBackend(Protocol):
     """Reserved vector-index interface for future FAISS, Qdrant, or Milvus use."""
 
@@ -133,16 +146,24 @@ class FeatureGallery:
         self.duplicate_threshold = duplicate_threshold
         self.min_match_score = min_match_score
         self.embedding_extractor: ReIDEmbeddingExtractor | None = None
+        self._detection_embedding_cache: dict[int, _CachedDetectionEmbedding] = {}
+        self._gallery_feature_cache: dict[tuple[GalleryType, int | None], list[_CachedGalleryFeature]] = {}
         self._ensure_schema()
 
     def close(self) -> None:
+        self.reset_runtime_cache()
         self.connection.close()
+
+    def reset_runtime_cache(self) -> None:
+        self._detection_embedding_cache.clear()
+        self._gallery_feature_cache.clear()
 
     def set_reid_model(self, model_path: str) -> None:
         if model_path == self.reid_model_path:
             return
         self.reid_model_path = model_path
         self.embedding_extractor = None
+        self._detection_embedding_cache.clear()
 
     def add_master_feature(
         self,
@@ -227,30 +248,19 @@ class FeatureGallery:
         top_k: int = 5,
         vehicle_id: int | None = None,
     ) -> list[FeatureMatch]:
-        rows = self.connection.execute(
-            """
-            SELECT id, vehicle_id, gallery_type, embedding_json, quality_score, frame_index
-            FROM vehicle_features
-            WHERE gallery_type = ?
-              AND embedding_json IS NOT NULL
-              AND (? IS NULL OR vehicle_id = ?)
-            """,
-            (gallery_type, vehicle_id, vehicle_id),
-        ).fetchall()
         matches: list[FeatureMatch] = []
-        for row in rows:
-            embedding = self._vector_from_json(row["embedding_json"])
-            score = self.cosine_similarity(query_embedding, embedding)
+        for cached in self._cached_gallery_features(gallery_type, vehicle_id):
+            score = self.cosine_similarity(query_embedding, cached.embedding)
             if score <= 0.0:
                 continue
             matches.append(
                 FeatureMatch(
-                    feature_id=int(row["id"]),
-                    vehicle_id=int(row["vehicle_id"]),
-                    gallery_type=str(row["gallery_type"]),  # type: ignore[arg-type]
+                    feature_id=cached.match.feature_id,
+                    vehicle_id=cached.match.vehicle_id,
+                    gallery_type=cached.match.gallery_type,
                     score=score,
-                    quality_score=float(row["quality_score"]),
-                    frame_index=int(row["frame_index"]),
+                    quality_score=cached.match.quality_score,
+                    frame_index=cached.match.frame_index,
                 )
             )
         matches.sort(key=lambda item: item.score, reverse=True)
@@ -271,7 +281,7 @@ class FeatureGallery:
             quality = self.assess_crop_quality(frame, detection.bbox)
             if not quality.accepted:
                 continue
-            embedding = self._extract_embedding(frame, detection)
+            embedding = self._extract_embedding(frame, detection, use_runtime_cache=True)
             if embedding is None:
                 continue
             matches = self.match_top_k(
@@ -332,6 +342,7 @@ class FeatureGallery:
     def delete_vehicle_features(self, vehicle_id: int) -> int:
         cursor = self.connection.execute("DELETE FROM vehicle_features WHERE vehicle_id = ?", (vehicle_id,))
         self.connection.commit()
+        self._gallery_feature_cache.clear()
         return int(cursor.rowcount or 0)
 
     def first_feature_crop_jpeg(self, vehicle_id: int) -> bytes | None:
@@ -467,6 +478,7 @@ class FeatureGallery:
             ),
         )
         self.connection.commit()
+        self._gallery_feature_cache.clear()
         return int(cursor.lastrowid)
 
     def _prune_master_features(self, vehicle_id: int) -> None:
@@ -486,6 +498,7 @@ class FeatureGallery:
         placeholders = ",".join("?" for _ in ids)
         self.connection.execute(f"DELETE FROM vehicle_features WHERE id IN ({placeholders})", ids)
         self.connection.commit()
+        self._gallery_feature_cache.clear()
 
     def _max_similarity_for_vehicle(
         self,
@@ -496,10 +509,92 @@ class FeatureGallery:
         matches = self.match_top_k(embedding, gallery_type=gallery_type, top_k=1, vehicle_id=vehicle_id)
         return matches[0].score if matches else None
 
-    def _extract_embedding(self, frame, detection: TrackedDetection) -> list[float] | None:
+    def _extract_embedding(
+        self,
+        frame,
+        detection: TrackedDetection,
+        use_runtime_cache: bool = False,
+    ) -> list[float] | None:
+        track_id = detection.track_id
+        if use_runtime_cache and track_id is not None:
+            cached = self._detection_embedding_cache.get(track_id)
+            if (
+                cached is not None
+                and 0 <= detection.frame_index - cached.frame_index <= 4
+                and self._bbox_iou(cached.bbox, detection.bbox) >= 0.5
+            ):
+                return cached.embedding
         if self.embedding_extractor is None:
             self.embedding_extractor = ReIDEmbeddingExtractor(ReIDEmbeddingConfig(model_path=self.reid_model_path))
-        return self.embedding_extractor.extract(frame, detection.bbox)
+        embedding = self.embedding_extractor.extract(frame, detection.bbox)
+        if embedding is not None and use_runtime_cache and track_id is not None:
+            self._detection_embedding_cache[track_id] = _CachedDetectionEmbedding(
+                embedding=embedding,
+                frame_index=detection.frame_index,
+                bbox=detection.bbox,
+            )
+            if len(self._detection_embedding_cache) > 256:
+                oldest_track_id = min(
+                    self._detection_embedding_cache,
+                    key=lambda key: self._detection_embedding_cache[key].frame_index,
+                )
+                self._detection_embedding_cache.pop(oldest_track_id, None)
+        return embedding
+
+    def _cached_gallery_features(
+        self,
+        gallery_type: GalleryType,
+        vehicle_id: int | None,
+    ) -> list[_CachedGalleryFeature]:
+        key = (gallery_type, vehicle_id)
+        cached = self._gallery_feature_cache.get(key)
+        if cached is not None:
+            return cached
+        rows = self.connection.execute(
+            """
+            SELECT id, vehicle_id, gallery_type, embedding_json, quality_score, frame_index
+            FROM vehicle_features
+            WHERE gallery_type = ?
+              AND embedding_json IS NOT NULL
+              AND (? IS NULL OR vehicle_id = ?)
+            """,
+            (gallery_type, vehicle_id, vehicle_id),
+        ).fetchall()
+        features: list[_CachedGalleryFeature] = []
+        for row in rows:
+            embedding = self._vector_from_json(row["embedding_json"])
+            if embedding is None:
+                continue
+            features.append(
+                _CachedGalleryFeature(
+                    match=FeatureMatch(
+                        feature_id=int(row["id"]),
+                        vehicle_id=int(row["vehicle_id"]),
+                        gallery_type=str(row["gallery_type"]),  # type: ignore[arg-type]
+                        score=0.0,
+                        quality_score=float(row["quality_score"]),
+                        frame_index=int(row["frame_index"]),
+                    ),
+                    embedding=embedding,
+                )
+            )
+        self._gallery_feature_cache[key] = features
+        return features
+
+    @staticmethod
+    def _bbox_iou(
+        first: tuple[float, float, float, float],
+        second: tuple[float, float, float, float],
+    ) -> float:
+        left = max(first[0], second[0])
+        top = max(first[1], second[1])
+        right = min(first[2], second[2])
+        bottom = min(first[3], second[3])
+        intersection = max(0.0, right - left) * max(0.0, bottom - top)
+        first_area = max(0.0, first[2] - first[0]) * max(0.0, first[3] - first[1])
+        second_area = max(0.0, second[2] - second[0]) * max(0.0, second[3] - second[1])
+        union = first_area + second_area - intersection
+        return intersection / union if union > 0.0 else 0.0
 
     def _ensure_schema(self) -> None:
         self.connection.execute(

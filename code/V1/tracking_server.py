@@ -52,12 +52,18 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
 
     frame_h, frame_w = frame_shape[:2]
     targets = frame_data.selected_targets
-    locked = bool(targets) and frame_data.tracking_status == "tracking"
-    if not locked:
+    fresh_target = next(
+        (
+            target
+            for target in targets
+            if target.status == "tracking" and target.lost_frame_count == 0
+        ),
+        None,
+    )
+    if fresh_target is None or frame_data.tracking_status != "tracking":
         return tracking_message(target_locked=False, sequence=sequence)
 
     status = frame_data.framing_status
-    target = targets[0]
     target_id = frame_data.selected_global_vehicle_id
     if target_id is None:
         target_id = frame_data.selected_local_track_id
@@ -66,7 +72,7 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
         target_id=target_id,
         error_x=status.error_x / max(1.0, frame_w / 2.0),
         error_y=status.error_y / max(1.0, frame_h / 2.0),
-        confidence=target.confidence,
+        confidence=fresh_target.confidence,
         sequence=sequence,
     )
 
