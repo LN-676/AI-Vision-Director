@@ -3,24 +3,33 @@ import SwiftUI
 
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
+    let videoDevice: AVCaptureDevice?
     let onFocus: (CGPoint) -> Void
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
+        view.videoDevice = videoDevice
         view.onFocus = onFocus
         return view
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
         uiView.previewLayer.session = session
+        uiView.videoDevice = videoDevice
         uiView.onFocus = onFocus
     }
 }
 
 final class PreviewView: UIView {
     var onFocus: ((CGPoint) -> Void)?
+    var videoDevice: AVCaptureDevice? {
+        didSet { configureRotationCoordinatorIfPossible() }
+    }
+
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    private var rotationObservation: NSKeyValueObservation?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -40,21 +49,38 @@ final class PreviewView: UIView {
         layer as! AVCaptureVideoPreviewLayer
     }
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        configureRotationCoordinatorIfPossible()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        guard let connection = previewLayer.connection,
-              let orientation = window?.windowScene?.interfaceOrientation else { return }
-        let angle: CGFloat
-        switch orientation {
-        case .portrait: angle = 90
-        case .portraitUpsideDown: angle = 270
-        // The rear camera sensor's zero-degree orientation is landscape right.
-        // UIInterfaceOrientation names the direction of the interface, so the
-        // two landscape angles are the reverse of UIDevice's physical naming.
-        case .landscapeLeft: angle = 180
-        case .landscapeRight: angle = 0
-        default: return
+        if let rotationCoordinator {
+            applyRotationAngle(rotationCoordinator.videoRotationAngleForHorizonLevelPreview)
         }
+    }
+
+    private func configureRotationCoordinatorIfPossible() {
+        guard window != nil, let videoDevice else { return }
+        if rotationCoordinator?.device === videoDevice { return }
+
+        rotationObservation?.invalidate()
+        let coordinator = AVCaptureDevice.RotationCoordinator(
+            device: videoDevice,
+            previewLayer: previewLayer
+        )
+        rotationCoordinator = coordinator
+        rotationObservation = coordinator.observe(
+            \.videoRotationAngleForHorizonLevelPreview,
+            options: [.initial, .new]
+        ) { [weak self] coordinator, _ in
+            self?.applyRotationAngle(coordinator.videoRotationAngleForHorizonLevelPreview)
+        }
+    }
+
+    private func applyRotationAngle(_ angle: CGFloat) {
+        guard let connection = previewLayer.connection else { return }
         if connection.isVideoRotationAngleSupported(angle) {
             connection.videoRotationAngle = angle
         }

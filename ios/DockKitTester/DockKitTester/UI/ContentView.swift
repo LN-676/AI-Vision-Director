@@ -155,6 +155,7 @@ private struct CameraControlPage: View {
                 ZStack(alignment: .top) {
                     CameraPreviewView(
                         session: cameraSession.session,
+                        videoDevice: cameraSession.videoDevice,
                         onFocus: cameraSession.focus(at:)
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

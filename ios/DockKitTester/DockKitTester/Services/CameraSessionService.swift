@@ -29,6 +29,7 @@ enum CameraStreamOrientation: String, CaseIterable, Identifiable {
 @MainActor
 final class CameraSessionService: ObservableObject {
     var session: AVCaptureSession { capture.session }
+    var videoDevice: AVCaptureDevice? { capture.camera }
     var onJPEGFrame: (@Sendable (Data) -> Void)? {
         didSet { capture.frameStreamer.onFrame = onJPEGFrame }
     }

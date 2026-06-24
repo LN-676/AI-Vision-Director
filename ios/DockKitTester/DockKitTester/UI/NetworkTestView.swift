@@ -3,6 +3,7 @@ import SwiftUI
 struct NetworkTestView: View {
     @ObservedObject var client: V13NetworkClient
     let canInjectCommand: Bool
+    @FocusState private var isServerURLFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -19,15 +20,20 @@ struct NetworkTestView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
+                .submitLabel(.done)
+                .focused($isServerURLFocused)
+                .onSubmit { isServerURLFocused = false }
                 .textFieldStyle(.roundedBorder)
 
             HStack {
                 Button("Connect") {
+                    isServerURLFocused = false
                     Task { await client.connect() }
                 }
                 .buttonStyle(.borderedProminent)
 
                 Button("Disconnect") {
+                    isServerURLFocused = false
                     Task { await client.disconnect() }
                 }
                 .buttonStyle(.bordered)
@@ -60,6 +66,14 @@ struct NetworkTestView: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
+        .contentShape(Rectangle())
+        .onTapGesture { isServerURLFocused = false }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { isServerURLFocused = false }
+            }
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
