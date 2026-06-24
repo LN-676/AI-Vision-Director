@@ -51,6 +51,17 @@ class TrackShotDecision:
     reason: str
 
 
+def should_publish_motor_tracking(
+    source_type: str,
+    motor_armed: bool,
+    motor_ready: bool,
+    decision: TrackShotDecision,
+) -> bool:
+    """Allow physical motor commands only for an explicitly armed iPhone feed."""
+
+    return source_type == "iphone" and motor_armed and motor_ready and decision.publish_tracking
+
+
 class TrackShotController:
     """Gates motor tracking for fixed cuts and operator-defined In/Out shots."""
 

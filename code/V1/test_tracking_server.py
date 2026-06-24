@@ -24,7 +24,13 @@ except ImportError:  # pragma: no cover
 class TrackingMessageTests(unittest.TestCase):
     def test_normalizes_pixel_error(self) -> None:
         frame_data = SimpleNamespace(
-            selected_targets=[SimpleNamespace(confidence=0.91, status="tracking", lost_frame_count=0)],
+            selected_targets=[SimpleNamespace(
+                confidence=0.91,
+                status="tracking",
+                lost_frame_count=0,
+                center=(480.0, 90.0),
+                bbox=(400.0, 50.0, 560.0, 130.0),
+            )],
             tracking_status="tracking",
             framing_status=SimpleNamespace(error_x=160.0, error_y=-90.0),
             selected_global_vehicle_id=12,
@@ -38,6 +44,10 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertAlmostEqual(message["error_x"], 0.5)
         self.assertAlmostEqual(message["error_y"], -0.5)
         self.assertEqual(message["sequence"], 42)
+        self.assertEqual(message["frame_width"], 640)
+        self.assertEqual(message["frame_height"], 360)
+        self.assertAlmostEqual(message["target_x"], 0.75)
+        self.assertAlmostEqual(message["bbox_width"], 0.25)
 
     def test_lost_target_emits_stop(self) -> None:
         frame_data = SimpleNamespace(
@@ -74,6 +84,25 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertEqual(message["error_y"], -1.0)
         self.assertEqual(message["confidence"], 1.0)
         self.assertEqual(message["source_version"], "1.6")
+
+    def test_motor_status_reports_dockkit_readiness(self) -> None:
+        server = TrackingWebSocketServer()
+
+        server._accept_motor_status(
+            json.dumps(
+                {
+                    "type": "motor_status",
+                    "docked": True,
+                    "manual_ready": True,
+                    "system_tracking_enabled": False,
+                    "last_error": None,
+                    "timestamp_ms": 123,
+                }
+            )
+        )
+
+        self.assertTrue(server.motor_ready)
+        self.assertEqual(server.motor_status.timestamp_ms, 123)
 
     def test_server_round_trip(self) -> None:
         with socket.socket() as probe:

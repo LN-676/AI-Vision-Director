@@ -96,6 +96,12 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
                 ).fetchone()[0]
                 self.assertEqual(before_flush, 1)
 
+                # A pending frame update must not hold a SQLite write lock
+                # against the independent feature-gallery connection.
+                gallery = FeatureGallery(db_path)
+                self.assertEqual(gallery.summary_by_vehicle(), {})
+                gallery.close()
+
                 store.flush()
                 after_flush = observer.execute(
                     "SELECT last_frame_index FROM vehicles WHERE id = ?", (vehicle_id,)
@@ -104,6 +110,33 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
             finally:
                 observer.close()
                 store.close()
+
+    def test_programmatic_jpg_import_uses_full_image(self) -> None:
+        import cv2
+        import numpy as np
+
+        class StaticExtractor:
+            available = True
+
+            def extract(self, _frame, _bbox):
+                return [1.0, 0.0, 0.0]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "identity.sqlite3"
+            jpg_path = Path(temp_dir) / "vehicle.jpg"
+            image = np.random.default_rng(4).integers(20, 230, size=(120, 180, 3), dtype=np.uint8)
+            self.assertTrue(cv2.imwrite(str(jpg_path), image))
+            store = VehicleIdentityStore(db_path)
+            vehicle_id = store.create_vehicle(detection())
+            gallery = FeatureGallery(db_path)
+            gallery.embedding_extractor = StaticExtractor()
+
+            result = gallery.import_jpg(vehicle_id, jpg_path)
+
+            self.assertTrue(result.accepted)
+            self.assertEqual(gallery.summary_by_vehicle()[vehicle_id]["master"], 1)
+            gallery.close()
+            store.close()
 
 
 class ReIDRuntimeOptimizationTests(unittest.TestCase):

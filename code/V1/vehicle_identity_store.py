@@ -66,7 +66,7 @@ class VehicleIdentityStore:
         self.connection.row_factory = sqlite3.Row
         self.commit_interval_seconds = max(0.0, float(commit_interval_seconds))
         self._last_commit_at = time()
-        self._has_pending_write = False
+        self._pending_updates: dict[int, tuple[Any, ...]] = {}
         self._ensure_schema()
 
     def close(self) -> None:
@@ -74,11 +74,28 @@ class VehicleIdentityStore:
         self.connection.close()
 
     def flush(self) -> None:
-        if not self._has_pending_write:
+        if not self._pending_updates:
             return
+        for parameters in self._pending_updates.values():
+            self.connection.execute(
+                """
+                UPDATE vehicles
+                SET updated_at = ?,
+                    class_name = ?,
+                    last_track_id = ?,
+                    last_frame_index = ?,
+                    last_seen_timestamp = ?,
+                    confidence = ?,
+                    bbox_json = ?,
+                    center_json = ?,
+                    metadata_json = COALESCE(?, metadata_json)
+                WHERE id = ?
+                """,
+                parameters,
+            )
         self.connection.commit()
         self._last_commit_at = time()
-        self._has_pending_write = False
+        self._pending_updates.clear()
 
     def create_vehicle(self, detection: TrackedDetection, metadata: dict[str, Any] | None = None) -> int:
         now = time()
@@ -122,36 +139,26 @@ class VehicleIdentityStore:
         metadata: dict[str, Any] | None = None,
     ) -> bool:
         payload = self._detection_payload(detection)
-        cursor = self.connection.execute(
-            """
-            UPDATE vehicles
-            SET updated_at = ?,
-                class_name = ?,
-                last_track_id = ?,
-                last_frame_index = ?,
-                last_seen_timestamp = ?,
-                confidence = ?,
-                bbox_json = ?,
-                center_json = ?,
-                metadata_json = COALESCE(?, metadata_json)
-            WHERE id = ?
-            """,
-            (
-                time(),
-                detection.class_name,
-                detection.track_id,
-                detection.frame_index,
-                detection.timestamp,
-                detection.confidence,
-                payload["bbox_json"],
-                payload["center_json"],
-                self._metadata_json(metadata),
-                vehicle_id,
-            ),
+        exists = self.connection.execute(
+            "SELECT 1 FROM vehicles WHERE id = ?",
+            (vehicle_id,),
+        ).fetchone() is not None
+        if not exists:
+            return False
+        self._pending_updates[vehicle_id] = (
+            time(),
+            detection.class_name,
+            detection.track_id,
+            detection.frame_index,
+            detection.timestamp,
+            detection.confidence,
+            payload["bbox_json"],
+            payload["center_json"],
+            self._metadata_json(metadata),
+            vehicle_id,
         )
-        self._has_pending_write = cursor.rowcount > 0 or self._has_pending_write
         self._commit_if_due()
-        return cursor.rowcount > 0
+        return True
 
     def get_vehicle(self, vehicle_id: int) -> StoredVehicleIdentity | None:
         row = self.connection.execute(
@@ -224,12 +231,12 @@ class VehicleIdentityStore:
         return False
 
     def _commit_if_due(self) -> None:
-        if self._has_pending_write and time() - self._last_commit_at >= self.commit_interval_seconds:
+        if self._pending_updates and time() - self._last_commit_at >= self.commit_interval_seconds:
             self.flush()
 
     def _commit_now(self) -> None:
-        self._has_pending_write = True
-        self.flush()
+        self.connection.commit()
+        self._last_commit_at = time()
 
     def summary(self, feature_counts: dict[int, dict[str, int]] | None = None, limit: int = 50) -> IdentityStoreSummary:
         feature_counts = feature_counts or {}

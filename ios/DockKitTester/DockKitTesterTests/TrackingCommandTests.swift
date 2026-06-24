@@ -38,8 +38,26 @@ final class TrackingCommandTests: XCTestCase {
 
     func testTrackingRequiresConfidenceAndFiniteErrors() {
         XCTAssertTrue(makeCommand(sequence: 1, confidence: 0.8).isTrackable())
-        XCTAssertFalse(makeCommand(sequence: 2, confidence: 0.2).isTrackable())
+        XCTAssertTrue(makeCommand(sequence: 2, confidence: 0.2).isTrackable())
+        XCTAssertFalse(makeCommand(sequence: 2, confidence: 0.19).isTrackable())
         XCTAssertFalse(makeCommand(sequence: 3, confidence: 0.8, errorX: .infinity).isTrackable())
+    }
+
+    func testMotorStatusUsesSnakeCaseWireKeys() throws {
+        let message = MotorStatusMessage(
+            docked: true,
+            manualReady: true,
+            systemTrackingEnabled: false,
+            lastError: nil,
+            timestampMs: 123
+        )
+
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(message)) as? [String: Any]
+
+        XCTAssertEqual(object?["type"] as? String, "motor_status")
+        XCTAssertEqual(object?["manual_ready"] as? Bool, true)
+        XCTAssertEqual(object?["system_tracking_enabled"] as? Bool, false)
+        XCTAssertEqual(object?["timestamp_ms"] as? Int, 123)
     }
 
     func testSequenceValidatorRejectsDuplicateAndOutOfOrderCommands() {

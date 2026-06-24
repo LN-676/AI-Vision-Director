@@ -107,6 +107,29 @@ final class V13NetworkClient: ObservableObject {
         }
     }
 
+    func sendMotorStatus(
+        docked: Bool,
+        manualReady: Bool,
+        systemTrackingEnabled: Bool?,
+        lastError: String?
+    ) async {
+        guard let socketTask, status != .offline, status != .failed else { return }
+        let message = MotorStatusMessage(
+            docked: docked,
+            manualReady: manualReady,
+            systemTrackingEnabled: systemTrackingEnabled,
+            lastError: lastError,
+            timestampMs: Int64(Date().timeIntervalSince1970 * 1_000)
+        )
+        do {
+            let data = try JSONEncoder().encode(message)
+            guard let text = String(data: data, encoding: .utf8) else { return }
+            try await socketTask.send(.string(text))
+        } catch {
+            logger.log(.error, "Motor status send failed: \(error.localizedDescription)")
+        }
+    }
+
     func sendFakeCommand() async {
         let json = #"{"type":"tracking","version":"1.0","source_version":"1.6","target_locked":true,"target_id":7,"error_x":0.18,"error_y":-0.04,"confidence":0.91,"timestamp_ms":1781770000000}"#
         logger.log(.info, "Injecting a fake V1.6 JSON command.")

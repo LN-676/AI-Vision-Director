@@ -22,6 +22,19 @@ class TrackingServerConfig:
     publish_hz: float = 20.0
 
 
+@dataclass(frozen=True)
+class MotorStatus:
+    docked: bool
+    manual_ready: bool
+    system_tracking_enabled: bool | None
+    last_error: str | None
+    timestamp_ms: int
+
+    @property
+    def ready(self) -> bool:
+        return self.docked and self.manual_ready and self.system_tracking_enabled is False
+
+
 def tracking_message(
     *,
     target_locked: bool,
@@ -30,10 +43,16 @@ def tracking_message(
     confidence: float = 0.0,
     target_id: int | None = None,
     sequence: int = 0,
+    frame_width: int | None = None,
+    frame_height: int | None = None,
+    target_x: float | None = None,
+    target_y: float | None = None,
+    bbox_width: float | None = None,
+    bbox_height: float | None = None,
 ) -> dict[str, Any]:
     """Build the versioned wire message consumed by TrackingCommand.swift."""
 
-    return {
+    message = {
         "type": "tracking",
         "version": "1.0",
         "source_version": "1.6",
@@ -45,6 +64,18 @@ def tracking_message(
         "confidence": max(0.0, min(1.0, float(confidence))),
         "timestamp_ms": int(time() * 1000),
     }
+    if frame_width is not None and frame_height is not None:
+        message.update(
+            {
+                "frame_width": int(frame_width),
+                "frame_height": int(frame_height),
+                "target_x": max(0.0, min(1.0, float(target_x or 0.0))),
+                "target_y": max(0.0, min(1.0, float(target_y or 0.0))),
+                "bbox_width": max(0.0, min(1.0, float(bbox_width or 0.0))),
+                "bbox_height": max(0.0, min(1.0, float(bbox_height or 0.0))),
+            }
+        )
+    return message
 
 
 def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[str, Any]:
@@ -64,6 +95,7 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
         return tracking_message(target_locked=False, sequence=sequence)
 
     status = frame_data.framing_status
+    bbox = fresh_target.bbox
     target_id = frame_data.selected_global_vehicle_id
     if target_id is None:
         target_id = frame_data.selected_local_track_id
@@ -74,6 +106,12 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
         error_y=status.error_y / max(1.0, frame_h / 2.0),
         confidence=fresh_target.confidence,
         sequence=sequence,
+        frame_width=frame_w,
+        frame_height=frame_h,
+        target_x=fresh_target.center[0] / max(1.0, frame_w),
+        target_y=fresh_target.center[1] / max(1.0, frame_h),
+        bbox_width=(bbox[2] - bbox[0]) / max(1.0, frame_w),
+        bbox_height=(bbox[3] - bbox[1]) / max(1.0, frame_h),
     )
 
 
@@ -92,6 +130,8 @@ class TrackingWebSocketServer:
         self._stop_event: asyncio.Event | None = None
         self._clients: set[Any] = set()
         self._frame_lock = threading.Lock()
+        self._motor_status_lock = threading.Lock()
+        self._latest_motor_status: MotorStatus | None = None
         self._latest_frame_bytes: bytes | None = None
         self._received_frame_count = 0
         self._sequence = 0
@@ -105,6 +145,16 @@ class TrackingWebSocketServer:
     @property
     def client_count(self) -> int:
         return len(self._clients)
+
+    @property
+    def motor_status(self) -> MotorStatus | None:
+        with self._motor_status_lock:
+            return self._latest_motor_status
+
+    @property
+    def motor_ready(self) -> bool:
+        status = self.motor_status
+        return bool(status and status.ready)
 
     @property
     def local_urls(self) -> list[str]:
@@ -279,10 +329,15 @@ class TrackingWebSocketServer:
             async for message in websocket:
                 if isinstance(message, bytes):
                     self._accept_camera_frame(message)
+                elif isinstance(message, str):
+                    self._accept_motor_status(message)
         except ConnectionClosed:
             pass
         finally:
             self._clients.discard(websocket)
+            if not self._clients:
+                with self._motor_status_lock:
+                    self._latest_motor_status = None
             self._notify("iPhone disconnected" if not self._clients else f"iPhone connected ({len(self._clients)})")
 
     async def _broadcast(self, payload: dict[str, Any]) -> None:
@@ -304,6 +359,27 @@ class TrackingWebSocketServer:
             first_frame = self._received_frame_count == 1
         if first_frame:
             self._notify("iPhone video receiving")
+
+    def _accept_motor_status(self, message: str) -> None:
+        try:
+            payload = json.loads(message)
+        except (TypeError, json.JSONDecodeError):
+            return
+        if payload.get("type") != "motor_status":
+            return
+        status = MotorStatus(
+            docked=bool(payload.get("docked", False)),
+            manual_ready=bool(payload.get("manual_ready", False)),
+            system_tracking_enabled=payload.get("system_tracking_enabled"),
+            last_error=str(payload["last_error"]) if payload.get("last_error") else None,
+            timestamp_ms=int(payload.get("timestamp_ms", 0)),
+        )
+        with self._motor_status_lock:
+            self._latest_motor_status = status
+        state = "motor ready" if status.ready else "motor not ready"
+        if status.last_error:
+            state = f"motor error: {status.last_error}"
+        self._notify(f"iPhone connected · {state}")
 
     def _notify(self, message: str) -> None:
         if self.on_status is not None:

@@ -17,6 +17,7 @@ from io import BytesIO
 from pathlib import Path
 from queue import Empty, SimpleQueue
 import sys
+from threading import Thread
 from time import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
@@ -41,7 +42,7 @@ try:
     from reframer import FramingConfig, Reframer
     from scene_cut import SceneCutDetector
     from tracking_server import TrackingWebSocketServer
-    from track_shot_plan import TrackShotController, TrackZone
+    from track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
     from vehicle_identity_store import VehicleIdentityStore
 except ImportError:  # pragma: no cover
     from .auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
@@ -56,7 +57,7 @@ except ImportError:  # pragma: no cover
     from .reframer import FramingConfig, Reframer
     from .scene_cut import SceneCutDetector
     from .tracking_server import TrackingWebSocketServer
-    from .track_shot_plan import TrackShotController, TrackZone
+    from .track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
     from .vehicle_identity_store import VehicleIdentityStore
 
 
@@ -112,6 +113,10 @@ class AutoCamTrackerApp:
         self.iphone_status_queue: SimpleQueue[str] = SimpleQueue()
         self.tracking_server = TrackingWebSocketServer(on_status=self._queue_iphone_status)
         self.track_shot_controller = TrackShotController()
+        # Physical motor output is explicitly armed by Auto Track or Find GID.
+        # A selected target can therefore still drive digital reframing without
+        # unexpectedly moving the DockKit accessory.
+        self.iphone_motor_tracking_enabled = False
 
         self.running = False
         self.recording = False
@@ -151,6 +156,7 @@ class AutoCamTrackerApp:
         self.refresh_model_options()
         self.refresh_reid_model_options()
         self.root.after_idle(self.on_source_selected)
+        self.root.after_idle(self._preload_reid_model)
 
     def _build_ui(self) -> None:
         style = ttk.Style(self.root)
@@ -635,11 +641,12 @@ class AutoCamTrackerApp:
 
     def pause(self) -> None:
         self.running = False
+        self._disable_iphone_motor_tracking("tracking paused")
         self._update_transport_actions()
 
     def stop(self) -> None:
         self.running = False
-        self.tracking_server.publish_stop()
+        self._disable_iphone_motor_tracking("tracking stopped")
         if self.detector is not None:
             self._close_detector()
         self.detector = None
@@ -648,10 +655,12 @@ class AutoCamTrackerApp:
         self._update_transport_actions()
 
     def reset_tracking(self) -> None:
+        self._disable_iphone_motor_tracking("tracking reset")
         self._reset_runtime_state()
         self.refresh_identity_db_panel()
 
     def clear_selection(self) -> None:
+        self._disable_iphone_motor_tracking("selection cleared")
         self.identity_manager.reset()
         self.auto_feature_sampler.stop()
         self.auto_feature_status_message = ""
@@ -673,6 +682,7 @@ class AutoCamTrackerApp:
             self.video_path_var.set(f"Video: {self._short_label(Path(path).name)}")
 
     def on_source_selected(self, _event=None) -> None:
+        self._disable_iphone_motor_tracking("input source changed")
         if self.detector is not None:
             self.stop()
         self._update_source_controls()
@@ -726,7 +736,40 @@ class AutoCamTrackerApp:
     def _start_iphone_link(self) -> None:
         self._refresh_iphone_url()
         self.tracking_server.start()
-        self.iphone_connection_var.set("iPhone link: starting…")
+        if self.tracking_server.client_count == 0:
+            self.iphone_connection_var.set("iPhone link: starting…")
+
+    def _preload_reid_model(self) -> None:
+        Thread(target=self.feature_gallery.preload_embedding, name="reid-preload", daemon=True).start()
+
+    def _enable_iphone_motor_tracking(self, action: str) -> str:
+        """Arm physical gimbal output for a target-selection action."""
+
+        if self.source_var.get() != "iphone":
+            self.iphone_motor_tracking_enabled = False
+            self.tracking_server.publish_stop()
+            return "digital tracking only (motor requires iPhone input)"
+
+        self._start_iphone_link()
+        self.track_shot_mode_var.set("AI Tracking")
+        self.track_shot_controller.set_mode("AI Tracking")
+        self.track_shot_state_var.set("Shot: AI Tracking · tracking · motor armed")
+        self.iphone_motor_tracking_enabled = True
+        if self.tracking_server.client_count == 0:
+            return f"{action} motor armed; waiting for iPhone connection"
+        if not self.tracking_server.motor_ready:
+            return f"{action} motor armed; waiting for DockKit Manual Mode"
+        return f"{action} motor tracking ON"
+
+    def _disable_iphone_motor_tracking(self, reason: str) -> None:
+        """Disarm motor output and immediately send an explicit safety stop."""
+
+        self.iphone_motor_tracking_enabled = False
+        self.tracking_server.publish_stop()
+        if hasattr(self, "track_shot_state_var"):
+            self.track_shot_state_var.set(
+                f"Shot: {self.track_shot_controller.mode} · motor OFF · {reason}"
+            )
 
     def _refresh_iphone_url(self) -> str:
         url = self.tracking_server.preferred_url
@@ -900,19 +943,25 @@ class AutoCamTrackerApp:
     def auto_select_one(self) -> None:
         candidates = self.store.rank_candidates(self.last_frame_shape, strategy="stable")
         if not candidates or self.last_raw_frame is None:
+            self._disable_iphone_motor_tracking("Auto Track found no vehicle")
             self.identity_manager.reset()
             self.refresh_identity_db_panel()
+            self.status_var.set("Status: Auto Track found no visible vehicle; motor stopped")
             return
         detection = self._detection_for_track(candidates[0].track_id)
         if detection is None:
+            self._disable_iphone_motor_tracking("Auto Track target disappeared")
             self.identity_manager.reset()
             self.refresh_identity_db_panel()
+            self.status_var.set("Status: Auto Track target disappeared; motor stopped")
             return
         identity = self.identity_manager.select_detection(detection, self.last_raw_frame, persist=False)
+        motor_note = self._enable_iphone_motor_tracking("Auto Track")
         self.refresh_identity_db_panel()
         self.status_var.set(
             "Status: auto tracking local track "
-            f"{identity.last_track_id if identity.last_track_id is not None else '--'} without writing Identity DB"
+            f"{identity.last_track_id if identity.last_track_id is not None else '--'} without writing Identity DB; "
+            f"{motor_note}"
         )
 
     def on_views_resize(self, event) -> None:
@@ -1065,6 +1114,7 @@ class AutoCamTrackerApp:
             f"LID: {frame_data.selected_local_track_id if frame_data.selected_local_track_id is not None else '--'} | "
             f"Lost: {frame_data.lost_frames} | ReID: {frame_data.reacquire_score:.2f} | "
             f"Cut: {'yes' if frame_data.camera_cut_detected else 'no'} | "
+            f"Motor: {self._motor_state_label()} | "
             f"Crop: {frame_data.framing_status.crop_window}"
             f"{auto_feature_note}"
         )
@@ -1094,7 +1144,13 @@ class AutoCamTrackerApp:
         self.track_shot_state_var.set(
             f"Shot: {self.track_shot_controller.mode} · {shot_decision.state} · {shot_decision.reason}"
         )
-        if shot_decision.publish_tracking:
+        motor_output_active = should_publish_motor_tracking(
+            self.input_config.source_type,
+            self.iphone_motor_tracking_enabled,
+            self.tracking_server.motor_ready,
+            shot_decision,
+        )
+        if motor_output_active:
             self.tracking_server.publish_frame(frame_data, frame.shape)
         else:
             self.tracking_server.publish_stop()
@@ -1383,11 +1439,13 @@ class AutoCamTrackerApp:
 
         vehicle_ids = self._selected_identity_vehicle_ids()
         if not vehicle_ids:
+            self._disable_iphone_motor_tracking("Find GID has no selected identity")
             self._set_identity_mode("select a GID row before Find GID")
             return "break"
         vehicle_id = vehicle_ids[0]
 
         if self.last_raw_frame is None:
+            self._disable_iphone_motor_tracking("Find GID is waiting for video")
             self._set_identity_mode("Find GID waiting for current frame")
             self.status_var.set("Status: no current frame available for DB identity tracking")
             return "break"
@@ -1400,23 +1458,25 @@ class AutoCamTrackerApp:
         )
         self.refresh_identity_db_panel()
         if identity is None:
+            self._disable_iphone_motor_tracking("Find GID failed")
             self._set_identity_mode(f"GID {vehicle_id} was not found")
             self.status_var.set(f"Status: vehicle id {vehicle_id} was not found in Identity DB")
             return "break"
 
         label = self.identity_store.display_label(vehicle_id)
+        motor_note = self._enable_iphone_motor_tracking("Find GID")
         if identity.last_track_id is None:
             self._set_identity_mode(f"Find GID searching for GID {label}")
             self.status_var.set(
                 f"Status: no Master feature match for GID {label}; searching "
-                f"(score {score:.2f})"
+                f"(score {score:.2f}); {motor_note}"
             )
         else:
             self.identity_session_links.link(identity.last_track_id, vehicle_id)
             self._set_identity_mode(f"Find GID tracking GID {label}")
             self.status_var.set(
                 f"Status: tracking GID {label} on local track {identity.last_track_id} "
-                f"(score {score:.2f})"
+                f"(score {score:.2f}); {motor_note}"
             )
             if self.current_frame_data is not None:
                 self._update_images(
@@ -1913,24 +1973,22 @@ class AutoCamTrackerApp:
         annotated = frame.copy()
         for detection in detections:
             x1, y1, x2, y2 = [int(value) for value in detection.bbox]
-            global_id = self.identity_manager.global_id_for_detection(detection)
+            global_id = self.identity_session_links.vehicle_for_track(detection.track_id)
+            if global_id is None:
+                global_id = self.identity_manager.global_id_for_detection(detection)
             font_face = cv2.FONT_HERSHEY_SIMPLEX
             is_selected = self.identity_manager.is_selected_detection(detection)
             box_color = (0, 0, 255) if is_selected else (80, 220, 80)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 4 if is_selected else 3)
 
-            gid_height = 65 if is_selected else 50
-            lid_height = 30
-            gid_scale = cv2.getFontScaleFromHeight(font_face, gid_height, 3)
-            lid_scale = cv2.getFontScaleFromHeight(font_face, lid_height, 2)
-            text_x = max(0, x1)
-            gid_y = max(gid_height + 4, y1 - lid_height - 14)
-            lid_y = max(gid_height + lid_height + 10, y1 - 6)
-
-            if global_id is not None:
+            if is_selected:
+                gid_height = 52
+                gid_scale = cv2.getFontScaleFromHeight(font_face, gid_height, 3)
+                text_x = max(0, x1)
+                gid_y = max(gid_height + 4, y1 - 8)
                 cv2.putText(
                     annotated,
-                    str(global_id),
+                    f"GID {global_id if global_id is not None else '--'}",
                     (text_x, gid_y),
                     font_face,
                     gid_scale,
@@ -1938,17 +1996,16 @@ class AutoCamTrackerApp:
                     3,
                     cv2.LINE_AA,
                 )
-            cv2.putText(
-                annotated,
-                f"LID {detection.track_id}",
-                (text_x, lid_y),
-                font_face,
-                lid_scale,
-                box_color,
-                2,
-                cv2.LINE_AA,
-            )
         return annotated
+
+    def _motor_state_label(self) -> str:
+        if not self.iphone_motor_tracking_enabled:
+            return "OFF"
+        if self.tracking_server.client_count == 0:
+            return "WAITING IPHONE"
+        if not self.tracking_server.motor_ready:
+            return "WAITING DOCKKIT"
+        return "ON"
 
     def _update_images(self, before_frame, after_frame) -> None:
         if Image is None or ImageTk is None:

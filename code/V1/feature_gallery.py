@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
+from threading import Lock
 from time import time
 from typing import Any, Literal, Protocol
 
@@ -146,6 +147,7 @@ class FeatureGallery:
         self.duplicate_threshold = duplicate_threshold
         self.min_match_score = min_match_score
         self.embedding_extractor: ReIDEmbeddingExtractor | None = None
+        self._embedding_lock = Lock()
         self._detection_embedding_cache: dict[int, _CachedDetectionEmbedding] = {}
         self._gallery_feature_cache: dict[tuple[GalleryType, int | None], list[_CachedGalleryFeature]] = {}
         self._ensure_schema()
@@ -161,9 +163,50 @@ class FeatureGallery:
     def set_reid_model(self, model_path: str) -> None:
         if model_path == self.reid_model_path:
             return
-        self.reid_model_path = model_path
-        self.embedding_extractor = None
-        self._detection_embedding_cache.clear()
+        with self._embedding_lock:
+            self.reid_model_path = model_path
+            self.embedding_extractor = None
+            self._detection_embedding_cache.clear()
+
+    def preload_embedding(self) -> bool:
+        """Load the ReID model before the first operator feature action."""
+
+        with self._embedding_lock:
+            if self.embedding_extractor is None:
+                self.embedding_extractor = ReIDEmbeddingExtractor(
+                    ReIDEmbeddingConfig(model_path=self.reid_model_path)
+                )
+            return self.embedding_extractor.available
+
+    def import_jpg(
+        self,
+        vehicle_id: int,
+        jpg_path: Path | str,
+        class_name: str = "car",
+    ) -> FeatureAddResult:
+        """Programmatically add one JPG as a full-frame Master feature."""
+
+        import cv2
+
+        path = Path(jpg_path).expanduser()
+        if path.suffix.lower() not in {".jpg", ".jpeg"}:
+            raise ValueError("Feature imports must use JPG files")
+        frame = cv2.imread(str(path), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError(f"Unable to decode JPG feature: {path}")
+        height, width = frame.shape[:2]
+        detection = TrackedDetection(
+            track_id=None,
+            bbox=(0.0, 0.0, float(width), float(height)),
+            class_id=-1,
+            class_name=class_name,
+            confidence=1.0,
+            center=(width / 2.0, height / 2.0),
+            frame_index=int(time() * 1000),
+            timestamp=time(),
+            tracker_name="botsort",
+        )
+        return self.add_master_feature(vehicle_id, detection, frame)
 
     def add_master_feature(
         self,
@@ -524,9 +567,13 @@ class FeatureGallery:
                 and self._bbox_iou(cached.bbox, detection.bbox) >= 0.5
             ):
                 return cached.embedding
-        if self.embedding_extractor is None:
-            self.embedding_extractor = ReIDEmbeddingExtractor(ReIDEmbeddingConfig(model_path=self.reid_model_path))
-        embedding = self.embedding_extractor.extract(frame, detection.bbox)
+        feature_bbox = self._feature_bbox(frame, detection.bbox)
+        with self._embedding_lock:
+            if self.embedding_extractor is None:
+                self.embedding_extractor = ReIDEmbeddingExtractor(
+                    ReIDEmbeddingConfig(model_path=self.reid_model_path)
+                )
+            embedding = self.embedding_extractor.extract(frame, feature_bbox)
         if embedding is not None and use_runtime_cache and track_id is not None:
             self._detection_embedding_cache[track_id] = _CachedDetectionEmbedding(
                 embedding=embedding,
@@ -624,11 +671,23 @@ class FeatureGallery:
         self.connection.commit()
 
     @staticmethod
-    def _crop(frame, bbox: tuple[float, float, float, float]):
+    def _feature_bbox(frame, bbox: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
+        frame_h, frame_w = frame.shape[:2]
+        x1, y1, x2, y2 = bbox
+        center_x = (x1 + x2) / 2.0
+        center_y = (y1 + y2) / 2.0
+        target_w = min(float(frame_w), max(64.0, (x2 - x1) * 1.25))
+        target_h = min(float(frame_h), max(64.0, (y2 - y1) * 1.25))
+        left = max(0.0, min(float(frame_w) - target_w, center_x - target_w / 2.0))
+        top = max(0.0, min(float(frame_h) - target_h, center_y - target_h / 2.0))
+        return (left, top, left + target_w, top + target_h)
+
+    @classmethod
+    def _crop(cls, frame, bbox: tuple[float, float, float, float]):
         if frame is None:
             return None
         frame_h, frame_w = frame.shape[:2]
-        x1, y1, x2, y2 = bbox
+        x1, y1, x2, y2 = cls._feature_bbox(frame, bbox)
         left = max(0, min(frame_w - 1, int(round(x1))))
         top = max(0, min(frame_h - 1, int(round(y1))))
         right = max(left + 1, min(frame_w, int(round(x2))))

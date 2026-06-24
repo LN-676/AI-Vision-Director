@@ -34,6 +34,15 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: dockKitManager.isDocked) { _, _ in
+            Task { await publishMotorStatus() }
+        }
+        .onChange(of: dockKitManager.isManualControlReady) { _, _ in
+            Task { await publishMotorStatus() }
+        }
+        .onChange(of: dockKitManager.lastError) { _, _ in
+            Task { await publishMotorStatus() }
+        }
     }
 
     private var cameraTab: some View {
@@ -129,8 +138,19 @@ struct ContentView: View {
     }
 
     private func prepareServices() async {
-        cameraSession.onJPEGFrame = { [weak networkClient] data in
-            Task { @MainActor in await networkClient?.sendCameraFrame(data) }
+        cameraSession.onJPEGFrame = { [weak networkClient, weak dockKitManager] data in
+            Task { @MainActor in
+                guard let networkClient else { return }
+                await networkClient.sendCameraFrame(data)
+                if networkClient.cameraFramesSent.isMultiple(of: 15), let dockKitManager {
+                    await networkClient.sendMotorStatus(
+                        docked: dockKitManager.isDocked,
+                        manualReady: dockKitManager.isManualControlReady,
+                        systemTrackingEnabled: dockKitManager.isSystemTrackingEnabled,
+                        lastError: dockKitManager.lastError
+                    )
+                }
+            }
         }
         networkClient.onCommand = { [weak controlService] command in
             await controlService?.apply(command)
@@ -141,6 +161,16 @@ struct ContentView: View {
         await cameraSession.start()
         await dockKitManager.startListening()
         await networkClient.connect()
+        await publishMotorStatus()
+    }
+
+    private func publishMotorStatus() async {
+        await networkClient.sendMotorStatus(
+            docked: dockKitManager.isDocked,
+            manualReady: dockKitManager.isManualControlReady,
+            systemTrackingEnabled: dockKitManager.isSystemTrackingEnabled,
+            lastError: dockKitManager.lastError
+        )
     }
 }
 

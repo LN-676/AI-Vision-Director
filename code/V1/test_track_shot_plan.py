@@ -1,7 +1,12 @@
 from types import SimpleNamespace
 import unittest
 
-from track_shot_plan import TrackShotController, TrackZone
+from track_shot_plan import (
+    TrackShotController,
+    TrackShotDecision,
+    TrackZone,
+    should_publish_motor_tracking,
+)
 
 
 def frame_data(center=(100.0, 180.0), fresh=True):
@@ -22,6 +27,21 @@ class TrackShotControllerTests(unittest.TestCase):
         self.assertFalse(decision.publish_tracking)
         self.assertEqual(decision.state, "fixed_cut")
 
+    def test_motor_output_requires_armed_iphone_source(self) -> None:
+        decision = TrackShotDecision(True, "tracking", "target locked")
+
+        self.assertTrue(should_publish_motor_tracking("iphone", True, True, decision))
+        self.assertFalse(should_publish_motor_tracking("iphone", False, True, decision))
+        self.assertFalse(should_publish_motor_tracking("iphone", True, False, decision))
+        self.assertFalse(should_publish_motor_tracking("webcam", True, True, decision))
+        self.assertFalse(
+            should_publish_motor_tracking(
+                "iphone",
+                True,
+                True,
+                TrackShotDecision(False, "fixed_cut", "motor blocked"),
+            )
+        )
     def test_ai_tracking_requires_fresh_visual_target(self) -> None:
         controller = TrackShotController(mode="AI Tracking")
         self.assertTrue(controller.evaluate(frame_data(), self.frame_shape).publish_tracking)
