@@ -47,7 +47,7 @@ from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.6"
+    window_title: str = "AutoCamTracker V1.61"
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360
@@ -2145,7 +2145,7 @@ class AutoCamTrackerApp:
         return {
             "type": "desktop_state",
             "version": "1.0",
-            "source_version": "1.6",
+            "source_version": "1.61",
             "timestamp_ms": int(time() * 1000),
             "source": self.source_var.get(),
             "running": bool(self.running),
