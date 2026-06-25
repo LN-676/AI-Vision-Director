@@ -135,6 +135,7 @@ class TrackingWebSocketServer:
         self._motor_status_lock = threading.Lock()
         self._latest_motor_status: MotorStatus | None = None
         self._latest_frame_bytes: bytes | None = None
+        self._latest_desktop_state: dict[str, Any] | None = None
         self._received_frame_count = 0
         self._sequence = 0
         self._last_publish_at = 0.0
@@ -286,6 +287,8 @@ class TrackingWebSocketServer:
         return cv2.imdecode(encoded, cv2.IMREAD_COLOR)
 
     def publish(self, payload: dict[str, Any]) -> None:
+        if payload.get("type") == "desktop_state":
+            self._latest_desktop_state = dict(payload)
         loop = self._loop
         if loop is None or not loop.is_running():
             return
@@ -327,6 +330,8 @@ class TrackingWebSocketServer:
         self._clients.add(websocket)
         self._notify(f"iPhone connected ({len(self._clients)})")
         await websocket.send(json.dumps(tracking_message(target_locked=False, sequence=self._sequence)))
+        if self._latest_desktop_state is not None:
+            await websocket.send(json.dumps(self._latest_desktop_state, separators=(",", ":")))
         try:
             async for message in websocket:
                 if isinstance(message, bytes):

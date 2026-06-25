@@ -14,6 +14,7 @@ final class V13NetworkClient: ObservableObject {
 
     @Published private(set) var status: ConnectionStatus = .offline
     @Published private(set) var lastCommand: TrackingCommand?
+    @Published private(set) var desktopState: DesktopState?
     @Published private(set) var cameraFramesSent = 0
     @Published var serverURL: String {
         didSet { UserDefaults.standard.set(serverURL, forKey: Self.serverURLKey) }
@@ -68,14 +69,26 @@ final class V13NetworkClient: ObservableObject {
             guard let self, let task else { return }
             await self.receiveLoop(task: task)
         }
+        await sendControl(action: "request_state")
     }
 
     func receive(data: Data) async {
-        guard messageType(in: data) == "tracking" else {
-            logger.log(.info, "Ignored non-tracking AutoCamTracker message.")
+        guard let messageType = messageType(in: data) else {
+            logger.log(.info, "Ignored malformed AutoCamTracker message.")
             return
         }
 
+        switch messageType {
+        case "tracking":
+            await receiveTrackingCommand(data)
+        case "desktop_state":
+            receiveDesktopState(data)
+        default:
+            logger.log(.info, "Ignored unsupported AutoCamTracker message type: \(messageType).")
+        }
+    }
+
+    private func receiveTrackingCommand(_ data: Data) async {
         switch JSONDecoder().decodeSafely(TrackingCommand.self, from: data) {
         case .success(let command):
             guard sequenceValidator.accept(command) else {
@@ -94,6 +107,19 @@ final class V13NetworkClient: ObservableObject {
         case .failure(let error):
             logger.log(.error, "V1.6 JSON decode failed: \(error.localizedDescription)")
             await triggerTimeout(reason: "JSON decode failure")
+        }
+    }
+
+    private func receiveDesktopState(_ data: Data) {
+        switch JSONDecoder().decodeSafely(DesktopState.self, from: data) {
+        case .success(let state):
+            desktopState = state
+            logger.log(
+                .info,
+                "Desktop state updated: source=\(state.source), motor=\(state.motor.armed ? "armed" : "off"), gids=\(state.gids.count)."
+            )
+        case .failure(let error):
+            logger.log(.error, "Desktop state decode failed: \(error.localizedDescription)")
         }
     }
 
@@ -154,6 +180,7 @@ final class V13NetworkClient: ObservableObject {
         closeSocket()
         status = .offline
         lastCommand = nil
+        desktopState = nil
         sequenceValidator.reset()
         cameraFramesSent = 0
         logger.log(.warning, "AutoCamTracker client disconnected; requesting safety stop.")

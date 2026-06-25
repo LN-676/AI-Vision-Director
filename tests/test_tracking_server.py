@@ -115,6 +115,37 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertEqual(received[0]["action"], "find_gid")
         self.assertEqual(received[0]["gid"], 12)
 
+    def test_new_client_receives_cached_desktop_state(self) -> None:
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = int(probe.getsockname()[1])
+        server = TrackingWebSocketServer(TrackingServerConfig(host="127.0.0.1", port=port))
+        server.publish(
+            {
+                "type": "desktop_state",
+                "version": "1.0",
+                "source": "iphone",
+                "running": True,
+                "tracking": {"target_locked": False},
+                "motor": {"armed": False, "ready": False},
+                "gids": [{"gid": 12, "trackable": True}],
+            }
+        )
+        server.start()
+        deadline = monotonic() + 5.0
+        while not server.is_running and monotonic() < deadline:
+            sleep(0.01)
+        self.assertTrue(server.is_running)
+        try:
+            initial, state = asyncio.run(self._receive_initial_state(server))
+        finally:
+            server.stop()
+
+        self.assertEqual(initial["type"], "tracking")
+        self.assertEqual(state["type"], "desktop_state")
+        self.assertEqual(state["source"], "iphone")
+        self.assertEqual(state["gids"][0]["gid"], 12)
+
     def test_server_round_trip(self) -> None:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
@@ -155,6 +186,14 @@ class TrackingMessageTests(unittest.TestCase):
                     break
             self.assertIsNotNone(camera_frame)
             return initial, pulse, camera_frame
+
+    async def _receive_initial_state(self, server: TrackingWebSocketServer):
+        from websockets.asyncio.client import connect
+
+        async with connect(f"ws://127.0.0.1:{server.config.port}/ws/tracking") as websocket:
+            initial = json.loads(await asyncio.wait_for(websocket.recv(), timeout=2.0))
+            state = json.loads(await asyncio.wait_for(websocket.recv(), timeout=2.0))
+            return initial, state
 
 
 if __name__ == "__main__":

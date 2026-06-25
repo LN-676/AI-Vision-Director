@@ -60,6 +60,65 @@ final class TrackingCommandTests: XCTestCase {
         XCTAssertEqual(object?["timestamp_ms"] as? Int, 123)
     }
 
+    func testDecodesDesktopStatePayload() throws {
+        let json = """
+        {
+          "type": "desktop_state",
+          "version": "1.0",
+          "source_version": "1.6",
+          "timestamp_ms": 1781770000000,
+          "source": "iphone",
+          "running": true,
+          "tracking": {
+            "status": "tracking",
+            "target_locked": true,
+            "target_id": 12,
+            "selected_gid": 12,
+            "selected_lid": 7,
+            "error_x": 0.2,
+            "error_y": -0.1,
+            "confidence": 0.92
+          },
+          "motor": {
+            "armed": true,
+            "ready": false,
+            "client_count": 1,
+            "docked": true,
+            "manual_ready": true,
+            "system_tracking_enabled": true,
+            "last_error": null
+          },
+          "gids": [
+            {
+              "gid": 12,
+              "display_name": "GID 12",
+              "class_name": "car",
+              "last_track_id": 7,
+              "last_frame_index": 40,
+              "confidence": 0.88,
+              "master_feature_count": 3,
+              "pending_feature_count": 0,
+              "candidate_feature_count": 1,
+              "trackable": true,
+              "visible": true,
+              "selected": true
+            }
+          ]
+        }
+        """
+
+        let state = try JSONDecoder().decode(DesktopState.self, from: Data(json.utf8))
+
+        XCTAssertEqual(state.type, "desktop_state")
+        XCTAssertEqual(state.source, "iphone")
+        XCTAssertTrue(state.running)
+        XCTAssertEqual(state.tracking.selectedGid, 12)
+        XCTAssertTrue(state.motor.armed)
+        XCTAssertFalse(state.motor.ready)
+        XCTAssertEqual(state.gids.first?.gid, 12)
+        XCTAssertTrue(state.gids.first?.trackable == true)
+    }
+
     func testSequenceValidatorRejectsDuplicateAndOutOfOrderCommands() {
         var validator = TrackingCommandSequenceValidator()
 

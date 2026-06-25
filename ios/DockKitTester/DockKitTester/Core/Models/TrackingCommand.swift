@@ -116,6 +116,91 @@ struct ControlMessage: Codable, Equatable, Sendable {
     }
 }
 
+struct DesktopState: Codable, Equatable, Sendable {
+    let type: String
+    let version: String?
+    let sourceVersion: String?
+    let timestampMs: Int64?
+    let source: String
+    let running: Bool
+    let tracking: TrackingState
+    let motor: MotorState
+    let gids: [GIDState]
+
+    enum CodingKeys: String, CodingKey {
+        case type, version, source, running, tracking, motor, gids
+        case sourceVersion = "source_version"
+        case timestampMs = "timestamp_ms"
+    }
+
+    struct TrackingState: Codable, Equatable, Sendable {
+        let status: String
+        let targetLocked: Bool
+        let targetId: Int?
+        let selectedGid: Int?
+        let selectedLid: Int?
+        let errorX: Double
+        let errorY: Double
+        let confidence: Double
+
+        enum CodingKeys: String, CodingKey {
+            case status, confidence
+            case targetLocked = "target_locked"
+            case targetId = "target_id"
+            case selectedGid = "selected_gid"
+            case selectedLid = "selected_lid"
+            case errorX = "error_x"
+            case errorY = "error_y"
+        }
+    }
+
+    struct MotorState: Codable, Equatable, Sendable {
+        let armed: Bool
+        let ready: Bool
+        let clientCount: Int
+        let docked: Bool
+        let manualReady: Bool
+        let systemTrackingEnabled: Bool?
+        let lastError: String?
+
+        enum CodingKeys: String, CodingKey {
+            case armed, ready, docked
+            case clientCount = "client_count"
+            case manualReady = "manual_ready"
+            case systemTrackingEnabled = "system_tracking_enabled"
+            case lastError = "last_error"
+        }
+    }
+
+    struct GIDState: Codable, Equatable, Identifiable, Sendable {
+        let gid: Int
+        let displayName: String
+        let className: String
+        let lastTrackId: Int?
+        let lastFrameIndex: Int?
+        let confidence: Double
+        let masterFeatureCount: Int
+        let pendingFeatureCount: Int
+        let candidateFeatureCount: Int
+        let trackable: Bool
+        let visible: Bool
+        let selected: Bool
+
+        var id: Int { gid }
+
+        enum CodingKeys: String, CodingKey {
+            case gid, confidence, trackable, visible, selected
+            case displayName = "display_name"
+            case className = "class_name"
+            case lastTrackId = "last_track_id"
+            case lastFrameIndex = "last_frame_index"
+            case masterFeatureCount = "master_feature_count"
+            case pendingFeatureCount = "pending_feature_count"
+            case candidateFeatureCount = "candidate_feature_count"
+        }
+    }
+}
+
 struct TrackingCommandSequenceValidator: Sendable {
     private(set) var lastSequence: Int64?
 
