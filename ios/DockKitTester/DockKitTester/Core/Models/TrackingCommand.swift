@@ -96,6 +96,26 @@ struct MotorStatusMessage: Codable, Equatable, Sendable {
     }
 }
 
+struct ControlMessage: Codable, Equatable, Sendable {
+    let type = "control"
+    let action: String
+    let source: String?
+    let gid: Int?
+    let timestampMs: Int64
+
+    init(action: String, source: String? = nil, gid: Int? = nil) {
+        self.action = action
+        self.source = source
+        self.gid = gid
+        self.timestampMs = Int64(Date().timeIntervalSince1970 * 1_000)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case type, action, source, gid
+        case timestampMs = "timestamp_ms"
+    }
+}
+
 struct TrackingCommandSequenceValidator: Sendable {
     private(set) var lastSequence: Int64?
 

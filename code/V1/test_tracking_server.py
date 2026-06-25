@@ -104,6 +104,25 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertTrue(server.motor_ready)
         self.assertEqual(server.motor_status.timestamp_ms, 123)
 
+    def test_control_message_is_routed_to_callback(self) -> None:
+        received = []
+        server = TrackingWebSocketServer(on_control=received.append)
+
+        server._accept_text_message(
+            json.dumps(
+                {
+                    "type": "control",
+                    "action": "find_gid",
+                    "gid": 12,
+                    "timestamp_ms": 123,
+                }
+            )
+        )
+
+        self.assertEqual(len(received), 1)
+        self.assertEqual(received[0]["action"], "find_gid")
+        self.assertEqual(received[0]["gid"], 12)
+
     def test_server_round_trip(self) -> None:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))

@@ -122,9 +122,11 @@ class TrackingWebSocketServer:
         self,
         config: TrackingServerConfig | None = None,
         on_status: Callable[[str], None] | None = None,
+        on_control: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.config = config or TrackingServerConfig()
         self.on_status = on_status
+        self.on_control = on_control
         self._thread: threading.Thread | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._stop_event: asyncio.Event | None = None
@@ -330,7 +332,7 @@ class TrackingWebSocketServer:
                 if isinstance(message, bytes):
                     self._accept_camera_frame(message)
                 elif isinstance(message, str):
-                    self._accept_motor_status(message)
+                    self._accept_text_message(message)
         except ConnectionClosed:
             pass
         finally:
@@ -360,11 +362,22 @@ class TrackingWebSocketServer:
         if first_frame:
             self._notify("iPhone video receiving")
 
-    def _accept_motor_status(self, message: str) -> None:
+    def _accept_text_message(self, message: str) -> None:
         try:
             payload = json.loads(message)
         except (TypeError, json.JSONDecodeError):
             return
+        if payload.get("type") == "motor_status":
+            self._accept_motor_status(payload)
+        elif payload.get("type") == "control":
+            self._accept_control(payload)
+
+    def _accept_motor_status(self, payload: dict[str, Any] | str) -> None:
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except (TypeError, json.JSONDecodeError):
+                return
         if payload.get("type") != "motor_status":
             return
         status = MotorStatus(
@@ -380,6 +393,13 @@ class TrackingWebSocketServer:
         if status.last_error:
             state = f"motor error: {status.last_error}"
         self._notify(f"iPhone connected · {state}")
+
+    def _accept_control(self, payload: dict[str, Any]) -> None:
+        action = str(payload.get("action") or "").strip()
+        if not action or self.on_control is None:
+            return
+        self.on_control(dict(payload))
+        self._notify(f"iPhone control: {action}")
 
     def _notify(self, message: str) -> None:
         if self.on_status is not None:

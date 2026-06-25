@@ -71,13 +71,13 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func receive(data: Data) async {
+        guard messageType(in: data) == "tracking" else {
+            logger.log(.info, "Ignored non-tracking AutoCamTracker message.")
+            return
+        }
+
         switch JSONDecoder().decodeSafely(TrackingCommand.self, from: data) {
         case .success(let command):
-            guard command.type == "tracking" else {
-                logger.log(.error, "V1.6 JSON rejected: type must be 'tracking'.")
-                await triggerTimeout(reason: "invalid message type")
-                return
-            }
             guard sequenceValidator.accept(command) else {
                 logger.log(.error, "V1.6 JSON rejected: duplicate or out-of-order sequence.")
                 await triggerTimeout(reason: "stale tracking command")
@@ -94,6 +94,19 @@ final class V13NetworkClient: ObservableObject {
         case .failure(let error):
             logger.log(.error, "V1.6 JSON decode failed: \(error.localizedDescription)")
             await triggerTimeout(reason: "JSON decode failure")
+        }
+    }
+
+    func sendControl(action: String, source: String? = nil, gid: Int? = nil) async {
+        guard let socketTask, status != .offline, status != .failed else { return }
+        let message = ControlMessage(action: action, source: source, gid: gid)
+        do {
+            let data = try JSONEncoder().encode(message)
+            guard let text = String(data: data, encoding: .utf8) else { return }
+            try await socketTask.send(.string(text))
+            logger.log(.info, "Sent iPhone control action: \(action)")
+        } catch {
+            logger.log(.error, "Control send failed: \(error.localizedDescription)")
         }
     }
 
@@ -176,6 +189,16 @@ final class V13NetworkClient: ObservableObject {
         reconnectTask?.cancel()
         socketTask?.cancel(with: .goingAway, reason: nil)
         socketTask = nil
+    }
+
+    private func messageType(in data: Data) -> String? {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data),
+            let payload = object as? [String: Any]
+        else {
+            return nil
+        }
+        return payload["type"] as? String
     }
 
     private func scheduleReconnect() {

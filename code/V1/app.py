@@ -111,7 +111,11 @@ class AutoCamTrackerApp:
             reframer=self.reframer,
         )
         self.iphone_status_queue: SimpleQueue[str] = SimpleQueue()
-        self.tracking_server = TrackingWebSocketServer(on_status=self._queue_iphone_status)
+        self.iphone_control_queue: SimpleQueue[dict] = SimpleQueue()
+        self.tracking_server = TrackingWebSocketServer(
+            on_status=self._queue_iphone_status,
+            on_control=self._queue_iphone_control,
+        )
         self.track_shot_controller = TrackShotController()
         # Physical motor output is explicitly armed by Auto Track or Find GID.
         # A selected target can therefore still drive digital reframing without
@@ -147,11 +151,13 @@ class AutoCamTrackerApp:
         self.identity_preview_photo = None
         self.identity_preview_vehicle_id: int | None = None
         self.auto_feature_status_message = ""
+        self.last_desktop_state_publish_at = 0.0
 
         self.before_image_ref = None
         self.after_image_ref = None
         self._build_ui()
         self.root.after(100, self._drain_iphone_status)
+        self.root.after(100, self._drain_iphone_control)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.refresh_model_options()
         self.refresh_reid_model_options()
@@ -755,6 +761,7 @@ class AutoCamTrackerApp:
         self.track_shot_controller.set_mode("AI Tracking")
         self.track_shot_state_var.set("Shot: AI Tracking · tracking · motor armed")
         self.iphone_motor_tracking_enabled = True
+        self.publish_desktop_state(force=True)
         if self.tracking_server.client_count == 0:
             return f"{action} motor armed; waiting for iPhone connection"
         if not self.tracking_server.motor_ready:
@@ -770,6 +777,7 @@ class AutoCamTrackerApp:
             self.track_shot_state_var.set(
                 f"Shot: {self.track_shot_controller.mode} · motor OFF · {reason}"
             )
+        self.publish_desktop_state(force=True)
 
     def _refresh_iphone_url(self) -> str:
         url = self.tracking_server.preferred_url
@@ -786,17 +794,95 @@ class AutoCamTrackerApp:
     def _queue_iphone_status(self, message: str) -> None:
         self.iphone_status_queue.put(message)
 
+    def _queue_iphone_control(self, payload: dict) -> None:
+        self.iphone_control_queue.put(payload)
+
     def _drain_iphone_status(self) -> None:
+        did_update = False
         try:
             while True:
                 message = self.iphone_status_queue.get_nowait()
                 self.iphone_connection_var.set(f"iPhone link: {message}")
+                did_update = True
         except Empty:
             pass
+        if did_update:
+            self.publish_desktop_state(force=True)
         try:
             self.root.after(100, self._drain_iphone_status)
         except tk.TclError:
             pass
+
+    def _drain_iphone_control(self) -> None:
+        try:
+            while True:
+                self._handle_iphone_control(self.iphone_control_queue.get_nowait())
+        except Empty:
+            pass
+        try:
+            self.root.after(100, self._drain_iphone_control)
+        except tk.TclError:
+            pass
+
+    def _handle_iphone_control(self, payload: dict) -> None:
+        action = str(payload.get("action") or "").strip()
+        if not action:
+            return
+
+        if action == "select_source":
+            source = str(payload.get("source") or "").strip()
+            if source not in {"webcam", "video_file", "video_url", "screen_region", "iphone"}:
+                self.status_var.set(f"Status: iPhone requested unsupported source: {source or '--'}")
+                self.publish_desktop_state(force=True)
+                return
+            self.source_var.set(source)
+            self.on_source_selected()
+            self.status_var.set(f"Status: iPhone selected input source: {source}")
+        elif action == "auto_track":
+            if self.source_var.get() != "iphone":
+                self.source_var.set("iphone")
+                self.on_source_selected()
+            if not self.running:
+                self.start()
+            self.auto_select_one()
+        elif action == "select_gid":
+            gid = self._control_gid(payload)
+            if gid is not None:
+                self._select_identity_from_control(gid)
+        elif action == "find_gid":
+            gid = self._control_gid(payload)
+            if gid is not None and self._select_identity_from_control(gid):
+                self.track_selected_identity_from_db()
+        elif action == "stop_motor":
+            self._disable_iphone_motor_tracking("iPhone STOP")
+            self.status_var.set("Status: iPhone requested motor stop")
+        elif action == "request_state":
+            pass
+        else:
+            self.status_var.set(f"Status: ignored unknown iPhone control: {action}")
+
+        self.publish_desktop_state(force=True)
+
+    @staticmethod
+    def _control_gid(payload: dict) -> int | None:
+        try:
+            return int(payload.get("gid"))
+        except (TypeError, ValueError):
+            return None
+
+    def _select_identity_from_control(self, vehicle_id: int) -> bool:
+        if self.identity_store.get_vehicle(vehicle_id) is None:
+            self.status_var.set(f"Status: iPhone requested missing GID {vehicle_id}")
+            return False
+        self.selected_identity_tree_ids = {vehicle_id}
+        if hasattr(self, "identity_tree") and str(vehicle_id) in self.identity_tree.get_children():
+            self.identity_tree.selection_set(str(vehicle_id))
+            self.identity_tree.see(str(vehicle_id))
+            self.on_identity_tree_select()
+        label = self.identity_store.display_label(vehicle_id)
+        self._set_identity_mode(f"Selected GID {label} from iPhone")
+        self.status_var.set(f"Status: iPhone selected GID {label}")
+        return True
 
     def send_iphone_test_pulse(self) -> None:
         self._start_iphone_link()
@@ -1156,6 +1242,7 @@ class AutoCamTrackerApp:
             self.tracking_server.publish_stop()
         self._run_auto_feature_sampling(frame)
         self.refresh_identity_db_panel(force=False)
+        self.publish_desktop_state(force=False)
         return frame_data
 
     def _render_current_video_frame(self) -> None:
@@ -2006,6 +2093,101 @@ class AutoCamTrackerApp:
         if not self.tracking_server.motor_ready:
             return "WAITING DOCKKIT"
         return "ON"
+
+    def publish_desktop_state(self, force: bool = False) -> None:
+        if self.tracking_server.client_count == 0:
+            return
+        now = time()
+        if not force and now - self.last_desktop_state_publish_at < 0.5:
+            return
+        self.last_desktop_state_publish_at = now
+        self.tracking_server.publish(self._desktop_state_message())
+
+    def _desktop_state_message(self) -> dict:
+        frame_data = self.current_frame_data
+        motor_status = self.tracking_server.motor_status
+        selected_target = None
+        if frame_data is not None and frame_data.selected_targets:
+            selected_target = frame_data.selected_targets[0]
+
+        error_x = 0.0
+        error_y = 0.0
+        target_locked = False
+        if frame_data is not None:
+            target_locked = (
+                frame_data.tracking_status == "tracking"
+                and selected_target is not None
+                and selected_target.status == "tracking"
+                and selected_target.lost_frame_count == 0
+            )
+            if self.last_frame_shape is not None:
+                frame_h, frame_w = self.last_frame_shape[:2]
+                error_x = frame_data.framing_status.error_x / max(1.0, frame_w / 2.0)
+                error_y = frame_data.framing_status.error_y / max(1.0, frame_h / 2.0)
+
+        return {
+            "type": "desktop_state",
+            "version": "1.0",
+            "source_version": "1.6",
+            "timestamp_ms": int(time() * 1000),
+            "source": self.source_var.get(),
+            "running": bool(self.running),
+            "tracking": {
+                "status": frame_data.tracking_status if frame_data is not None else "idle",
+                "target_locked": target_locked,
+                "target_id": (
+                    frame_data.selected_global_vehicle_id
+                    if frame_data is not None and frame_data.selected_global_vehicle_id is not None
+                    else frame_data.selected_local_track_id
+                    if frame_data is not None
+                    else None
+                ),
+                "selected_gid": (
+                    frame_data.selected_global_vehicle_id
+                    if frame_data is not None and frame_data.selected_global_vehicle_id is not None
+                    else self.identity_manager.selected_global_vehicle_id
+                ),
+                "selected_lid": frame_data.selected_local_track_id if frame_data is not None else None,
+                "error_x": max(-1.0, min(1.0, float(error_x))),
+                "error_y": max(-1.0, min(1.0, float(error_y))),
+                "confidence": float(selected_target.confidence) if selected_target is not None else 0.0,
+            },
+            "motor": {
+                "armed": bool(self.iphone_motor_tracking_enabled),
+                "ready": bool(self.tracking_server.motor_ready),
+                "client_count": int(self.tracking_server.client_count),
+                "docked": bool(motor_status.docked) if motor_status is not None else False,
+                "manual_ready": bool(motor_status.manual_ready) if motor_status is not None else False,
+                "system_tracking_enabled": (
+                    motor_status.system_tracking_enabled if motor_status is not None else None
+                ),
+                "last_error": motor_status.last_error if motor_status is not None else None,
+            },
+            "gids": self._desktop_state_gids(),
+        }
+
+    def _desktop_state_gids(self) -> list[dict]:
+        summary = self.identity_store.summary(feature_counts=self.feature_gallery.summary_by_vehicle())
+        selected_gid = self.identity_manager.selected_global_vehicle_id
+        selected_tree_ids = set(self.selected_identity_tree_ids)
+        visible_track_ids = {detection.track_id for detection in self.store.current_detections}
+        return [
+            {
+                "gid": vehicle.vehicle_id,
+                "display_name": vehicle.display_name,
+                "class_name": vehicle.class_name,
+                "last_track_id": vehicle.last_track_id,
+                "last_frame_index": vehicle.last_frame_index,
+                "confidence": vehicle.confidence,
+                "master_feature_count": vehicle.master_feature_count,
+                "pending_feature_count": vehicle.pending_feature_count,
+                "candidate_feature_count": vehicle.candidate_feature_count,
+                "trackable": vehicle.master_feature_count > 0,
+                "visible": vehicle.last_track_id in visible_track_ids,
+                "selected": vehicle.vehicle_id == selected_gid or vehicle.vehicle_id in selected_tree_ids,
+            }
+            for vehicle in summary.vehicles
+        ]
 
     def _update_images(self, before_frame, after_frame) -> None:
         if Image is None or ImageTk is None:
