@@ -179,6 +179,7 @@ private struct CameraControlPage: View {
     @ObservedObject var dockKitManager: DockKitManager
     @ObservedObject var networkClient: V13NetworkClient
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var selectedRemoteGID: Int?
 
     var body: some View {
         GeometryReader { geometry in
@@ -207,11 +208,17 @@ private struct CameraControlPage: View {
                 }
                 .frame(height: previewHeight(for: geometry.size))
 
-                controls
+                ScrollView {
+                    controls
+                }
+                .background(.black)
             }
             .background(.black)
         }
         .background(.black)
+        .onChange(of: networkClient.desktopState?.tracking.selectedGid) { _, newValue in
+            selectedRemoteGID = newValue
+        }
     }
 
     private var statusStrip: some View {
@@ -241,6 +248,106 @@ private struct CameraControlPage: View {
     }
 
     private var controls: some View {
+        VStack(spacing: 14) {
+            remoteStatusPanel
+            remoteCommandRow
+            gidControlPanel
+            zoomControls
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, verticalSizeClass == .compact ? 10 : 18)
+        .background(.black)
+    }
+
+    private var remoteStatusPanel: some View {
+        HStack(spacing: 10) {
+            statusMetric(
+                title: "Motor",
+                value: motorLabel,
+                icon: networkClient.desktopState?.motor.armed == true ? "bolt.fill" : "bolt.slash",
+                active: networkClient.desktopState?.motor.ready == true
+            )
+            statusMetric(
+                title: "Target",
+                value: trackingLabel,
+                icon: networkClient.desktopState?.tracking.targetLocked == true ? "scope" : "scope",
+                active: networkClient.desktopState?.tracking.targetLocked == true
+            )
+            statusMetric(
+                title: "Error",
+                value: errorLabel,
+                icon: "point.topleft.down.curvedto.point.bottomright.up",
+                active: networkClient.desktopState?.tracking.targetLocked == true
+            )
+        }
+    }
+
+    private var remoteCommandRow: some View {
+        HStack(spacing: 10) {
+            Button {
+                Task { await networkClient.sendControl(action: "auto_track") }
+            } label: {
+                Label("Auto", systemImage: "scope")
+            }
+            .buttonStyle(RemoteCommandButtonStyle(tint: .yellow, prominent: true))
+            .disabled(!networkActive)
+
+            Button {
+                Task { await networkClient.sendControl(action: "stop_motor") }
+            } label: {
+                Label("STOP", systemImage: "stop.fill")
+            }
+            .buttonStyle(RemoteCommandButtonStyle(tint: .red, prominent: true))
+            .disabled(!networkActive)
+
+            Button {
+                guard let selectedGID else { return }
+                Task { await networkClient.sendControl(action: "find_gid", gid: selectedGID) }
+            } label: {
+                Label("Track GID", systemImage: "location.fill")
+            }
+            .buttonStyle(RemoteCommandButtonStyle(tint: .green, prominent: false))
+            .disabled(!networkActive || selectedGID == nil)
+        }
+    }
+
+    private var gidControlPanel: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Label("GID", systemImage: "number")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+                Spacer()
+                Text(selectedGID.map { "Selected \($0)" } ?? "No selection")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.62))
+            }
+
+            if sortedGIDs.isEmpty {
+                Text("Waiting for GID list")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(sortedGIDs) { gid in
+                            Button {
+                                selectedRemoteGID = gid.gid
+                                Task { await networkClient.sendControl(action: "select_gid", gid: gid.gid) }
+                            } label: {
+                                gidChip(gid)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+            }
+        }
+    }
+
+    private var zoomControls: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 ForEach(zoomPresets, id: \.self) { factor in
@@ -284,9 +391,6 @@ private struct CameraControlPage: View {
             .font(.caption)
             .foregroundStyle(.white.opacity(0.75))
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, verticalSizeClass == .compact ? 10 : 18)
-        .background(.black)
     }
 
     private var zoomPresets: [CGFloat] {
@@ -302,8 +406,43 @@ private struct CameraControlPage: View {
         networkClient.status == .connected || networkClient.status == .receiving
     }
 
+    private var selectedGID: Int? {
+        selectedRemoteGID ?? networkClient.desktopState?.tracking.selectedGid
+    }
+
+    private var sortedGIDs: [DesktopState.GIDState] {
+        (networkClient.desktopState?.gids ?? []).sorted {
+            if $0.selected != $1.selected { return $0.selected }
+            if $0.visible != $1.visible { return $0.visible }
+            if $0.trackable != $1.trackable { return $0.trackable }
+            return $0.gid < $1.gid
+        }
+    }
+
+    private var motorLabel: String {
+        guard let motor = networkClient.desktopState?.motor else { return "Idle" }
+        if !motor.armed { return "Off" }
+        if motor.ready { return "Ready" }
+        if !motor.docked { return "Dock" }
+        if !motor.manualReady { return "Manual" }
+        return "Wait"
+    }
+
+    private var trackingLabel: String {
+        guard let tracking = networkClient.desktopState?.tracking else { return "--" }
+        if tracking.targetLocked {
+            return tracking.targetId.map { "#\($0)" } ?? "Locked"
+        }
+        return tracking.status.capitalized
+    }
+
+    private var errorLabel: String {
+        guard let tracking = networkClient.desktopState?.tracking else { return "0.00" }
+        return String(format: "%.2f %.2f", tracking.errorX, tracking.errorY)
+    }
+
     private func previewHeight(for size: CGSize) -> CGFloat {
-        verticalSizeClass == .compact ? size.height * 0.68 : size.height * 0.72
+        verticalSizeClass == .compact ? size.height * 0.58 : size.height * 0.54
     }
 
     private func statusChip(_ text: String, icon: String, active: Bool) -> some View {
@@ -322,6 +461,52 @@ private struct CameraControlPage: View {
     private func isSelected(_ factor: CGFloat) -> Bool {
         abs(cameraSession.displayZoomFactor - factor) < 0.08
     }
+
+    private func statusMetric(title: String, value: String, icon: String, active: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(title, systemImage: icon)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.58))
+            Text(value)
+                .font(.caption.monospacedDigit().weight(.bold))
+                .foregroundStyle(active ? .yellow : .white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func gidChip(_ gid: DesktopState.GIDState) -> some View {
+        let isSelected = selectedGID == gid.gid || gid.selected
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(gid.displayName.isEmpty ? "GID \(gid.gid)" : gid.displayName)
+                .font(.caption.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+            HStack(spacing: 5) {
+                Image(systemName: gid.trackable ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                Image(systemName: gid.visible ? "eye.fill" : "eye.slash")
+                Text("#\(gid.gid)")
+                    .font(.caption2.monospacedDigit())
+            }
+            .font(.caption2)
+            .foregroundStyle(isSelected ? .black.opacity(0.70) : .white.opacity(0.62))
+        }
+        .foregroundStyle(isSelected ? .black : .white)
+        .frame(width: 104, height: 54, alignment: .leading)
+        .padding(.horizontal, 10)
+        .background(
+            isSelected ? Color.yellow : Color.white.opacity(gid.trackable ? 0.13 : 0.07),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(gid.visible ? Color.green.opacity(0.75) : Color.clear, lineWidth: 1)
+        )
+    }
 }
 
 private extension View {
@@ -329,5 +514,28 @@ private extension View {
         frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct RemoteCommandButtonStyle: ButtonStyle {
+    let tint: Color
+    let prominent: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.bold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .frame(maxWidth: .infinity, minHeight: 42)
+            .foregroundStyle(prominent ? .black : tint)
+            .background(
+                prominent ? tint.opacity(configuration.isPressed ? 0.72 : 1.0) : tint.opacity(configuration.isPressed ? 0.24 : 0.14),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(prominent ? Color.clear : tint.opacity(0.45), lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.86 : 1)
     }
 }
