@@ -144,6 +144,7 @@ class VideoPipelineMixin:
             and selected_target.status == "tracking"
             and selected_target.lost_frame_count == 0
         )
+        fresh_target = selected_target if target_locked else None
         self.telemetry_logger.log(
             "frame_state",
             tracking_status=frame_data.tracking_status,
@@ -152,9 +153,9 @@ class VideoPipelineMixin:
             selected_lid=frame_data.selected_local_track_id,
             lost_frames=frame_data.lost_frames,
             candidate_count=len(frame_data.candidates),
-            confidence=float(selected_target.confidence) if selected_target is not None else 0.0,
-            bbox=selected_target.bbox if selected_target is not None else None,
-            target_center=selected_target.center if selected_target is not None else None,
+            confidence=float(fresh_target.confidence) if fresh_target is not None else 0.0,
+            bbox=fresh_target.bbox if fresh_target is not None else None,
+            target_center=fresh_target.center if fresh_target is not None else None,
             frame_width=frame_w,
             frame_height=frame_h,
             framing_mode=self.framing_var.get(),
@@ -449,10 +450,11 @@ class VideoPipelineMixin:
                 and selected_target.status == "tracking"
                 and selected_target.lost_frame_count == 0
             )
-            if self.last_frame_shape is not None:
+            if target_locked and self.last_frame_shape is not None:
                 frame_h, frame_w = self.last_frame_shape[:2]
                 error_x = frame_data.framing_status.error_x / max(1.0, frame_w / 2.0)
                 error_y = frame_data.framing_status.error_y / max(1.0, frame_h / 2.0)
+        fresh_target = selected_target if target_locked else None
 
         return {
             "type": "desktop_state",
@@ -479,11 +481,11 @@ class VideoPipelineMixin:
                 "selected_lid": frame_data.selected_local_track_id if frame_data is not None else None,
                 "error_x": max(-1.0, min(1.0, float(error_x))),
                 "error_y": max(-1.0, min(1.0, float(error_y))),
-                "confidence": float(selected_target.confidence) if selected_target is not None else 0.0,
+                "confidence": float(fresh_target.confidence) if fresh_target is not None else 0.0,
                 "lost_frames": int(frame_data.lost_frames) if frame_data is not None else 0,
                 "candidate_count": len(frame_data.candidates) if frame_data is not None else 0,
-                "bbox": selected_target.bbox if selected_target is not None else None,
-                "target_center": selected_target.center if selected_target is not None else None,
+                "bbox": fresh_target.bbox if fresh_target is not None else None,
+                "target_center": fresh_target.center if fresh_target is not None else None,
             },
             "motor": {
                 "armed": bool(self.iphone_motor_tracking_enabled),
