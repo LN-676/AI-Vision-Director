@@ -33,6 +33,9 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
     private var motorControlMode: MotorControlMode = .unknown
     private var activeOrientationProgress: Progress?
     private var orientationCommandInFlight = false
+    private var currentOffset = Vector3D()
+    private var homeOffset: Vector3D?
+    private var lastVelocityUpdateAt: Date?
 #endif
 
     init(logger: AppLogger) {
@@ -177,6 +180,7 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         }
 
         let velocity = Vector3D(x: pitch, y: yaw, z: roll)
+        integrateAngularVelocity(yaw: yaw, pitch: pitch, roll: roll)
         do {
             try await accessory.setAngularVelocity(velocity)
             motorControlMode = .angularVelocity
@@ -221,10 +225,13 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             activeOrientationProgress?.cancel()
             activeOrientationProgress = nil
             orientationCommandInFlight = false
+            lastVelocityUpdateAt = nil
             lastError = nil
             logger.log(.success, "STOP succeeded: relative orientation command cancelled.")
             return
         }
+        integrateAngularVelocity(yaw: 0, pitch: 0, roll: 0)
+        lastVelocityUpdateAt = nil
         do {
             try await accessory.setAngularVelocity(Vector3D())
             lastError = nil
@@ -262,16 +269,64 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
     }
 
     func setHome() async {
+#if targetEnvironment(simulator)
         hasHomePosition = true
-        logger.log(.success, "Home position set to DockKit origin / recenter target.")
+        logger.log(.success, "Home position set to simulated offset.")
+#else
+        homeOffset = currentOffset
+        hasHomePosition = true
+        logger.log(
+            .success,
+            String(
+                format: "Home saved at relative offset pitch=%.3f yaw=%.3f roll=%.3f.",
+                currentOffset.x,
+                currentOffset.y,
+                currentOffset.z
+            )
+        )
+#endif
     }
 
     func returnHome() async {
         if !hasHomePosition {
             await setHome()
         }
-        logger.log(.info, "Returning gimbal to Home.")
-        await recenter()
+#if targetEnvironment(simulator)
+        logger.log(.info, "Returning gimbal to simulated Home.")
+#else
+        guard let accessory else {
+            logMissingAccessory(api: "return Home")
+            return
+        }
+        guard isSystemTrackingEnabled == false else {
+            let message = "Return Home blocked: disable system tracking first."
+            lastError = message
+            logger.log(.error, message)
+            return
+        }
+        let home = homeOffset ?? Vector3D()
+        let delta = Vector3D(
+            x: home.x - currentOffset.x,
+            y: home.y - currentOffset.y,
+            z: home.z - currentOffset.z
+        )
+        logger.log(
+            .info,
+            String(format: "Returning to Home via relative delta pitch=%.3f yaw=%.3f roll=%.3f.", delta.x, delta.y, delta.z)
+        )
+        do {
+            activeOrientationProgress?.cancel()
+            activeOrientationProgress = try await accessory.setOrientation(delta, duration: .seconds(1), relative: true)
+            await waitForProgress(activeOrientationProgress!, timeout: .seconds(2))
+            currentOffset = home
+            lastVelocityUpdateAt = nil
+            lastError = nil
+            logger.log(.success, "Return Home completed.")
+        } catch {
+            recordError(api: "return Home relative orientation", error: error)
+            await stop()
+        }
+#endif
     }
 
     func runCapabilityDiagnostics() async {
@@ -347,6 +402,10 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             motorControlMode = .unknown
             activeOrientationProgress = nil
             orientationCommandInFlight = false
+            currentOffset = Vector3D()
+            homeOffset = nil
+            lastVelocityUpdateAt = nil
+            hasHomePosition = false
             accessoryStatus = .docked
             let model = newAccessory.hardwareModel ?? "DockKit Accessory"
             accessoryName = "\(model) • \(String(describing: newAccessory.identifier))"
@@ -370,6 +429,10 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             motorControlMode = .unknown
             activeOrientationProgress = nil
             orientationCommandInFlight = false
+            currentOffset = Vector3D()
+            homeOffset = nil
+            lastVelocityUpdateAt = nil
+            hasHomePosition = false
             accessoryStatus = .notFound
             accessoryName = nil
             isSystemTrackingEnabled = nil
@@ -419,6 +482,12 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
                 relative: true
             )
             activeOrientationProgress = progress
+            currentOffset = Vector3D(
+                x: currentOffset.x + pitchStep,
+                y: currentOffset.y + yawStep,
+                z: currentOffset.z + rollStep
+            )
+            lastVelocityUpdateAt = nil
             lastError = nil
             logger.log(
                 .success,
@@ -431,6 +500,18 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         } catch {
             recordError(api: "relative orientation fallback", error: error)
         }
+    }
+
+    private func integrateAngularVelocity(yaw: Double, pitch: Double, roll: Double) {
+        let now = Date()
+        defer { lastVelocityUpdateAt = now }
+        guard let previous = lastVelocityUpdateAt else { return }
+        let dt = max(0.0, min(0.25, now.timeIntervalSince(previous)))
+        currentOffset = Vector3D(
+            x: currentOffset.x + pitch * dt,
+            y: currentOffset.y + yaw * dt,
+            z: currentOffset.z + roll * dt
+        )
     }
 #endif
 

@@ -1,4 +1,4 @@
-"""WebSocket bridge from AutoCamTracker V1.73 to the DockKit iOS app."""
+"""WebSocket bridge from AutoCamTracker V1.74 to the DockKit iOS app."""
 
 from __future__ import annotations
 
@@ -15,11 +15,17 @@ from typing import Any, Callable
 
 from autocamtracker.core.telemetry_logger import TelemetryLogger
 
-SOURCE_VERSION = "1.73"
+SOURCE_VERSION = "1.74"
 CAMERA_FRAME_ENVELOPE_MAGIC = b"ACTF1"
 CAMERA_FRAME_ENVELOPE_HEADER_BYTES = len(CAMERA_FRAME_ENVELOPE_MAGIC) + 8
 FRAMING_ZOOM_FACTORS = {"wide": 1.0, "medium": 1.6, "close": 2.4}
 CENTER_ZOOM_FACTOR = FRAMING_ZOOM_FACTORS["wide"]
+LOST_ZOOM_HOLD_SECONDS = 1.0
+LOST_ZOOM_RAMP_SECONDS = 2.0
+COASTING_COMMAND_FRAMES = 12
+
+_last_locked_zoom_factor = CENTER_ZOOM_FACTOR
+_last_unlocked_at: float | None = None
 
 
 def zoom_factor_for_framing(framing_mode: str | None) -> float:
@@ -106,6 +112,8 @@ def tracking_message(
 def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[str, Any]:
     """Convert pixel-space framing status into normalized gimbal error."""
 
+    global _last_locked_zoom_factor, _last_unlocked_at
+
     frame_h, frame_w = frame_shape[:2]
     targets = frame_data.selected_targets
     fresh_target = next(
@@ -114,17 +122,26 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
             for target in targets
             if (
                 (target.status == "tracking" and target.lost_frame_count == 0)
-                or (target.status == "coasting" and target.lost_frame_count <= 3)
+                or (target.status == "coasting" and target.lost_frame_count <= COASTING_COMMAND_FRAMES)
             )
         ),
         None,
     )
     framing_mode = getattr(getattr(frame_data, "framing_status", None), "framing_mode", "medium")
     if fresh_target is None or frame_data.tracking_status != "tracking":
+        now = monotonic()
+        if _last_unlocked_at is None:
+            _last_unlocked_at = now
+        elapsed = now - _last_unlocked_at
+        if elapsed <= LOST_ZOOM_HOLD_SECONDS:
+            zoom_factor = _last_locked_zoom_factor
+        else:
+            ramp = min(1.0, (elapsed - LOST_ZOOM_HOLD_SECONDS) / LOST_ZOOM_RAMP_SECONDS)
+            zoom_factor = _last_locked_zoom_factor + (CENTER_ZOOM_FACTOR - _last_locked_zoom_factor) * ramp
         return tracking_message(
             target_locked=False,
             sequence=sequence,
-            zoom_factor=CENTER_ZOOM_FACTOR,
+            zoom_factor=zoom_factor,
         )
 
     status = frame_data.framing_status
@@ -133,6 +150,9 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
     target_id = frame_data.selected_global_vehicle_id
     if target_id is None:
         target_id = frame_data.selected_local_track_id
+    zoom_factor = zoom_factor_for_framing(framing_mode)
+    _last_locked_zoom_factor = zoom_factor
+    _last_unlocked_at = None
     return tracking_message(
         target_locked=True,
         target_id=target_id,
@@ -146,7 +166,7 @@ def frame_tracking_message(frame_data, frame_shape, sequence: int = 0) -> dict[s
         target_y=fresh_target.center[1] / max(1.0, frame_h),
         bbox_width=bbox_width,
         bbox_height=(bbox[3] - bbox[1]) / max(1.0, frame_h),
-        zoom_factor=zoom_factor_for_framing(framing_mode),
+        zoom_factor=zoom_factor,
         predicted=fresh_target.status == "coasting",
     )
 

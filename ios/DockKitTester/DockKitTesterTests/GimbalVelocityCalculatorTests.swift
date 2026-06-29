@@ -109,12 +109,30 @@ final class GimbalVelocityCalculatorTests: XCTestCase {
         XCTAssertLessThan(abs(edgeVelocity.yaw), abs(normalVelocity.yaw))
     }
 
+    func testTurnAccelerationUsesMoreResponsiveSmoothingAndFeedForward() {
+        var calculator = GimbalVelocityCalculator()
+
+        _ = calculator.velocity(for: makeCommand(errorX: 0.12, errorY: 0))
+        let velocity = calculator.velocity(for: makeCommand(errorX: 0.42, errorY: 0))
+
+        XCTAssertGreaterThan(velocity.yaw, 0.18)
+    }
+
+    func testPredictedTargetUsesMoreResponsiveSmoothing() {
+        var calculator = GimbalVelocityCalculator()
+
+        let velocity = calculator.velocity(for: makeCommand(errorX: 0.4, errorY: 0, predictedTarget: true))
+
+        XCTAssertEqual(velocity.yaw, 0.1925, accuracy: 0.000_001)
+    }
+
     private func makeCommand(
         targetLocked: Bool = true,
         errorX: Double,
         errorY: Double,
         targetX: Double? = nil,
-        targetY: Double? = nil
+        targetY: Double? = nil,
+        predictedTarget: Bool? = nil
     ) -> TrackingCommand {
         TrackingCommand(
             type: "tracking",
@@ -126,7 +144,8 @@ final class GimbalVelocityCalculatorTests: XCTestCase {
             confidence: 0.91,
             timestampMs: 1_781_770_000_000,
             targetX: targetX,
-            targetY: targetY
+            targetY: targetY,
+            predictedTarget: predictedTarget
         )
     }
 }

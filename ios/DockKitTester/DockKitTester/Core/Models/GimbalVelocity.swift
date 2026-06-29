@@ -22,6 +22,7 @@ struct GimbalControlConfiguration: Equatable, Sendable {
     var maxNonImprovingUpdates = 8
     var edgeStopMargin = 0.04
     var edgeSlowMargin = 0.14
+    var feedForwardGain = 0.22
 }
 
 struct GimbalCalibrationProfile: Codable, Equatable, Sendable {
@@ -57,6 +58,8 @@ struct GimbalVelocityCalculator: Sendable {
     private(set) var previous = GimbalVelocity.zero
     private(set) var safetyStopReason: String?
     private var previousErrorMagnitude: Double?
+    private var previousErrorX: Double?
+    private var previousErrorY: Double?
     private var nonImprovingUpdates = 0
 
     init(configuration: GimbalControlConfiguration = .init()) {
@@ -124,31 +127,62 @@ struct GimbalVelocityCalculator: Sendable {
         }
 
         let requestedYaw = clamp(
-            errorX * configuration.kpYaw * configuration.yawDirection,
+            (errorX * configuration.kpYaw + feedForwardErrorX(current: errorX)) * configuration.yawDirection,
             min: -configuration.maxYawSpeed,
             max: configuration.maxYawSpeed
         )
         let requestedPitch = clamp(
-            -errorY * configuration.kpPitch * configuration.pitchDirection,
+            -(errorY * configuration.kpPitch + feedForwardErrorY(current: errorY)) * configuration.pitchDirection,
             min: -configuration.maxPitchSpeed,
             max: configuration.maxPitchSpeed
         )
         let edgeScale = edgeVelocityScale(tracking: tracking)
-        let newWeight = 1 - configuration.smoothingOldWeight
+        let oldWeight = dynamicSmoothingOldWeight(tracking: tracking, errorX: errorX, errorY: errorY)
+        let newWeight = 1 - oldWeight
         let output = GimbalVelocity(
-            yaw: (previous.yaw * configuration.smoothingOldWeight + requestedYaw * newWeight) * edgeScale,
-            pitch: (previous.pitch * configuration.smoothingOldWeight + requestedPitch * newWeight) * edgeScale,
+            yaw: (previous.yaw * oldWeight + requestedYaw * newWeight) * edgeScale,
+            pitch: (previous.pitch * oldWeight + requestedPitch * newWeight) * edgeScale,
             roll: 0
         )
         previous = output
+        previousErrorX = errorX
+        previousErrorY = errorY
         return output
     }
 
     mutating func reset() {
         previous = .zero
         previousErrorMagnitude = nil
+        previousErrorX = nil
+        previousErrorY = nil
         nonImprovingUpdates = 0
         safetyStopReason = nil
+    }
+
+    private func feedForwardErrorX(current errorX: Double) -> Double {
+        guard let previousErrorX else { return 0 }
+        return clamp(errorX - previousErrorX, min: -0.6, max: 0.6) * configuration.feedForwardGain
+    }
+
+    private func feedForwardErrorY(current errorY: Double) -> Double {
+        guard let previousErrorY else { return 0 }
+        return clamp(errorY - previousErrorY, min: -0.6, max: 0.6) * configuration.feedForwardGain
+    }
+
+    private func dynamicSmoothingOldWeight(tracking: TrackingCommand, errorX: Double, errorY: Double) -> Double {
+        let deltaX = abs(errorX - (previousErrorX ?? errorX))
+        let deltaY = abs(errorY - (previousErrorY ?? errorY))
+        let turnOrAcceleration = max(deltaX, deltaY)
+        if tracking.predictedTarget == true {
+            return min(configuration.smoothingOldWeight, 0.45)
+        }
+        if turnOrAcceleration >= 0.18 {
+            return min(configuration.smoothingOldWeight, 0.45)
+        }
+        if turnOrAcceleration >= 0.10 {
+            return min(configuration.smoothingOldWeight, 0.55)
+        }
+        return configuration.smoothingOldWeight
     }
 
     private mutating func shouldContinueTracking(errorX: Double, errorY: Double) -> Bool {

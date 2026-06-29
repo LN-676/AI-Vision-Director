@@ -374,6 +374,33 @@ class ReIDRuntimeOptimizationTests(unittest.TestCase):
         self.assertEqual(targets[0].status, "coasting")
         self.assertEqual(targets[0].lost_frame_count, 1)
 
+    def test_identity_extended_loss_coasts_with_confidence_decay(self) -> None:
+        import numpy as np
+
+        frame = np.full((360, 640, 3), 90, dtype=np.uint8)
+        manager = GlobalIdentityManager()
+        initial = detection(track_id=1, frame_index=1)
+        initial.center = (220.0, 180.0)
+        initial.bbox = (180.0, 140.0, 260.0, 220.0)
+        initial.confidence = 0.90
+        manager.select_detection(initial, frame, persist=False)
+        moved = detection(track_id=1, frame_index=2)
+        moved.center = (230.0, 180.0)
+        moved.bbox = (190.0, 140.0, 270.0, 220.0)
+        moved.confidence = 0.90
+        manager.update([moved], frame)
+
+        target = None
+        for _ in range(12):
+            target = manager.update([], frame)[0]
+
+        self.assertIsNotNone(target)
+        self.assertEqual(manager.status, "tracking")
+        self.assertEqual(target.status, "coasting")
+        self.assertEqual(target.lost_frame_count, 12)
+        self.assertLess(target.confidence, 0.40)
+        self.assertGreaterEqual(target.confidence, 0.20)
+
     def test_identity_does_not_coast_at_frame_edge(self) -> None:
         import numpy as np
 

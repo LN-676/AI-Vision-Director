@@ -12,6 +12,7 @@ from autocamtracker.server.websocket_server import (
     frame_tracking_message,
     tracking_message,
 )
+import autocamtracker.server.websocket_server as websocket_server
 
 
 class TrackingMessageTests(unittest.TestCase):
@@ -44,6 +45,8 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertAlmostEqual(message["zoom_factor"], 1.6)
 
     def test_lost_target_emits_stop(self) -> None:
+        websocket_server._last_locked_zoom_factor = 1.6
+        websocket_server._last_unlocked_at = None
         frame_data = SimpleNamespace(
             selected_targets=[],
             tracking_status="lost",
@@ -54,9 +57,11 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertFalse(message["target_locked"])
         self.assertEqual(message["error_x"], 0.0)
         self.assertEqual(message["error_y"], 0.0)
-        self.assertAlmostEqual(message["zoom_factor"], 1.0)
+        self.assertAlmostEqual(message["zoom_factor"], 1.6)
 
     def test_stale_selected_bbox_emits_stop(self) -> None:
+        websocket_server._last_locked_zoom_factor = 1.6
+        websocket_server._last_unlocked_at = None
         frame_data = SimpleNamespace(
             selected_targets=[SimpleNamespace(confidence=0.91, status="lost", lost_frame_count=1)],
             tracking_status="tracking",
@@ -66,7 +71,23 @@ class TrackingMessageTests(unittest.TestCase):
 
         self.assertFalse(message["target_locked"])
         self.assertEqual(message["sequence"], 43)
-        self.assertAlmostEqual(message["zoom_factor"], 1.0)
+        self.assertAlmostEqual(message["zoom_factor"], 1.6)
+
+    def test_lost_zoom_ramps_back_to_wide_after_hold(self) -> None:
+        original_monotonic = websocket_server.monotonic
+        websocket_server._last_locked_zoom_factor = 2.4
+        websocket_server._last_unlocked_at = 10.0
+        websocket_server.monotonic = lambda: 12.0
+        try:
+            message = frame_tracking_message(
+                SimpleNamespace(selected_targets=[], tracking_status="lost"),
+                (360, 640, 3),
+            )
+        finally:
+            websocket_server.monotonic = original_monotonic
+
+        self.assertFalse(message["target_locked"])
+        self.assertAlmostEqual(message["zoom_factor"], 1.7)
 
     def test_wire_values_are_clamped(self) -> None:
         message = tracking_message(
@@ -79,7 +100,7 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertEqual(message["error_x"], 1.0)
         self.assertEqual(message["error_y"], -1.0)
         self.assertEqual(message["confidence"], 1.0)
-        self.assertEqual(message["source_version"], "1.73")
+        self.assertEqual(message["source_version"], "1.74")
 
     def test_coasted_target_can_emit_predicted_tracking_command(self) -> None:
         frame_data = SimpleNamespace(
@@ -101,6 +122,27 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertTrue(message["target_locked"])
         self.assertTrue(message["predicted_target"])
         self.assertAlmostEqual(message["zoom_factor"], 1.6)
+
+    def test_extended_coasted_target_can_emit_predicted_tracking_command(self) -> None:
+        frame_data = SimpleNamespace(
+            selected_targets=[SimpleNamespace(
+                confidence=0.31,
+                status="coasting",
+                lost_frame_count=12,
+                center=(340.0, 180.0),
+                bbox=(280.0, 140.0, 400.0, 220.0),
+            )],
+            tracking_status="tracking",
+            framing_status=SimpleNamespace(error_x=20.0, error_y=0.0, framing_mode="medium"),
+            selected_global_vehicle_id=12,
+            selected_local_track_id=7,
+        )
+
+        message = frame_tracking_message(frame_data, (360, 640, 3), sequence=45)
+
+        self.assertTrue(message["target_locked"])
+        self.assertTrue(message["predicted_target"])
+        self.assertEqual(message["sequence"], 45)
 
     def test_motor_status_reports_dockkit_readiness(self) -> None:
         server = TrackingWebSocketServer()

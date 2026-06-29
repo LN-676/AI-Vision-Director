@@ -8,7 +8,7 @@ struct NetworkTestView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("AutoCamTracker V1.73")
+                Text("AutoCamTracker V1.74")
                     .font(.headline)
                 Spacer()
                 Text(client.status.rawValue)

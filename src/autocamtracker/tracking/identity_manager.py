@@ -164,7 +164,7 @@ class GlobalIdentityManager:
         self,
         max_lost_frames: int = 150,
         searching_after_frames: int = 5,
-        predictive_coast_frames: int = 3,
+        predictive_coast_frames: int = 12,
         identity_store: VehicleIdentityStore | None = None,
         feature_gallery: FeatureGallery | None = None,
     ) -> None:
@@ -562,7 +562,8 @@ class GlobalIdentityManager:
         if x <= margin_x or x >= frame_w - margin_x or y <= margin_y or y >= frame_h - margin_y:
             return False
         speed = (identity.velocity[0] ** 2 + identity.velocity[1] ** 2) ** 0.5
-        return speed <= max(frame_w, frame_h) * 0.08
+        max_speed = max(frame_w, frame_h) * (0.08 if identity.lost_frames <= 3 else 0.12)
+        return speed <= max_speed
 
     def _coasted_selected_target(self, frame_shape) -> SelectedTarget:
         assert self.selected_identity is not None
@@ -582,11 +583,16 @@ class GlobalIdentityManager:
             center_x + width / 2.0,
             center_y + height / 2.0,
         )
+        if lost <= 3:
+            confidence = identity.confidence
+        else:
+            decay_progress = min(1.0, (lost - 3) / max(1, self.predictive_coast_frames - 3))
+            confidence = identity.confidence * (1.0 - 0.70 * decay_progress)
         return SelectedTarget(
             track_id=identity.last_track_id if identity.last_track_id is not None else -1,
             bbox=bbox,
             class_name=identity.class_name,
-            confidence=max(0.20, identity.confidence * max(0.35, 1.0 - lost * 0.18)),
+            confidence=max(0.20, confidence),
             center=(center_x, center_y),
             status="coasting",
             lost_frame_count=lost,

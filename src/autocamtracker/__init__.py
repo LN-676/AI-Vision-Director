@@ -1,3 +1,3 @@
 """AutoCamTracker package."""
 
-__version__ = "1.73"
+__version__ = "1.74"
