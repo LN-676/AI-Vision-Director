@@ -287,8 +287,13 @@ class FeatureGallery:
         top_k: int = 5,
         vehicle_id: int | None = None,
     ) -> list[FeatureMatch]:
+        cached_features = self._cached_gallery_features(gallery_type, vehicle_id)
+        fast_matches = self._match_top_k_numpy(query_embedding, cached_features, top_k)
+        if fast_matches is not None:
+            return fast_matches
+
         matches: list[FeatureMatch] = []
-        for cached in self._cached_gallery_features(gallery_type, vehicle_id):
+        for cached in cached_features:
             score = self.cosine_similarity(query_embedding, cached.embedding)
             if score <= 0.0:
                 continue
@@ -304,6 +309,68 @@ class FeatureGallery:
             )
         matches.sort(key=lambda item: item.score, reverse=True)
         return matches[: max(1, top_k)]
+
+    @staticmethod
+    def _match_top_k_numpy(
+        query_embedding: list[float],
+        cached_features: list[_CachedGalleryFeature],
+        top_k: int,
+    ) -> list[FeatureMatch] | None:
+        if not query_embedding or not cached_features:
+            return []
+        try:
+            import numpy as np
+        except ImportError:
+            return None
+
+        query = np.asarray(query_embedding, dtype=np.float32).reshape(-1)
+        if query.size == 0:
+            return []
+        rows = []
+        valid_features: list[_CachedGalleryFeature] = []
+        for cached in cached_features:
+            vector = np.asarray(cached.embedding, dtype=np.float32).reshape(-1)
+            if vector.size != query.size:
+                continue
+            rows.append(vector)
+            valid_features.append(cached)
+        if not rows:
+            return []
+
+        matrix = np.vstack(rows)
+        query_norm = float(np.linalg.norm(query))
+        row_norms = np.linalg.norm(matrix, axis=1)
+        valid = row_norms > 1e-12
+        if query_norm <= 1e-12 or not bool(np.any(valid)):
+            return []
+        scores = np.zeros(matrix.shape[0], dtype=np.float32)
+        scores[valid] = matrix[valid].dot(query) / (row_norms[valid] * query_norm)
+        scores = np.clip(scores, 0.0, 1.0)
+
+        limit = max(1, min(int(top_k), len(valid_features)))
+        if len(valid_features) > limit:
+            candidate_indices = np.argpartition(-scores, limit - 1)[:limit]
+            ordered_indices = candidate_indices[np.argsort(-scores[candidate_indices])]
+        else:
+            ordered_indices = np.argsort(-scores)
+
+        matches: list[FeatureMatch] = []
+        for raw_index in ordered_indices:
+            score = float(scores[int(raw_index)])
+            if score <= 0.0:
+                continue
+            cached = valid_features[int(raw_index)]
+            matches.append(
+                FeatureMatch(
+                    feature_id=cached.match.feature_id,
+                    vehicle_id=cached.match.vehicle_id,
+                    gallery_type=cached.match.gallery_type,
+                    score=score,
+                    quality_score=cached.match.quality_score,
+                    frame_index=cached.match.frame_index,
+                )
+            )
+        return matches
 
     def rank_detections_for_vehicle(
         self,

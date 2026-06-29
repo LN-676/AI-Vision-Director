@@ -46,7 +46,11 @@ class PipelineProcessor:
         inference_time_ms: float = 0.0,
         source_fps: float | None = None,
         skipped_frames: int = 0,
+        render_preview: bool = True,
+        decode_time_ms: float = 0.0,
+        receive_latency_ms: float | None = None,
     ) -> FrameData:
+        pipeline_started_at = time()
         identity_started_at = time()
         camera_cut = self.scene_cut_detector.update(frame)
         if camera_cut:
@@ -61,9 +65,15 @@ class PipelineProcessor:
         identity_time_ms = (time() - identity_started_at) * 1000.0
 
         reframe_started_at = time()
-        after_frame, framing_status = self.reframer.render(frame, selected_targets)
+        if render_preview:
+            after_frame, framing_status = self.reframer.render(frame, selected_targets)
+        else:
+            framing_status = self.reframer.status(frame, selected_targets)
+            after_frame = frame
         reframe_time_ms = (time() - reframe_started_at) * 1000.0
-        before_frame = draw_detections(frame, detections)
+        preview_started_at = time()
+        before_frame = draw_detections(frame, detections) if render_preview else frame
+        preview_time_ms = (time() - preview_started_at) * 1000.0
 
         return FrameData(
             raw_frame=frame,
@@ -81,7 +91,11 @@ class PipelineProcessor:
             reacquire_score=self.identity_manager.last_reacquire_score,
             source_fps=source_fps,
             inference_time_ms=inference_time_ms,
+            decode_time_ms=decode_time_ms,
+            receive_latency_ms=receive_latency_ms,
+            pipeline_time_ms=(time() - pipeline_started_at) * 1000.0,
             identity_time_ms=identity_time_ms,
             reframe_time_ms=reframe_time_ms,
+            preview_time_ms=preview_time_ms,
             skipped_frames=skipped_frames,
         )

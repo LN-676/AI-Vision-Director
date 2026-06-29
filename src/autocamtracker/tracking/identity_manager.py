@@ -373,15 +373,15 @@ class GlobalIdentityManager:
         if (
             best.score < self.auto_reid_min_score
             or best.score - second_score < self.auto_reid_margin
-            or best.detection.track_id is None
         ):
             self._reset_auto_reid_pending()
             return None, best.score
 
-        if best.detection.track_id == self._auto_reid_pending_track_id:
+        pending_key = self._reid_pending_key(best.detection)
+        if pending_key == self._auto_reid_pending_track_id:
             self._auto_reid_pending_count += 1
         else:
-            self._auto_reid_pending_track_id = best.detection.track_id
+            self._auto_reid_pending_track_id = pending_key
             self._auto_reid_pending_count = 1
 
         if self._auto_reid_pending_count >= self.auto_reid_confirm_frames:
@@ -404,9 +404,15 @@ class GlobalIdentityManager:
 
     def is_selected_detection(self, detection: TrackedDetection) -> bool:
         identity = self.selected_identity
-        if identity is None or detection.track_id is None:
+        if identity is None:
             return False
-        return detection.track_id == identity.last_track_id
+        if detection.track_id is not None and identity.last_track_id is not None:
+            return detection.track_id == identity.last_track_id
+        return (
+            identity.global_vehicle_id is not None
+            and detection.frame_index == identity.last_frame_index
+            and self._bbox_iou(detection.bbox, identity.last_bbox) >= 0.80
+        )
 
     def global_id_for_detection(self, detection: TrackedDetection) -> int | None:
         if self.is_selected_detection(detection):
@@ -439,6 +445,30 @@ class GlobalIdentityManager:
             if detection.track_id == identity.last_track_id:
                 return detection
         return None
+
+    @staticmethod
+    def _reid_pending_key(detection: TrackedDetection) -> int:
+        if detection.track_id is not None:
+            return int(detection.track_id)
+        x1, y1, x2, y2 = detection.bbox
+        center_x = int(round((x1 + x2) / 20.0))
+        center_y = int(round((y1 + y2) / 20.0))
+        return hash((center_x, center_y))
+
+    @staticmethod
+    def _bbox_iou(
+        first: tuple[float, float, float, float],
+        second: tuple[float, float, float, float],
+    ) -> float:
+        left = max(first[0], second[0])
+        top = max(first[1], second[1])
+        right = min(first[2], second[2])
+        bottom = min(first[3], second[3])
+        intersection = max(0.0, right - left) * max(0.0, bottom - top)
+        first_area = max(0.0, first[2] - first[0]) * max(0.0, first[3] - first[1])
+        second_area = max(0.0, second[2] - second[0]) * max(0.0, second[3] - second[1])
+        union = first_area + second_area - intersection
+        return intersection / union if union > 0.0 else 0.0
 
     def _update_identity(self, detection: TrackedDetection, frame) -> None:
         if self.selected_identity is None:

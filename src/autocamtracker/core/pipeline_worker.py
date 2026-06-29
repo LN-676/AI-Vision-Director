@@ -23,11 +23,21 @@ class TrackingWorkerResult:
 class TrackingWorker:
     """Runs detector step and pipeline processing away from Tk's main thread."""
 
-    def __init__(self, detector, pipeline, draw_callback: Callable, get_skipped_frames: Callable[[], int]) -> None:
+    def __init__(
+        self,
+        detector,
+        pipeline,
+        draw_callback: Callable,
+        get_skipped_frames: Callable[[], int],
+        should_render_preview: Callable[[], bool] | None = None,
+        get_frame_timing: Callable[[], dict[str, Any]] | None = None,
+    ) -> None:
         self.detector = detector
         self.pipeline = pipeline
         self.draw_callback = draw_callback
         self.get_skipped_frames = get_skipped_frames
+        self.should_render_preview = should_render_preview or (lambda: True)
+        self.get_frame_timing = get_frame_timing or (lambda: {})
         self._request_event = Event()
         self._stop_event = Event()
         self._busy = Event()
@@ -89,6 +99,7 @@ class TrackingWorker:
                 if frame is not None:
                     skipped_frames = self.get_skipped_frames()
                     source_fps = self.detector.get_source_fps()
+                    frame_timing = self.get_frame_timing()
                     
                     frame_data = self.pipeline.process(
                         frame=frame,
@@ -98,6 +109,9 @@ class TrackingWorker:
                         inference_time_ms=inference_time_ms,
                         source_fps=source_fps,
                         skipped_frames=skipped_frames,
+                        render_preview=self.should_render_preview(),
+                        decode_time_ms=float(frame_timing.get("decode_time_ms") or 0.0),
+                        receive_latency_ms=frame_timing.get("receive_latency_ms"),
                     )
                 else:
                     frame_data = None

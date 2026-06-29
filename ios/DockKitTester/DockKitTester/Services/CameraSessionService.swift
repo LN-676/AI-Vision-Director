@@ -28,6 +28,35 @@ enum CameraStreamOrientation: String, CaseIterable, Identifiable {
     }
 }
 
+enum CameraStreamPreset: String, CaseIterable, Identifiable {
+    case lowLatency
+    case balanced
+    case detail
+
+    var id: Self { self }
+    var targetWidth: CGFloat {
+        switch self {
+        case .lowLatency: 640
+        case .balanced: 800
+        case .detail: 960
+        }
+    }
+    var minimumFrameInterval: Double {
+        switch self {
+        case .lowLatency: 1.0 / 15.0
+        case .balanced: 1.0 / 15.0
+        case .detail: 1.0 / 12.0
+        }
+    }
+    var jpegQuality: CGFloat {
+        switch self {
+        case .lowLatency: 0.55
+        case .balanced: 0.62
+        case .detail: 0.70
+        }
+    }
+}
+
 @MainActor
 final class CameraSessionService: ObservableObject {
     var session: AVCaptureSession { capture.session }
@@ -40,6 +69,7 @@ final class CameraSessionService: ObservableObject {
     @Published private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @Published private(set) var lastError: String?
     @Published private(set) var streamOrientation: CameraStreamOrientation = .portrait
+    @Published private(set) var streamPreset: CameraStreamPreset = .lowLatency
     @Published private(set) var zoomFactor: CGFloat = 1
     @Published private(set) var minimumZoomFactor: CGFloat = 1
     @Published private(set) var maximumZoomFactor: CGFloat = 1
@@ -141,6 +171,12 @@ final class CameraSessionService: ObservableObject {
 
     func resetTrackingDisplayZoom() {
         applyTrackingDisplayZoom(Double(minimumDisplayZoomFactor), force: true)
+    }
+
+    func setStreamPreset(_ preset: CameraStreamPreset) {
+        streamPreset = preset
+        capture.frameStreamer.setPreset(preset)
+        logger.log(.info, "Camera stream preset: \(preset.rawValue).")
     }
 
     func focus(at devicePoint: CGPoint) {
@@ -324,21 +360,28 @@ private final class CaptureSessionBox: @unchecked Sendable {
 }
 
 private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
+    private static let envelopeMagic = Data([0x41, 0x43, 0x54, 0x46, 0x31]) // ACTF1
+
     var onFrame: (@Sendable (Data) -> Void)?
 
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private var lastFrameTime = 0.0
-    // Fifteen FPS is a practical tracking target for the 640 px JPEG stream:
-    // responsive enough for the control loop without saturating Wi-Fi or the CPU.
-    private let minimumFrameInterval = 1.0 / 15.0
     private let orientationLock = NSLock()
     private var orientation: CameraStreamOrientation = .portrait
+    private let presetLock = NSLock()
+    private var preset: CameraStreamPreset = .lowLatency
 
     func setOrientation(_ newOrientation: CameraStreamOrientation) {
         orientationLock.lock()
         orientation = newOrientation
         orientationLock.unlock()
+    }
+
+    func setPreset(_ newPreset: CameraStreamPreset) {
+        presetLock.lock()
+        preset = newPreset
+        presetLock.unlock()
     }
 
     func captureOutput(
@@ -349,8 +392,12 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
         guard onFrame != nil,
               let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
+        presetLock.lock()
+        let currentPreset = preset
+        presetLock.unlock()
+
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        guard timestamp - lastFrameTime >= minimumFrameInterval else { return }
+        guard timestamp - lastFrameTime >= currentPreset.minimumFrameInterval else { return }
         lastFrameTime = timestamp
 
         orientationLock.lock()
@@ -358,7 +405,7 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
         orientationLock.unlock()
         let cameraImage = CIImage(cvPixelBuffer: pixelBuffer)
         let source = cameraImage.oriented(currentOrientation.imageOrientation)
-        let targetWidth = 640.0
+        let targetWidth = currentPreset.targetWidth
         let scale = targetWidth / max(1.0, source.extent.width)
         let resized = source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         guard let cgImage = context.createCGImage(
@@ -366,8 +413,17 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
             from: resized.extent,
             format: .RGBA8,
             colorSpace: colorSpace
-        ), let jpeg = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.55) else { return }
-        onFrame?(jpeg)
+        ), let jpeg = UIImage(cgImage: cgImage).jpegData(compressionQuality: currentPreset.jpegQuality) else { return }
+        onFrame?(Self.envelopedFrame(jpeg, captureTimestampMs: UInt64(Date().timeIntervalSince1970 * 1_000)))
+    }
+
+    private static func envelopedFrame(_ jpeg: Data, captureTimestampMs: UInt64) -> Data {
+        var payload = Data()
+        payload.append(envelopeMagic)
+        var timestamp = captureTimestampMs.bigEndian
+        withUnsafeBytes(of: &timestamp) { payload.append(contentsOf: $0) }
+        payload.append(jpeg)
+        return payload
     }
 }
 

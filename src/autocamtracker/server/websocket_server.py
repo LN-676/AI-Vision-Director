@@ -1,4 +1,4 @@
-"""WebSocket bridge from AutoCamTracker V1.7 to the DockKit iOS app."""
+"""WebSocket bridge from AutoCamTracker V1.71 to the DockKit iOS app."""
 
 from __future__ import annotations
 
@@ -15,7 +15,9 @@ from typing import Any, Callable
 
 from autocamtracker.core.telemetry_logger import TelemetryLogger
 
-SOURCE_VERSION = "1.7"
+SOURCE_VERSION = "1.71"
+CAMERA_FRAME_ENVELOPE_MAGIC = b"ACTF1"
+CAMERA_FRAME_ENVELOPE_HEADER_BYTES = len(CAMERA_FRAME_ENVELOPE_MAGIC) + 8
 FRAMING_ZOOM_FACTORS = {"wide": 1.0, "medium": 1.6, "close": 2.4}
 CENTER_ZOOM_FACTOR = FRAMING_ZOOM_FACTORS["wide"]
 
@@ -171,6 +173,8 @@ class TrackingWebSocketServer:
         self._motor_status_lock = threading.Lock()
         self._latest_motor_status: MotorStatus | None = None
         self._latest_frame_bytes: bytes | None = None
+        self._latest_frame_info: dict[str, Any] = {}
+        self._latest_decoded_frame_info: dict[str, Any] = {}
         self._latest_desktop_state: dict[str, Any] | None = None
         self._received_frame_count = 0
         self._sequence = 0
@@ -289,7 +293,12 @@ class TrackingWebSocketServer:
             return
         self._last_publish_at = now
         self._sequence += 1
-        self.publish(frame_tracking_message(frame_data, frame_shape, self._sequence))
+        payload = frame_tracking_message(frame_data, frame_shape, self._sequence)
+        if getattr(frame_data, "receive_latency_ms", None) is not None:
+            payload["receive_latency_ms"] = round(float(frame_data.receive_latency_ms), 2)
+        if getattr(frame_data, "decode_time_ms", 0.0):
+            payload["decode_time_ms"] = round(float(frame_data.decode_time_ms), 2)
+        self.publish(payload)
 
     def publish_test_pulse(self, error_x: float = 0.12) -> None:
         self._sequence += 1
@@ -327,6 +336,7 @@ class TrackingWebSocketServer:
 
         with self._frame_lock:
             data = self._latest_frame_bytes
+            info = dict(self._latest_frame_info)
             self._latest_frame_bytes = None
         if data is None:
             return None
@@ -334,8 +344,24 @@ class TrackingWebSocketServer:
         import cv2
         import numpy as np
 
+        decoded_started_at = monotonic()
         encoded = np.frombuffer(data, dtype=np.uint8)
-        return cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        frame = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        decoded_at = monotonic()
+        capture_timestamp_ms = info.get("capture_timestamp_ms")
+        receive_latency_ms = None
+        if capture_timestamp_ms is not None:
+            receive_latency_ms = max(0.0, time() * 1000.0 - float(capture_timestamp_ms))
+        self._latest_decoded_frame_info = {
+            **info,
+            "decode_time_ms": (decoded_at - decoded_started_at) * 1000.0,
+            "receive_latency_ms": receive_latency_ms,
+            "decoded_monotonic_s": decoded_at,
+        }
+        return frame
+
+    def latest_frame_timing(self) -> dict[str, Any]:
+        return dict(self._latest_decoded_frame_info)
 
     def publish(self, payload: dict[str, Any]) -> None:
         if payload.get("type") == "desktop_state":
@@ -413,10 +439,27 @@ class TrackingWebSocketServer:
                 self._clients.discard(client)
 
     def _accept_camera_frame(self, data: bytes) -> None:
+        capture_timestamp_ms = None
+        if data.startswith(CAMERA_FRAME_ENVELOPE_MAGIC):
+            if len(data) < CAMERA_FRAME_ENVELOPE_HEADER_BYTES + 4:
+                return
+            capture_timestamp_ms = int.from_bytes(
+                data[len(CAMERA_FRAME_ENVELOPE_MAGIC):CAMERA_FRAME_ENVELOPE_HEADER_BYTES],
+                byteorder="big",
+                signed=False,
+            )
+            data = data[CAMERA_FRAME_ENVELOPE_HEADER_BYTES:]
         if len(data) < 4 or len(data) > 2_000_000 or not data.startswith(b"\xff\xd8"):
             return
+        received_at = monotonic()
         with self._frame_lock:
             self._latest_frame_bytes = data
+            self._latest_frame_info = {
+                "frame_count": self._received_frame_count + 1,
+                "frame_bytes": len(data),
+                "capture_timestamp_ms": capture_timestamp_ms,
+                "received_monotonic_s": received_at,
+            }
             self._received_frame_count += 1
             first_frame = self._received_frame_count == 1
         if first_frame:

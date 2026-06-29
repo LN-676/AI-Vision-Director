@@ -6,6 +6,7 @@ from time import monotonic, sleep
 import unittest
 
 from autocamtracker.server.websocket_server import (
+    CAMERA_FRAME_ENVELOPE_MAGIC,
     TrackingServerConfig,
     TrackingWebSocketServer,
     frame_tracking_message,
@@ -78,7 +79,7 @@ class TrackingMessageTests(unittest.TestCase):
         self.assertEqual(message["error_x"], 1.0)
         self.assertEqual(message["error_y"], -1.0)
         self.assertEqual(message["confidence"], 1.0)
-        self.assertEqual(message["source_version"], "1.7")
+        self.assertEqual(message["source_version"], "1.71")
 
     def test_coasted_target_can_emit_predicted_tracking_command(self) -> None:
         frame_data = SimpleNamespace(
@@ -218,6 +219,31 @@ class TrackingMessageTests(unittest.TestCase):
                     break
             self.assertIsNotNone(camera_frame)
             return initial, pulse, camera_frame
+
+    def test_camera_frame_envelope_records_latency_metadata(self) -> None:
+        import cv2
+        import numpy as np
+        from time import time
+
+        server = TrackingWebSocketServer()
+        ok, jpeg = cv2.imencode(".jpg", np.zeros((24, 32, 3), dtype=np.uint8))
+        self.assertTrue(ok)
+        capture_timestamp_ms = int((time() - 0.05) * 1000)
+        envelope = (
+            CAMERA_FRAME_ENVELOPE_MAGIC
+            + capture_timestamp_ms.to_bytes(8, byteorder="big", signed=False)
+            + jpeg.tobytes()
+        )
+
+        server._accept_camera_frame(envelope)
+        frame = server.read_latest_frame()
+        timing = server.latest_frame_timing()
+
+        self.assertIsNotNone(frame)
+        self.assertEqual(frame.shape, (24, 32, 3))
+        self.assertEqual(timing["capture_timestamp_ms"], capture_timestamp_ms)
+        self.assertGreaterEqual(timing["decode_time_ms"], 0.0)
+        self.assertGreater(timing["receive_latency_ms"], 0.0)
 
     async def _receive_initial_state(self, server: TrackingWebSocketServer):
         from websockets.asyncio.client import connect

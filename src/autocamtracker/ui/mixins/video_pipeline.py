@@ -108,8 +108,6 @@ class VideoPipelineMixin:
         
         if frame_data.camera_cut_detected:
             self._stop_auto_feature_capture_for_scene_change()
-        after_view_frame = frame_data.raw_frame if self.input_config.source_type == "iphone" else frame_data.after_frame
-        self._update_images(frame_data.before_frame, after_view_frame)
         self.current_frame_data = frame_data
         
         shot_decision = self.track_shot_controller.evaluate(frame_data, frame.shape)
@@ -133,6 +131,9 @@ class VideoPipelineMixin:
         else:
             self.tracking_server.publish_stop(CENTER_ZOOM_FACTOR)
         self._log_frame_telemetry(frame_data, frame.shape, shot_decision, motor_output_active)
+        if frame_data.before_frame is not frame:
+            after_view_frame = frame_data.raw_frame if self.input_config.source_type == "iphone" else frame_data.after_frame
+            self._update_images(frame_data.before_frame, after_view_frame)
         self._run_auto_feature_sampling(frame)
         self.refresh_identity_db_panel(force=False)
         self.publish_desktop_state(force=False)
@@ -192,6 +193,13 @@ class VideoPipelineMixin:
                 if motor_status is not None and isinstance(motor_status.last_command, dict)
                 else None
             ),
+            receive_latency_ms=frame_data.receive_latency_ms,
+            decode_time_ms=frame_data.decode_time_ms,
+            inference_time_ms=frame_data.inference_time_ms,
+            pipeline_time_ms=frame_data.pipeline_time_ms,
+            identity_time_ms=frame_data.identity_time_ms,
+            reframe_time_ms=frame_data.reframe_time_ms,
+            preview_time_ms=frame_data.preview_time_ms,
         )
 
     def _render_current_video_frame(self) -> None:
@@ -217,6 +225,7 @@ class VideoPipelineMixin:
             inference_time_ms=self.last_inference_time_ms,
             source_fps=self.detector.get_source_fps() if self.detector is not None else None,
             skipped_frames=self.skipped_frames,
+            render_preview=True,
         )
         self._process_frame_data(frame_data, frame)
         self._sync_timeline_from_detector()
@@ -305,6 +314,7 @@ class VideoPipelineMixin:
         self.last_frame_shape = None
         self.last_raw_frame = None
         self.current_frame_data = None
+        self.last_preview_render_at = 0.0
         self.skipped_frames = 0
         self.auto_feature_sampler.stop()
         self.auto_feature_status_message = ""
@@ -325,6 +335,15 @@ class VideoPipelineMixin:
             self.detector is not None
             and self.input_config.source_type in {"video_file", "video_url"}
         )
+
+    def _should_render_preview_frame(self) -> bool:
+        if self.input_config.source_type != "iphone":
+            return True
+        now = time()
+        if now - self.last_preview_render_at < self.preview_render_interval_seconds:
+            return False
+        self.last_preview_render_at = now
+        return True
 
     def _set_display_size(self, width: int, height: int) -> bool:
         width = max(160, min(3840, int(width)))
@@ -546,6 +565,10 @@ class VideoPipelineMixin:
             },
             "diagnostics": {
                 "desktop_version": f"AutoCamTracker V{SOURCE_VERSION}",
+                "receive_latency_ms": frame_data.receive_latency_ms if frame_data is not None else None,
+                "decode_time_ms": frame_data.decode_time_ms if frame_data is not None else 0.0,
+                "inference_time_ms": frame_data.inference_time_ms if frame_data is not None else 0.0,
+                "pipeline_time_ms": frame_data.pipeline_time_ms if frame_data is not None else 0.0,
                 "phone_last_command_source_version": (
                     motor_status.last_command.get("source_version")
                     if motor_status is not None and isinstance(motor_status.last_command, dict)

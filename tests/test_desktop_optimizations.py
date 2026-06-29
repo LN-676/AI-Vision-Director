@@ -61,6 +61,9 @@ class FakePipeline:
         inference_time_ms,
         source_fps,
         skipped_frames,
+        render_preview=True,
+        decode_time_ms=0.0,
+        receive_latency_ms=None,
     ):
         return {
             "frame": draw_detections(frame, detections),
@@ -68,6 +71,9 @@ class FakePipeline:
             "source_fps": source_fps,
             "skipped_frames": skipped_frames,
             "inference_time_ms": inference_time_ms,
+            "render_preview": render_preview,
+            "decode_time_ms": decode_time_ms,
+            "receive_latency_ms": receive_latency_ms,
         }
 
 
@@ -253,6 +259,35 @@ class ReIDRuntimeOptimizationTests(unittest.TestCase):
         self.assertEqual(gallery.seen_track_ids, [2])
         self.assertEqual(manager.selected_global_vehicle_id, 1)
         self.assertEqual(manager.selected_local_track_id, 1)
+
+    def test_auto_reid_can_lock_detection_without_local_track_id(self) -> None:
+        import numpy as np
+
+        class StaticGallery:
+            def has_master_features(self, _vehicle_id: int) -> bool:
+                return True
+
+            def rank_detections_for_vehicle(self, _vehicle_id, detections, _frame):
+                from autocamtracker.tracking.feature_gallery import DetectionFeatureMatch
+
+                return [DetectionFeatureMatch(detection=detections[0], score=0.91, matches=[])]
+
+        frame = np.full((360, 640, 3), 90, dtype=np.uint8)
+        manager = GlobalIdentityManager(feature_gallery=StaticGallery())  # type: ignore[arg-type]
+        manager.auto_reid_confirm_frames = 1
+        initial = detection(track_id=4, frame_index=1)
+        manager.select_detection(initial, frame, persist=True)
+        manager.update([], frame)
+
+        candidate = detection(track_id=None, frame_index=3)
+        candidate.bbox = (12.0, 22.0, 92.0, 82.0)
+        candidate.center = (52.0, 52.0)
+        targets = manager.update([candidate], frame)
+
+        self.assertEqual(manager.status, "tracking")
+        self.assertEqual(manager.selected_global_vehicle_id, 1)
+        self.assertIsNone(manager.selected_local_track_id)
+        self.assertEqual(targets[0].track_id, -1)
 
     def test_identity_short_loss_coasts_only_when_safe(self) -> None:
         import numpy as np

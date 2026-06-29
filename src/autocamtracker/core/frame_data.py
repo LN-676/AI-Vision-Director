@@ -34,7 +34,11 @@ class FrameData:
     display_fps: float = 0.0
     source_fps: float | None = None
     inference_time_ms: float = 0.0
+    decode_time_ms: float = 0.0
+    receive_latency_ms: float | None = None
+    pipeline_time_ms: float = 0.0
     identity_time_ms: float = 0.0
     reframe_time_ms: float = 0.0
+    preview_time_ms: float = 0.0
     skipped_frames: int = 0
     notes: list[str] = field(default_factory=list)

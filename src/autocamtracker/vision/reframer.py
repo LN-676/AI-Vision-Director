@@ -58,10 +58,20 @@ class Reframer:
     def render(self, frame, selected_targets: list[SelectedTarget]):
         import cv2
 
-        frame_h, frame_w = frame.shape[:2]
+        status = self.status(frame, selected_targets)
+        x, y, width, height = status.crop_window
         if not selected_targets:
             output = cv2.resize(frame, (self.config.output_width, self.config.output_height))
-            status = FramingStatus(
+            return output, status
+
+        cropped = frame[y : y + height, x : x + width]
+        output = cv2.resize(cropped, (self.config.output_width, self.config.output_height))
+        return output, status
+
+    def status(self, frame, selected_targets: list[SelectedTarget]) -> FramingStatus:
+        frame_h, frame_w = frame.shape[:2]
+        if not selected_targets:
+            return FramingStatus(
                 crop_window=(0, 0, frame_w, frame_h),
                 framing_mode=self.config.framing_mode,
                 target_center=None,
@@ -69,7 +79,6 @@ class Reframer:
                 error_x=0.0,
                 error_y=0.0,
             )
-            return output, status
 
         group_bbox = self._union_bbox([target.bbox for target in selected_targets])
         target_center = self._bbox_center(group_bbox)
@@ -78,11 +87,7 @@ class Reframer:
         smooth_center = self._smooth_center(desired_center)
         crop_window = self._compute_crop_window(group_bbox, smooth_center, frame_w, frame_h)
 
-        x, y, width, height = crop_window
-        cropped = frame[y : y + height, x : x + width]
-        output = cv2.resize(cropped, (self.config.output_width, self.config.output_height))
-
-        status = FramingStatus(
+        return FramingStatus(
             crop_window=crop_window,
             framing_mode=self.config.framing_mode,
             target_center=target_center,
@@ -90,7 +95,6 @@ class Reframer:
             error_x=target_center[0] - frame_center[0],
             error_y=target_center[1] - frame_center[1],
         )
-        return output, status
 
     def make_comparison_frame(self, before_frame, after_frame):
         import cv2

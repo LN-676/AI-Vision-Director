@@ -50,7 +50,9 @@ class CommandsMixin:
                     self.detector,
                     self.pipeline,
                     self._draw_detections,
-                    lambda: getattr(self, "skipped_frames", 0)
+                    lambda: getattr(self, "skipped_frames", 0),
+                    self._should_render_preview_frame,
+                    self.tracking_server.latest_frame_timing,
                 )
                 self.tracking_worker.discard_results()
                 self._update_transport_actions()
@@ -72,7 +74,9 @@ class CommandsMixin:
                 self.detector,
                 self.pipeline,
                 self._draw_detections,
-                lambda: getattr(self, "skipped_frames", 0)
+                lambda: getattr(self, "skipped_frames", 0),
+                self._should_render_preview_frame,
+                self.tracking_server.latest_frame_timing,
             )
             self.active_input_signature = desired_signature
             self.running = True

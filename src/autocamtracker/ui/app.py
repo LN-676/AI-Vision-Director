@@ -48,7 +48,7 @@ from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.7"
+    window_title: str = "AutoCamTracker V1.71"
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360
@@ -150,6 +150,8 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.auto_feature_status_message = ""
         self.last_desktop_state_publish_at = 0.0
         self.last_frame_telemetry_at = 0.0
+        self.last_preview_render_at = 0.0
+        self.preview_render_interval_seconds = 0.10
 
         self.before_image_ref = None
         self.after_image_ref = None
