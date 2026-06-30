@@ -2,11 +2,11 @@
 set -e
 
 PROJECT_DIR="/Users/linen/.codex/worktrees/3267/AutoCamTracker"
-LOG_FILE="/tmp/autocamtracker-v174-launch.log"
+LOG_FILE="/tmp/autocamtracker-v175-launch.log"
 
 cd "$PROJECT_DIR"
 
-echo "Starting AutoCamTracker V1.74..." | tee "$LOG_FILE"
+echo "Starting AutoCamTracker V1.75..." | tee "$LOG_FILE"
 echo "Project: $PROJECT_DIR" | tee -a "$LOG_FILE"
 echo "Log: $LOG_FILE" | tee -a "$LOG_FILE"
 

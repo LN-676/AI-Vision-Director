@@ -165,12 +165,14 @@ class GlobalIdentityManager:
         max_lost_frames: int = 150,
         searching_after_frames: int = 5,
         predictive_coast_frames: int = 12,
+        coasting_min_confidence: float = 0.24,
         identity_store: VehicleIdentityStore | None = None,
         feature_gallery: FeatureGallery | None = None,
     ) -> None:
         self.max_lost_frames = max_lost_frames
         self.searching_after_frames = searching_after_frames
         self.predictive_coast_frames = predictive_coast_frames
+        self.coasting_min_confidence = max(0.20, min(0.50, coasting_min_confidence))
         self.next_global_vehicle_id = 1
         self.identity_store = identity_store
         self.feature_gallery = feature_gallery
@@ -592,7 +594,7 @@ class GlobalIdentityManager:
             track_id=identity.last_track_id if identity.last_track_id is not None else -1,
             bbox=bbox,
             class_name=identity.class_name,
-            confidence=max(0.20, confidence),
+            confidence=max(self.coasting_min_confidence, confidence),
             center=(center_x, center_y),
             status="coasting",
             lost_frame_count=lost,

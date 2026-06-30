@@ -216,8 +216,22 @@ struct ContentView: View {
                 format: "%.0f",
                 onChange: controlService.setMaxNonImprovingUpdates
             )
+            calibrationSlider(
+                title: "失追回 Home 秒數",
+                value: controlService.calibration.lostAutoReturnDelay,
+                range: 0.5...5.0,
+                format: "%.1f",
+                onChange: controlService.setLostAutoReturnDelay
+            )
+            calibrationSlider(
+                title: "重鎖確認幀數",
+                value: Double(controlService.calibration.stableLockRequiredFrames),
+                range: 1...20,
+                format: "%.0f",
+                onChange: controlService.setStableLockRequiredFrames
+            )
 
-            Text("先用保守速度測試。若 Find GID 後目標越追越遠，先切換左右方向；若網路或辨識不穩，放大中心停止區並降低最大速度。")
+            Text("先用保守速度測試。若 Find GID 後目標越追越遠，先切換左右方向；若網路或辨識不穩，放大中心停止區並降低最大速度。失追回 Home 秒數越短越安全，越長越能容忍短暫遮擋。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -284,7 +298,7 @@ struct ContentView: View {
         }
         networkClient.onTimeout = { [weak controlService, weak cameraSession] in
             cameraSession?.resetTrackingDisplayZoom()
-            await controlService?.emergencyStop(reason: "V1.74 timeout or disconnect")
+            await controlService?.emergencyStop(reason: "V1.75 timeout or disconnect")
         }
         await cameraSession.start()
         await dockKitManager.startListening()
@@ -472,7 +486,7 @@ private struct CameraControlPage: View {
 
             HStack {
                 Label(
-                    controlService.homeSet || dockKitManager.hasHomePosition ? "Home ready / 初始位置已設定" : "設定初始位置",
+                    controlService.homeSet || dockKitManager.hasHomePosition ? "Home ready / 再按可覆蓋目前位置" : "設定初始位置",
                     systemImage: controlService.homeSet || dockKitManager.hasHomePosition ? "checkmark.circle.fill" : "house"
                 )
                 Spacer()

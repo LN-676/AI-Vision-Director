@@ -35,6 +35,8 @@ struct GimbalCalibrationProfile: Codable, Equatable, Sendable {
     var maxNonImprovingUpdates = 8
     var edgeStopMargin = 0.04
     var edgeSlowMargin = 0.14
+    var lostAutoReturnDelay = 1.0
+    var stableLockRequiredFrames = 5
 
     static let conservative = GimbalCalibrationProfile()
 
@@ -50,6 +52,14 @@ struct GimbalCalibrationProfile: Codable, Equatable, Sendable {
             edgeStopMargin: clamped(edgeStopMargin, min: 0.02, max: 0.12),
             edgeSlowMargin: clamped(edgeSlowMargin, min: 0.08, max: 0.24)
         )
+    }
+
+    var clampedLostAutoReturnDelay: Double {
+        clamped(lostAutoReturnDelay, min: 0.5, max: 5.0)
+    }
+
+    var clampedStableLockRequiredFrames: Int {
+        max(1, min(20, stableLockRequiredFrames))
     }
 }
 

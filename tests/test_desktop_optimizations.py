@@ -378,7 +378,7 @@ class ReIDRuntimeOptimizationTests(unittest.TestCase):
         import numpy as np
 
         frame = np.full((360, 640, 3), 90, dtype=np.uint8)
-        manager = GlobalIdentityManager()
+        manager = GlobalIdentityManager(coasting_min_confidence=0.24)
         initial = detection(track_id=1, frame_index=1)
         initial.center = (220.0, 180.0)
         initial.bbox = (180.0, 140.0, 260.0, 220.0)
@@ -399,7 +399,12 @@ class ReIDRuntimeOptimizationTests(unittest.TestCase):
         self.assertEqual(target.status, "coasting")
         self.assertEqual(target.lost_frame_count, 12)
         self.assertLess(target.confidence, 0.40)
-        self.assertGreaterEqual(target.confidence, 0.20)
+        self.assertGreaterEqual(target.confidence, 0.24)
+
+    def test_identity_coasting_confidence_floor_is_clamped_for_ios_tracking(self) -> None:
+        manager = GlobalIdentityManager(coasting_min_confidence=0.05)
+
+        self.assertEqual(manager.coasting_min_confidence, 0.20)
 
     def test_identity_does_not_coast_at_frame_edge(self) -> None:
         import numpy as np

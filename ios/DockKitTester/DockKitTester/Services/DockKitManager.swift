@@ -271,14 +271,18 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
     func setHome() async {
 #if targetEnvironment(simulator)
         hasHomePosition = true
-        logger.log(.success, "Home position set to simulated offset.")
+        logger.log(.success, "Home position overwritten at simulated current offset.")
 #else
+        activeOrientationProgress?.cancel()
+        activeOrientationProgress = nil
+        orientationCommandInFlight = false
+        lastVelocityUpdateAt = nil
         homeOffset = currentOffset
         hasHomePosition = true
         logger.log(
             .success,
             String(
-                format: "Home saved at relative offset pitch=%.3f yaw=%.3f roll=%.3f.",
+                format: "Home overwritten at current relative offset pitch=%.3f yaw=%.3f roll=%.3f.",
                 currentOffset.x,
                 currentOffset.y,
                 currentOffset.z

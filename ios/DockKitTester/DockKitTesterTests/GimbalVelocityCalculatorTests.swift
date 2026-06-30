@@ -74,6 +74,22 @@ final class GimbalVelocityCalculatorTests: XCTestCase {
         XCTAssertEqual(calculator.configuration.maxNonImprovingUpdates, 5)
     }
 
+    func testRecoveryCalibrationValuesAreClamped() {
+        let fastProfile = GimbalCalibrationProfile(
+            lostAutoReturnDelay: 0.1,
+            stableLockRequiredFrames: 0
+        )
+        let slowProfile = GimbalCalibrationProfile(
+            lostAutoReturnDelay: 8.0,
+            stableLockRequiredFrames: 99
+        )
+
+        XCTAssertEqual(fastProfile.clampedLostAutoReturnDelay, 0.5)
+        XCTAssertEqual(fastProfile.clampedStableLockRequiredFrames, 1)
+        XCTAssertEqual(slowProfile.clampedLostAutoReturnDelay, 5.0)
+        XCTAssertEqual(slowProfile.clampedStableLockRequiredFrames, 20)
+    }
+
     func testNonImprovingTrackingTriggersSafetyStop() {
         var calculator = GimbalVelocityCalculator(
             configuration: GimbalControlConfiguration(maxNonImprovingUpdates: 3)
