@@ -268,7 +268,7 @@ class UIBuilderMixin:
 
         self.identity_tree = ttk.Treeview(
             identity_controls,
-            columns=("gid", "type", "lid", "master", "pending", "candidate", "frame", "conf"),
+            columns=("gid", "type", "lid", "master", "pending", "candidate", "frame", "conf", "manage"),
             show="headings",
             height=12,
         )
@@ -281,8 +281,19 @@ class UIBuilderMixin:
             "candidate": "Candidate",
             "frame": "Frame",
             "conf": "DetConf",
+            "manage": "Master",
         }
-        widths = {"gid": 38, "type": 50, "lid": 38, "master": 48, "pending": 52, "candidate": 58, "frame": 48, "conf": 44}
+        widths = {
+            "gid": 38,
+            "type": 50,
+            "lid": 38,
+            "master": 48,
+            "pending": 52,
+            "candidate": 58,
+            "frame": 48,
+            "conf": 44,
+            "manage": 54,
+        }
         for column, label in headings.items():
             self.identity_tree.heading(column, text=label)
             self.identity_tree.column(column, width=widths[column], minwidth=36, anchor="center", stretch=False)
@@ -290,6 +301,7 @@ class UIBuilderMixin:
         self.identity_tree.tag_configure("tree_selected", background="#b9dcff")
         self.identity_tree.tag_configure("no_master", background="#fff4cc")
         self.identity_tree.bind("<<TreeviewSelect>>", self.on_identity_tree_select)
+        self.identity_tree.bind("<ButtonRelease-1>", self.on_identity_tree_click)
         self.identity_tree.bind("<Double-1>", self.edit_identity_display_name)
         self.identity_tree.bind("<Delete>", self.delete_selected_identity)
         self.identity_tree.bind("<BackSpace>", self.delete_selected_identity)

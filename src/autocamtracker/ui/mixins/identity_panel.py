@@ -5,7 +5,7 @@ from pathlib import Path
 from queue import Empty, SimpleQueue
 import sys
 from threading import Thread
-from time import time
+from time import localtime, strftime, time
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -73,6 +73,7 @@ class IdentityPanelMixin:
                     vehicle.candidate_feature_count,
                     vehicle.last_frame_index,
                     f"{vehicle.confidence:.2f}",
+                    "View",
                 ),
                 tags=tags,
             )
@@ -112,7 +113,25 @@ class IdentityPanelMixin:
         self._refresh_selection_panel()
         return "break"
 
+    def on_identity_tree_click(self, event) -> str | None:
+        if self.identity_tree.identify_column(event.x) != "#9":
+            return None
+        item = self.identity_tree.identify_row(event.y)
+        if not item:
+            return "break"
+        try:
+            vehicle_id = int(item)
+        except ValueError:
+            return "break"
+        self.selected_identity_tree_ids = {vehicle_id}
+        self.identity_tree.selection_set(item)
+        self.open_master_feature_manager(vehicle_id)
+        return "break"
+
     def on_identity_tree_motion(self, event) -> None:
+        if self.identity_tree.identify_column(event.x) == "#9":
+            self.hide_identity_preview()
+            return
         item = self.identity_tree.identify_row(event.y)
         if not item:
             self.hide_identity_preview()
@@ -582,3 +601,142 @@ class IdentityPanelMixin:
     @staticmethod
     def _set_button_enabled(button, enabled: bool) -> None:
         button.state(["!disabled"] if enabled else ["disabled"])
+
+    def open_master_feature_manager(self, vehicle_id: int) -> None:
+        if Image is None or ImageTk is None:
+            messagebox.showwarning(
+                "Master Snapshots",
+                "Pillow is required to preview master snapshots.",
+                parent=self.root,
+            )
+            return
+
+        self.hide_identity_preview()
+        label = self.identity_store.display_label(vehicle_id)
+        window = tk.Toplevel(self.root)
+        window.title(f"Master Snapshots - GID {label}")
+        window.geometry("760x560")
+        window.transient(self.root)
+
+        state = {
+            "selected": set(),
+            "photos": [],
+            "buttons": {},
+            "snapshots": [],
+        }
+
+        header = ttk.Frame(window, padding=(10, 10, 10, 4))
+        header.pack(fill="x")
+        title_var = tk.StringVar(value="")
+        ttk.Label(header, textvariable=title_var).pack(side="left")
+        ttk.Button(header, text="Refresh", command=lambda: refresh()).pack(side="right")
+
+        body = ttk.Frame(window, padding=(10, 4, 10, 6))
+        body.pack(fill="both", expand=True)
+        canvas = tk.Canvas(body, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(body, orient="vertical", command=canvas.yview)
+        grid = ttk.Frame(canvas)
+        grid.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas_window = canvas.create_window((0, 0), window=grid, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        canvas.bind("<Configure>", lambda event: canvas.itemconfigure(canvas_window, width=event.width))
+
+        footer = ttk.Frame(window, padding=(10, 6, 10, 10))
+        footer.pack(fill="x")
+        selection_var = tk.StringVar(value="Selected: 0")
+        ttk.Label(footer, textvariable=selection_var).pack(side="left")
+        delete_button = ttk.Button(
+            footer,
+            text="Delete Selected",
+            command=lambda: delete_selected(),
+        )
+        delete_button.pack(side="right")
+        delete_button.state(["disabled"])
+
+        def set_selected(feature_id: int, selected: bool) -> None:
+            selected_ids: set[int] = state["selected"]  # type: ignore[assignment]
+            if selected:
+                selected_ids.add(feature_id)
+            else:
+                selected_ids.discard(feature_id)
+            button = state["buttons"].get(feature_id)
+            if button is not None:
+                button.configure(text="Selected" if selected else "Select")
+            count = len(selected_ids)
+            selection_var.set(f"Selected: {count}")
+            delete_button.state(["!disabled"] if count else ["disabled"])
+
+        def toggle(feature_id: int) -> None:
+            selected_ids: set[int] = state["selected"]  # type: ignore[assignment]
+            set_selected(feature_id, feature_id not in selected_ids)
+
+        def clear_grid() -> None:
+            for child in grid.winfo_children():
+                child.destroy()
+            state["photos"] = []
+            state["buttons"] = {}
+            state["selected"] = set()
+            selection_var.set("Selected: 0")
+            delete_button.state(["disabled"])
+
+        def refresh() -> None:
+            clear_grid()
+            snapshots = self.feature_gallery.feature_snapshots(vehicle_id, "master")
+            state["snapshots"] = snapshots
+            title_var.set(f"GID {label} master snapshots: {len(snapshots)}")
+            if not snapshots:
+                ttk.Label(grid, text="No master snapshots saved for this GID.", padding=12).grid(
+                    row=0,
+                    column=0,
+                    sticky="w",
+                )
+                return
+            for index, snapshot in enumerate(snapshots):
+                row = index // 4
+                column = index % 4
+                tile = ttk.Frame(grid, padding=6, relief="ridge")
+                tile.grid(row=row, column=column, sticky="nsew", padx=4, pady=4)
+                photo = None
+                if snapshot.crop_jpeg:
+                    try:
+                        image = Image.open(BytesIO(snapshot.crop_jpeg)).convert("RGB")
+                        image.thumbnail((150, 112))
+                        photo = ImageTk.PhotoImage(image)
+                    except Exception:
+                        photo = None
+                if photo is not None:
+                    state["photos"].append(photo)
+                    image_label = ttk.Label(tile, image=photo)
+                    image_label.pack()
+                    image_label.bind("<Button-1>", lambda _event, fid=snapshot.feature_id: toggle(fid))
+                else:
+                    ttk.Label(tile, text="No preview", width=18, padding=20).pack()
+
+                created = strftime("%m-%d %H:%M:%S", localtime(snapshot.created_at))
+                info = (
+                    f"#{snapshot.feature_id}  F{snapshot.frame_index}\n"
+                    f"Q {snapshot.quality_score:.2f}  {created}"
+                )
+                ttk.Label(tile, text=info, justify="center").pack(pady=(5, 3))
+                select_button = ttk.Button(tile, text="Select", command=lambda fid=snapshot.feature_id: toggle(fid))
+                select_button.pack(fill="x")
+                state["buttons"][snapshot.feature_id] = select_button
+
+        def delete_selected() -> None:
+            selected_ids = sorted(state["selected"])
+            if not selected_ids:
+                return
+            if not messagebox.askyesno(
+                "Delete Master Snapshots",
+                f"Delete {len(selected_ids)} selected master snapshot(s)? This cannot be undone.",
+                parent=window,
+            ):
+                return
+            deleted = self.feature_gallery.delete_features(selected_ids, vehicle_id=vehicle_id)
+            self.refresh_identity_db_panel()
+            self.status_var.set(f"Status: deleted {deleted} master snapshot(s) from GID {label}")
+            refresh()
+
+        refresh()

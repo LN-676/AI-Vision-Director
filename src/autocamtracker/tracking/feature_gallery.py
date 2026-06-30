@@ -57,6 +57,20 @@ class DetectionFeatureMatch:
 
 
 @dataclass
+class FeatureSnapshot:
+    feature_id: int
+    vehicle_id: int
+    gallery_type: GalleryType
+    created_at: float
+    frame_index: int
+    track_id: int | None
+    quality_score: float
+    duplicate_score: float | None
+    crop_jpeg: bytes | None
+    metadata: dict[str, Any]
+
+
+@dataclass
 class _CachedDetectionEmbedding:
     embedding: list[float]
     frame_index: int
@@ -458,6 +472,64 @@ class FeatureGallery:
         self._gallery_feature_cache.clear()
         return int(cursor.rowcount or 0)
 
+    def feature_snapshots(
+        self,
+        vehicle_id: int,
+        gallery_type: GalleryType = "master",
+    ) -> list[FeatureSnapshot]:
+        rows = self.connection.execute(
+            """
+            SELECT
+                id,
+                vehicle_id,
+                gallery_type,
+                created_at,
+                frame_index,
+                track_id,
+                quality_score,
+                duplicate_score,
+                crop_jpeg,
+                metadata_json
+            FROM vehicle_features
+            WHERE vehicle_id = ? AND gallery_type = ?
+            ORDER BY created_at DESC, id DESC
+            """,
+            (vehicle_id, gallery_type),
+        ).fetchall()
+        return [
+            FeatureSnapshot(
+                feature_id=int(row["id"]),
+                vehicle_id=int(row["vehicle_id"]),
+                gallery_type=str(row["gallery_type"]),  # type: ignore[arg-type]
+                created_at=float(row["created_at"]),
+                frame_index=int(row["frame_index"]),
+                track_id=row["track_id"],
+                quality_score=float(row["quality_score"]),
+                duplicate_score=float(row["duplicate_score"]) if row["duplicate_score"] is not None else None,
+                crop_jpeg=bytes(row["crop_jpeg"]) if row["crop_jpeg"] is not None else None,
+                metadata=self._metadata_from_json(row["metadata_json"]),
+            )
+            for row in rows
+        ]
+
+    def delete_features(self, feature_ids: list[int], vehicle_id: int | None = None) -> int:
+        ids = sorted({int(feature_id) for feature_id in feature_ids if int(feature_id) > 0})
+        if not ids:
+            return 0
+        placeholders = ",".join("?" for _ in ids)
+        parameters: list[int] = ids
+        vehicle_clause = ""
+        if vehicle_id is not None:
+            vehicle_clause = " AND vehicle_id = ?"
+            parameters.append(int(vehicle_id))
+        cursor = self.connection.execute(
+            f"DELETE FROM vehicle_features WHERE id IN ({placeholders}){vehicle_clause}",
+            parameters,
+        )
+        self.connection.commit()
+        self._gallery_feature_cache.clear()
+        return int(cursor.rowcount or 0)
+
     def first_feature_crop_jpeg(self, vehicle_id: int) -> bytes | None:
         row = self.connection.execute(
             """
@@ -848,6 +920,16 @@ class FeatureGallery:
             return [float(item) for item in json.loads(value)]
         except (TypeError, ValueError, json.JSONDecodeError):
             return None
+
+    @staticmethod
+    def _metadata_from_json(value: str | None) -> dict[str, Any]:
+        if not value:
+            return {}
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
 
     @staticmethod
     def cosine_similarity(first: Any | None, second: Any | None) -> float:

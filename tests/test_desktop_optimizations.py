@@ -214,6 +214,45 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
             gallery.close()
             store.close()
 
+    def test_master_snapshot_delete_removes_only_selected_features(self) -> None:
+        import numpy as np
+
+        class StaticExtractor:
+            available = True
+
+            def extract(self, _frame, bbox):
+                return [float(bbox[0] + 1.0), float(bbox[1] + 2.0), 1.0]
+
+        frame = np.random.default_rng(9).integers(30, 225, size=(180, 260, 3), dtype=np.uint8)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "identity.sqlite3"
+            store = VehicleIdentityStore(db_path)
+            vehicle_id = store.create_vehicle(detection(track_id=7, frame_index=1))
+            gallery = FeatureGallery(db_path, duplicate_threshold=1.1)
+            gallery.embedding_extractor = StaticExtractor()
+
+            first = detection(track_id=7, frame_index=1)
+            second = detection(track_id=7, frame_index=2)
+            second.bbox = (70.0, 40.0, 160.0, 135.0)
+            second.center = (115.0, 87.5)
+            first_result = gallery.add_master_feature(vehicle_id, first, frame)
+            second_result = gallery.add_master_feature(vehicle_id, second, frame)
+
+            self.assertTrue(first_result.accepted)
+            self.assertTrue(second_result.accepted)
+            snapshots = gallery.feature_snapshots(vehicle_id, "master")
+            self.assertEqual(len(snapshots), 2)
+            self.assertTrue(all(snapshot.crop_jpeg for snapshot in snapshots))
+
+            deleted = gallery.delete_features([first_result.feature_id or 0], vehicle_id=vehicle_id)
+
+            self.assertEqual(deleted, 1)
+            remaining = gallery.feature_snapshots(vehicle_id, "master")
+            self.assertEqual([snapshot.feature_id for snapshot in remaining], [second_result.feature_id])
+            self.assertEqual(gallery.summary_by_vehicle()[vehicle_id]["master"], 1)
+            gallery.close()
+            store.close()
+
 
 class ReIDRuntimeOptimizationTests(unittest.TestCase):
     def test_embedding_is_reused_for_stable_local_track(self) -> None:
