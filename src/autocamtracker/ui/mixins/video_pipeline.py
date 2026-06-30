@@ -128,7 +128,13 @@ class VideoPipelineMixin:
             and self.iphone_motor_tracking_enabled
             and shot_decision.reason in {"target unavailable", "target temporarily lost"}
         ):
-            self._disable_iphone_motor_tracking(shot_decision.reason)
+            if (
+                self.gid_follow_vehicle_id is not None
+                and frame_data.selected_global_vehicle_id == self.gid_follow_vehicle_id
+            ):
+                self.tracking_server.publish_stop(CENTER_ZOOM_FACTOR)
+            else:
+                self._disable_iphone_motor_tracking(shot_decision.reason)
         else:
             self.tracking_server.publish_stop(CENTER_ZOOM_FACTOR)
         self._log_frame_telemetry(frame_data, frame.shape, shot_decision, motor_output_active)

@@ -466,6 +466,31 @@ class FeatureGallery:
             counts[str(row["gallery_type"])] = int(row["feature_count"])
         return summary
 
+    def reid_model_labels_by_vehicle(self, gallery_type: GalleryType = "master") -> dict[int, str]:
+        rows = self.connection.execute(
+            """
+            SELECT
+                vehicle_id,
+                COALESCE(
+                    NULLIF(json_extract(metadata_json, '$.reid_model_label'), ''),
+                    NULLIF(json_extract(metadata_json, '$.reid_model_path'), ''),
+                    'Unknown'
+                ) AS model_label,
+                COUNT(*) AS feature_count,
+                MAX(created_at) AS last_created_at
+            FROM vehicle_features
+            WHERE gallery_type = ?
+            GROUP BY vehicle_id, model_label
+            ORDER BY vehicle_id ASC, feature_count DESC, last_created_at DESC
+            """,
+            (gallery_type,),
+        ).fetchall()
+        labels: dict[int, str] = {}
+        for row in rows:
+            vehicle_id = int(row["vehicle_id"])
+            labels.setdefault(vehicle_id, str(row["model_label"] or "Unknown"))
+        return labels
+
     def delete_vehicle_features(self, vehicle_id: int) -> int:
         cursor = self.connection.execute("DELETE FROM vehicle_features WHERE vehicle_id = ?", (vehicle_id,))
         self.connection.commit()
@@ -652,6 +677,8 @@ class FeatureGallery:
                     {
                         "class_name": detection.class_name,
                         "confidence": detection.confidence,
+                        "reid_model_label": self._reid_model_label(),
+                        "reid_model_path": self.reid_model_path,
                         "quality_reason": quality.reason,
                         "crop_width": quality.width,
                         "crop_height": quality.height,
@@ -665,6 +692,10 @@ class FeatureGallery:
         self.connection.commit()
         self._gallery_feature_cache.clear()
         return int(cursor.lastrowid)
+
+    def _reid_model_label(self) -> str:
+        path = Path(self.reid_model_path)
+        return path.name or str(path)
 
     def _prune_master_features(self, vehicle_id: int) -> None:
         rows = self.connection.execute(

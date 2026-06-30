@@ -42,12 +42,14 @@ class IdentityPanelMixin:
         self.last_identity_panel_refresh_at = now
         self.refreshing_identity_panel = True
         selected_tree_ids = set(self.selected_identity_tree_ids)
-        summary = self.identity_store.summary(feature_counts=self.feature_gallery.summary_by_vehicle())
+        feature_counts = self.feature_gallery.summary_by_vehicle()
+        reid_model_labels = self.feature_gallery.reid_model_labels_by_vehicle()
+        summary = self.identity_store.summary(feature_counts=feature_counts)
         self.identity_summary_var.set(
             "Vehicles: "
-            f"{summary.vehicle_count} | Master: {summary.master_feature_count} | "
-            f"Pending: {summary.pending_feature_count} | Candidate: {summary.candidate_feature_count}"
+            f"{summary.vehicle_count} | Master: {summary.master_feature_count}"
         )
+        self._hide_identity_manage_button()
         for item in self.identity_tree.get_children():
             self.identity_tree.delete(item)
 
@@ -69,8 +71,7 @@ class IdentityPanelMixin:
                     vehicle.class_name,
                     vehicle.last_track_id if vehicle.last_track_id is not None else "--",
                     vehicle.master_feature_count,
-                    vehicle.pending_feature_count,
-                    vehicle.candidate_feature_count,
+                    reid_model_labels.get(vehicle.vehicle_id, "--"),
                     vehicle.last_frame_index,
                     f"{vehicle.confidence:.2f}",
                     "View",
@@ -114,7 +115,7 @@ class IdentityPanelMixin:
         return "break"
 
     def on_identity_tree_click(self, event) -> str | None:
-        if self.identity_tree.identify_column(event.x) != "#9":
+        if self.identity_tree.identify_column(event.x) != self._identity_manage_column_id():
             return None
         item = self.identity_tree.identify_row(event.y)
         if not item:
@@ -129,9 +130,11 @@ class IdentityPanelMixin:
         return "break"
 
     def on_identity_tree_motion(self, event) -> None:
-        if self.identity_tree.identify_column(event.x) == "#9":
+        if self.identity_tree.identify_column(event.x) == self._identity_manage_column_id():
             self.hide_identity_preview()
+            self._show_identity_manage_button(event)
             return
+        self._hide_identity_manage_button()
         item = self.identity_tree.identify_row(event.y)
         if not item:
             self.hide_identity_preview()
@@ -182,8 +185,63 @@ class IdentityPanelMixin:
         if self.identity_preview_window is not None:
             self.identity_preview_window.withdraw()
 
+    def open_identity_manage_button_target(self) -> str:
+        vehicle_id = self.identity_manage_button_vehicle_id
+        if vehicle_id is None:
+            return "break"
+        self.selected_identity_tree_ids = {vehicle_id}
+        if str(vehicle_id) in self.identity_tree.get_children():
+            self.identity_tree.selection_set(str(vehicle_id))
+        self._hide_identity_manage_button()
+        self.open_master_feature_manager(vehicle_id)
+        return "break"
+
+    def _identity_manage_column_id(self) -> str:
+        return f"#{len(self.identity_tree['columns'])}"
+
+    def _show_identity_manage_button(self, event) -> None:
+        item = self.identity_tree.identify_row(event.y)
+        if not item:
+            self._hide_identity_manage_button()
+            return
+        try:
+            vehicle_id = int(item)
+        except ValueError:
+            self._hide_identity_manage_button()
+            return
+        bbox = self.identity_tree.bbox(item, "manage")
+        if not bbox:
+            self._hide_identity_manage_button()
+            return
+        x, y, width, height = bbox
+        self.identity_manage_button_vehicle_id = vehicle_id
+        self.identity_manage_button.place(
+            x=x + 2,
+            y=y + 1,
+            width=max(44, width - 4),
+            height=max(20, height - 2),
+        )
+
+    def _hide_identity_manage_button(self) -> None:
+        self.identity_manage_button_vehicle_id = None
+        if hasattr(self, "identity_manage_button"):
+            self.identity_manage_button.place_forget()
+
     def track_selected_identity_from_db(self, _event=None) -> str:
         return self.command_find_gid(actor="Desktop")
+
+    def release_find_gid_tracking(self, _event=None) -> str:
+        vehicle_id = self.gid_follow_vehicle_id or self.identity_manager.selected_global_vehicle_id
+        label = self.identity_store.display_label(vehicle_id) if vehicle_id is not None else "--"
+        self.gid_follow_vehicle_id = None
+        self.identity_manager.reset()
+        self._disable_iphone_motor_tracking("GID tracking released")
+        self.refresh_identity_db_panel()
+        self._set_identity_mode("GID tracking released")
+        self.status_var.set(f"Status: released GID {label} tracking")
+        self.telemetry_logger.log("find_gid_released", gid=vehicle_id)
+        self.publish_desktop_state(force=True)
+        return "break"
 
     def _run_find_gid_command(self, *, actor: str = "Desktop") -> str:
         if self.refreshing_identity_panel:
@@ -191,6 +249,7 @@ class IdentityPanelMixin:
 
         vehicle_ids = self._selected_identity_vehicle_ids()
         if not vehicle_ids:
+            self.gid_follow_vehicle_id = None
             self._disable_iphone_motor_tracking("Find GID has no selected identity")
             self._set_identity_mode("select a GID row before Find GID")
             self.status_var.set(f"Status: {actor} Find GID needs a selected GID")
@@ -198,11 +257,13 @@ class IdentityPanelMixin:
         vehicle_id = vehicle_ids[0]
 
         if self.last_raw_frame is None:
+            self.gid_follow_vehicle_id = None
             self._disable_iphone_motor_tracking("Find GID is waiting for video")
             self._set_identity_mode("Find GID waiting for current frame")
             self.status_var.set(f"Status: no current frame available for {actor} DB identity tracking")
             return "break"
 
+        self.gid_follow_vehicle_id = vehicle_id
         identity, score = self.identity_manager.select_stored_vehicle(
             vehicle_id,
             self.store.current_detections,
@@ -211,6 +272,7 @@ class IdentityPanelMixin:
         )
         self.refresh_identity_db_panel()
         if identity is None:
+            self.gid_follow_vehicle_id = None
             self._disable_iphone_motor_tracking("Find GID failed")
             self.telemetry_logger.log(
                 "find_gid_result",
@@ -226,7 +288,7 @@ class IdentityPanelMixin:
 
         label = self.identity_store.display_label(vehicle_id)
         if identity.last_track_id is None:
-            self._disable_iphone_motor_tracking("Find GID target unavailable")
+            motor_note = self._enable_iphone_motor_tracking("Find GID")
             self.telemetry_logger.log(
                 "find_gid_result",
                 actor=actor,
@@ -234,13 +296,13 @@ class IdentityPanelMixin:
                 found=True,
                 local_track_id=None,
                 score=score,
-                motor_armed=False,
+                motor_armed=self.iphone_motor_tracking_enabled,
                 reason="target unavailable",
             )
             self._set_identity_mode(f"Find GID searching for GID {label}")
             self.status_var.set(
-                f"Status: {actor} no Master feature match for GID {label}; searching "
-                f"(score {score:.2f}); motor stopped until target is visible"
+                f"Status: {actor} Find GID locked on GID {label}; searching "
+                f"(score {score:.2f}); {motor_note}"
             )
         else:
             self.identity_session_links.link(identity.last_track_id, vehicle_id)
@@ -500,6 +562,9 @@ class IdentityPanelMixin:
 
         if self.identity_manager.selected_global_vehicle_id in deleted_ids:
             self.identity_manager.reset()
+        if self.gid_follow_vehicle_id in deleted_ids:
+            self.gid_follow_vehicle_id = None
+            self._disable_iphone_motor_tracking("tracked GID deleted")
         if self.auto_feature_sampler.active_vehicle_id in deleted_ids:
             self.auto_feature_sampler.stop()
             self.auto_feature_status_message = ""
@@ -589,6 +654,10 @@ class IdentityPanelMixin:
             detection is not None and vehicle_id is not None and not is_selected_link,
         )
         self._set_button_enabled(self.find_gid_button, vehicle_id is not None)
+        self._set_button_enabled(
+            self.release_gid_button,
+            self.gid_follow_vehicle_id is not None,
+        )
         self._set_button_enabled(self.delete_vehicle_button, vehicle_id is not None)
 
         feature_detection = self._detection_for_vehicle_id(vehicle_id) if vehicle_id is not None else None

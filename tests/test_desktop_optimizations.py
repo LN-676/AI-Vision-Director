@@ -211,6 +211,7 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
 
             self.assertTrue(result.accepted)
             self.assertEqual(gallery.summary_by_vehicle()[vehicle_id]["master"], 1)
+            self.assertEqual(gallery.reid_model_labels_by_vehicle()[vehicle_id], "yolo26s-reid.onnx")
             gallery.close()
             store.close()
 

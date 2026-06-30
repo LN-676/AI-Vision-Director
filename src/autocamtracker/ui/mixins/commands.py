@@ -99,6 +99,7 @@ class CommandsMixin:
 
     def stop(self) -> None:
         self.running = False
+        self.gid_follow_vehicle_id = None
         self._disable_iphone_motor_tracking("tracking stopped")
         if self.detector is not None:
             self._close_detector()
@@ -108,11 +109,13 @@ class CommandsMixin:
         self._update_transport_actions()
 
     def reset_tracking(self) -> None:
+        self.gid_follow_vehicle_id = None
         self._disable_iphone_motor_tracking("tracking reset")
         self._reset_runtime_state()
         self.refresh_identity_db_panel()
 
     def clear_selection(self) -> None:
+        self.gid_follow_vehicle_id = None
         self._disable_iphone_motor_tracking("selection cleared")
         self.identity_manager.reset()
         self.auto_feature_sampler.stop()
@@ -135,6 +138,7 @@ class CommandsMixin:
             self.video_path_var.set(f"Video: {self._short_label(Path(path).name)}")
 
     def on_source_selected(self, _event=None) -> None:
+        self.gid_follow_vehicle_id = None
         self._disable_iphone_motor_tracking("input source changed")
         if self.detector is not None:
             self.stop()
@@ -393,6 +397,7 @@ class CommandsMixin:
         self.command_auto_track(actor="Desktop")
 
     def _run_auto_track_command(self, *, actor: str = "Desktop") -> None:
+        self.gid_follow_vehicle_id = None
         candidates = self.store.rank_candidates(self.last_frame_shape, strategy="stable")
         if not candidates or self.last_raw_frame is None:
             self._disable_iphone_motor_tracking("Auto Track found no vehicle")
@@ -447,6 +452,7 @@ class CommandsMixin:
 
         self.store.reset()
         self.identity_manager.reset()
+        self.gid_follow_vehicle_id = None
         self.scene_cut_detector.reset()
         self.reframer.reset()
         self.identity_session_links.clear()

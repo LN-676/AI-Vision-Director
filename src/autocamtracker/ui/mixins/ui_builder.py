@@ -74,7 +74,7 @@ class UIBuilderMixin:
         self.video_url_var = tk.StringVar(value="")
         self.video_url_status_var = tk.StringVar(value="No video URL selected")
         self.screen_region_var = tk.StringVar(value="No screen region selected")
-        self.identity_summary_var = tk.StringVar(value="Vehicles: 0 | Master: 0 | Pending: 0 | Candidate: 0")
+        self.identity_summary_var = tk.StringVar(value="Vehicles: 0 | Master: 0")
         self.identity_mode_var = tk.StringVar(value="Click a bbox to select a local track")
         self.bbox_selection_var = tk.StringVar(value="BBox: none")
         self.db_selection_var = tk.StringVar(value="Database: no GID selected")
@@ -263,12 +263,14 @@ class UIBuilderMixin:
         self.link_bbox_button.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 0))
         self.find_gid_button = ttk.Button(actions, text="Find GID", command=self.track_selected_identity_from_db)
         self.find_gid_button.grid(row=2, column=0, sticky="ew", pady=(5, 0), padx=(0, 3))
+        self.release_gid_button = ttk.Button(actions, text="解除追蹤", command=self.release_find_gid_tracking)
+        self.release_gid_button.grid(row=2, column=1, sticky="ew", pady=(5, 0), padx=(3, 0))
         self.delete_vehicle_button = ttk.Button(actions, text="Delete Vehicle", command=self.delete_selected_identity)
-        self.delete_vehicle_button.grid(row=2, column=1, sticky="ew", pady=(5, 0), padx=(3, 0))
+        self.delete_vehicle_button.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 0))
 
         self.identity_tree = ttk.Treeview(
             identity_controls,
-            columns=("gid", "type", "lid", "master", "pending", "candidate", "frame", "conf", "manage"),
+            columns=("gid", "type", "lid", "master", "reid_model", "frame", "conf", "manage"),
             show="headings",
             height=12,
         )
@@ -277,8 +279,7 @@ class UIBuilderMixin:
             "type": "Type",
             "lid": "LID",
             "master": "Master",
-            "pending": "Pending",
-            "candidate": "Candidate",
+            "reid_model": "ReID Model",
             "frame": "Frame",
             "conf": "DetConf",
             "manage": "Master",
@@ -288,11 +289,10 @@ class UIBuilderMixin:
             "type": 50,
             "lid": 38,
             "master": 48,
-            "pending": 52,
-            "candidate": 58,
+            "reid_model": 112,
             "frame": 48,
             "conf": 44,
-            "manage": 54,
+            "manage": 64,
         }
         for column, label in headings.items():
             self.identity_tree.heading(column, text=label)
@@ -308,6 +308,12 @@ class UIBuilderMixin:
         self.identity_tree.bind("<Motion>", self.on_identity_tree_motion)
         self.identity_tree.bind("<Leave>", self.hide_identity_preview)
         self.identity_tree.grid(row=3, column=0, sticky="nsew", pady=(7, 0))
+        self.identity_manage_button = ttk.Button(
+            self.identity_tree,
+            text="View",
+            width=6,
+            command=self.open_identity_manage_button_target,
+        )
 
         feature_actions = ttk.LabelFrame(identity_controls, text="Features", padding=6)
         feature_actions.grid(row=4, column=0, sticky="ew", pady=(7, 0))

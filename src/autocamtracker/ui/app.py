@@ -49,7 +49,7 @@ from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.76"
+    window_title: str = "AutoCamTracker V1.77"
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360
@@ -121,6 +121,7 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         # A selected target can therefore still drive digital reframing without
         # unexpectedly moving the DockKit accessory.
         self.iphone_motor_tracking_enabled = False
+        self.gid_follow_vehicle_id: int | None = None
 
         self.running = False
         self.recording = False
@@ -152,6 +153,7 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.identity_preview_label: ttk.Label | None = None
         self.identity_preview_photo = None
         self.identity_preview_vehicle_id: int | None = None
+        self.identity_manage_button_vehicle_id: int | None = None
         self.auto_feature_status_message = ""
         self.last_desktop_state_publish_at = 0.0
         self.last_frame_telemetry_at = 0.0
