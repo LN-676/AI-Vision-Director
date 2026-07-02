@@ -3,7 +3,7 @@
 Responsibilities:
 - Open webcam, local video file, or screen-region sources.
 - Load an Ultralytics YOLO model.
-- Run YOLO tracking with BoT-SORT or Deep OC-SORT.
+- Run YOLO tracking with ByteTrack or BoT-SORT.
 - Return raw frames plus tracked detections.
 
 This module should not manage target selection, UI layout, reframing, or
@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 
 
 SourceType = Literal["webcam", "video_file", "video_url", "screen_region", "iphone"]
-TrackerName = Literal["bytetrack", "botsort", "deepocsort"]
+TrackerName = Literal["bytetrack", "botsort"]
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -35,13 +35,9 @@ CACHE_ROOT = Path(tempfile.gettempdir()) / "autocamtracker-cache"
 TRACKER_CONFIGS: dict[TrackerName, str] = {
     "bytetrack": "bytetrack.yaml",
     "botsort": "botsort.yaml",
-    "deepocsort": "deepocsort.yaml",
 }
 
 VEHICLE_CLASS_NAMES = {"car", "truck", "bus", "motorcycle"}
-
-
-from autocamtracker.tracking.tracker_adapter import DeepOcSortAdapter, TrackerInputDetection
 
 
 @dataclass
@@ -51,7 +47,7 @@ class InputConfig:
     video_path: str | None = None
     video_url: str | None = None
     screen_region: tuple[int, int, int, int] | None = None
-    model_path: str = "yolo26s.pt"
+    model_path: str = "model/yolo26s.pt"
     tracker_name: TrackerName = "botsort"
     confidence_threshold: float = 0.20
     iou_threshold: float = 0.65
@@ -81,7 +77,6 @@ class VideoDetector:
     def __init__(self, config: InputConfig, frame_provider: Callable[[], Any | None] | None = None) -> None:
         self.config = config
         self.model: Any | None = None
-        self.tracker_adapter: DeepOcSortAdapter | None = None
         self.capture: Any | None = None
         self.screen_capture: Any | None = None
         self.source_fps: float | None = None
@@ -105,15 +100,6 @@ class VideoDetector:
         resolved_model_path = self._resolve_model_path(self.config.model_path)
         self.config.model_path = str(resolved_model_path)
         self.model = YOLO(str(resolved_model_path))
-        if self.config.tracker_name == "deepocsort":
-            self.tracker_adapter = DeepOcSortAdapter(
-                model_dir=MODEL_DIR,
-                det_thresh=self.config.confidence_threshold,
-                max_age=self._tracker_buffer_frames(),
-                iou_threshold=0.3,
-            )
-        else:
-            self.tracker_adapter = None
 
     def open_source(self) -> None:
         if self.config.source_type in {"webcam", "video_file", "video_url"}:
@@ -207,16 +193,6 @@ class VideoDetector:
         if self.model is None:
             raise RuntimeError("YOLO model is not loaded")
 
-        if self.config.tracker_name == "deepocsort":
-            results = self.model.predict(
-                frame,
-                conf=self.config.confidence_threshold,
-                iou=self.config.iou_threshold,
-                imgsz=self.config.detector_imgsz,
-                verbose=False,
-            )
-            return self._track_with_deepocsort(results)
-
         tracker_config = str(self._tracker_config_path or TRACKER_CONFIGS[self.config.tracker_name])
         results = self.model.track(
             frame,
@@ -228,31 +204,6 @@ class VideoDetector:
             verbose=False,
         )
         return self._parse_results(results)
-
-    def _track_with_deepocsort(self, results: Iterable[Any]) -> list[TrackedDetection]:
-        if self.tracker_adapter is None:
-            raise RuntimeError("Deep OC-SORT tracker is not initialized")
-
-        raw_detections = self._parse_prediction_results(results)
-        tracked = self.tracker_adapter.update(raw_detections)
-        timestamp = time()
-        return [
-            TrackedDetection(
-                track_id=detection.track_id,
-                bbox=detection.bbox,
-                class_id=detection.class_id,
-                class_name=detection.class_name,
-                confidence=detection.confidence,
-                center=(
-                    (detection.bbox[0] + detection.bbox[2]) / 2.0,
-                    (detection.bbox[1] + detection.bbox[3]) / 2.0,
-                ),
-                frame_index=self.frame_index,
-                timestamp=timestamp,
-                tracker_name=self.config.tracker_name,
-            )
-            for detection in tracked
-        ]
 
     def read_and_track(self) -> tuple[Any | None, list[TrackedDetection]]:
         frame = self.read_frame()
@@ -301,10 +252,6 @@ class VideoDetector:
         return bool(ok)
 
     def reset_tracker_state(self) -> None:
-        if self.tracker_adapter is not None:
-            reset_adapter = getattr(self.tracker_adapter, "reset", None)
-            if callable(reset_adapter):
-                reset_adapter()
         trackers = getattr(self.model, "trackers", None)
         if not trackers:
             return
@@ -315,10 +262,6 @@ class VideoDetector:
 
     def _configure_tracker_buffer(self) -> None:
         buffer_frames = self._tracker_buffer_frames()
-        if self.tracker_adapter is not None:
-            self.tracker_adapter.max_age = buffer_frames
-            self.tracker_adapter.reset()
-
         if self.config.tracker_name == "botsort":
             self._tracker_config_path = self._write_botsort_config(buffer_frames)
         elif self.config.tracker_name == "bytetrack":
@@ -350,7 +293,7 @@ class VideoDetector:
                     "proximity_thresh: 0.5",
                     "appearance_thresh: 0.8",
                     f"with_reid: {str(reid_enabled)}",
-                    f"model: {(MODEL_DIR / 'yolo26s-reid.onnx').as_posix()}",
+                    f"model: {(MODEL_DIR / 'reid' / 'yolo26s-reid.onnx').as_posix()}",
                     "",
                 ]
             ),

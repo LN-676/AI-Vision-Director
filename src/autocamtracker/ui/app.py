@@ -57,8 +57,8 @@ class AppConfig:
     telemetry_dir: Path = Path("outputs") / "telemetry"
     identity_db_path: Path = Path("outputs") / "vehicle_identity.sqlite3"
     model_dir: Path = Path(__file__).resolve().parents[3] / "code" / "model"
-    default_model: str = "yolo26n.pt"
-    default_reid_model: str = "yolo26s-reid.onnx"
+    default_model: str = "model/yolo26n.pt"
+    default_reid_model: str = "reid/yolo26s-reid.onnx"
 
 
 

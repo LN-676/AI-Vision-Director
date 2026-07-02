@@ -158,7 +158,7 @@ class UIBuilderMixin:
         self.tracker_box = ttk.Combobox(
             tracking_controls,
             textvariable=self.tracker_var,
-            values=["bytetrack", "botsort", "deepocsort"],
+            values=["bytetrack", "botsort"],
             width=13,
             state="readonly",
         )
@@ -447,11 +447,11 @@ class UIBuilderMixin:
     def apply_performance_profile(self, _event=None) -> str:
         profile = self.performance_profile_var.get()
         if profile == "Balanced ID":
-            self.model_var.set("yolo26s.pt")
+            self.model_var.set("model/yolo26s.pt")
             self.tracker_var.set("botsort")
         else:
             self.performance_profile_var.set("High FPS")
-            self.model_var.set("yolo26n.pt")
+            self.model_var.set("model/yolo26n.pt")
             self.tracker_var.set("bytetrack")
         self.on_tracking_configuration_changed()
         return "break"
@@ -597,11 +597,11 @@ class UIBuilderMixin:
 
     def refresh_reid_model_options(self) -> None:
         asset_names = [
-            "yolo26n-reid.onnx",
-            "yolo26s-reid.onnx",
-            "yolo26m-reid.onnx",
-            "yolo26l-reid.onnx",
-            "yolo26x-reid.onnx",
+            "reid/yolo26n-reid.onnx",
+            "reid/yolo26s-reid.onnx",
+            "reid/yolo26m-reid.onnx",
+            "reid/yolo26l-reid.onnx",
+            "reid/yolo26x-reid.onnx",
         ]
         options = {name: str(self.config.model_dir / name) for name in asset_names}
         if self.config.model_dir.exists():

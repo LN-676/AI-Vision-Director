@@ -1,2 +1,0 @@
-[console_scripts]
-autocamtracker-app = autocamtracker.main:main

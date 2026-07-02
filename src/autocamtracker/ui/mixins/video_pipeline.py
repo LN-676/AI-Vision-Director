@@ -399,7 +399,10 @@ class VideoPipelineMixin:
         return sorted(
             path
             for path in self.config.model_dir.rglob("*")
-            if path.is_file() and path.suffix.lower() in suffixes
+            if path.is_file()
+            and path.suffix.lower() in suffixes
+            and "reid" not in path.relative_to(self.config.model_dir).parts
+            and not path.name.endswith("-reid.onnx")
         )
 
     def _model_label(self, path: Path) -> str:

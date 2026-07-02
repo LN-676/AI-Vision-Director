@@ -13,7 +13,7 @@ MODEL_DIR = PROJECT_ROOT / "code" / "model"
 
 @dataclass
 class ReIDEmbeddingConfig:
-    model_path: str = "yolo26s-reid.onnx"
+    model_path: str = "reid/yolo26s-reid.onnx"
     enabled: bool = True
 
 

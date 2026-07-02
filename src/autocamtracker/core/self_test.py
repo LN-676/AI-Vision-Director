@@ -14,7 +14,7 @@ import traceback
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-MODEL_PATH = PROJECT_ROOT / "code" / "model" / "yolo26s.pt"
+MODEL_PATH = PROJECT_ROOT / "code" / "model" / "model" / "yolo26s.pt"
 OUTPUT_DIR = PROJECT_ROOT / "outputs"
 TEST_VIDEO = OUTPUT_DIR / "self_test_input.mp4"
 
@@ -81,8 +81,8 @@ def check_model_load() -> str:
 
     detector = VideoDetector(
         InputConfig(
-            model_path="yolo26s.pt",
-            tracker_name="deepocsort",
+            model_path="model/yolo26s.pt",
+            tracker_name="botsort",
             source_type="video_file",
         )
     )
@@ -315,8 +315,8 @@ def check_video_input_pipeline() -> str:
         InputConfig(
             source_type="video_file",
             video_path=str(TEST_VIDEO),
-            model_path="yolo26s.pt",
-            tracker_name="deepocsort",
+            model_path="model/yolo26s.pt",
+            tracker_name="botsort",
         )
     )
     detector.load_model()

@@ -145,7 +145,7 @@ class FeatureGallery:
     def __init__(
         self,
         db_path: Path | str,
-        reid_model_path: str = "yolo26s-reid.onnx",
+        reid_model_path: str = "reid/yolo26s-reid.onnx",
         duplicate_threshold: float = 0.985,
         min_match_score: float = 0.72,
     ) -> None:
