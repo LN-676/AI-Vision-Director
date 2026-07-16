@@ -1,4 +1,4 @@
-# AutoCamTracker V1.77 Camera (iOS)
+# AutoCamTrackerteam-final-v1.77 Camera (iOS)
 
 這是 AutoCamTracker 的獨立 iOS 測試工具，用來驗證自製 App 能否透過 Apple DockKit 手動控制 Insta360 Flow 2 Pro。它不是完整相機 App，也不使用 Insta360 私有 SDK。
 
@@ -59,11 +59,11 @@ Apple 的軸向定義是 `Vector3D(x: pitch, y: yaw, z: roll)`；本專案依官
 11. 按 `Inject Fake JSON`，確認 V1.77 資料可解碼、控制迴路有輸出，500 ms 後自動停止。
 12. 複製 API Log 保存結果。判斷相容性的關鍵是 `Manual Mode ready` 與各能力測試是否成功。
 
-## 連接 AutoCamTracker V1.77
+## 連接 AutoCamTrackerteam-final-v1.77
 
 1. Mac 的 V1.77 預設選擇 `iphone`，並自動啟動 WebSocket 與影像管線。
 2. iPhone 與 Mac 使用同一 Wi-Fi，或先以 USB-C 建立 Personal Hotspot USB / USB Ethernet IP 網路。
-3. App 的 `AutoCamTracker V1.77` 區會使用保存的 URL 自動連線；需要更換時可輸入 Mac 顯示的完整 URL，例如 `ws://MacBook.local:8765/ws/tracking`，再按 `Connect`。
+3. App 的 `AutoCamTrackerteam-final-v1.77` 區會使用保存的 URL 自動連線；需要更換時可輸入 Mac 顯示的完整 URL，例如 `ws://MacBook.local:8765/ws/tracking`，再按 `Connect`。
 4. V1.77 顯示 `iPhone connected` 後會接收相機影像；iOS App 會自動關閉 DockKit System Tracking，並依桌面端 `zoom_factor` 平滑調整實體相機倍率。
 5. 任何無效訊息、target lost、斷線或超過 500 ms 沒有 tracking command 都會執行 STOP。
 

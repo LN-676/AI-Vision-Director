@@ -27,6 +27,7 @@
 		200000000000000000000012 /* NetworkTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000012 /* NetworkTestView.swift */; };
 		200000000000000000000013 /* CameraSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000013 /* CameraSessionService.swift */; };
 		200000000000000000000014 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000014 /* CameraPreviewView.swift */; };
+		710000000000000000000001 /* DockKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 700000000000000000000001 /* DockKit.framework */; };
 		710000000000000000000003 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 700000000000000000000003 /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
@@ -62,6 +63,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				710000000000000000000001 /* DockKit.framework in Frameworks */,
 				710000000000000000000003 /* AVFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -307,10 +309,10 @@
 				DEVELOPMENT_TEAM = H8F4L62DWF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "AutoCam V1.77";
+				INFOPLIST_KEY_CFBundleDisplayName = "AutoCamTrackerteam-final-v1.77";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "DockKit Tester uses the rear camera to activate DockKit tracking and test the connected gimbal.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local network access receives AutoCamTracker V1.77 tracking commands from your computer.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local network access receives AutoCamTrackerteam-final-v1.77 tracking commands from your computer.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access is reserved for future camera recording tests.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -336,10 +338,10 @@
 				DEVELOPMENT_TEAM = H8F4L62DWF;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "AutoCam V1.77";
+				INFOPLIST_KEY_CFBundleDisplayName = "AutoCamTrackerteam-final-v1.77";
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "DockKit Tester uses the rear camera to activate DockKit tracking and test the connected gimbal.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local network access receives AutoCamTracker V1.77 tracking commands from your computer.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Local network access receives AutoCamTrackerteam-final-v1.77 tracking commands from your computer.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access is reserved for future camera recording tests.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

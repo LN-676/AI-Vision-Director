@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "autocamtracker"
+name = "AutoCamTrackerteam-final-v1.77"
 version = "1.77"
-description = "Vehicle detection, single-target tracking, and digital reframing tool"
+description = "AutoCamTracker team development final release v1.77"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

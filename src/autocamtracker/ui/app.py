@@ -49,7 +49,7 @@ from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.77"
+    window_title: str = "AutoCamTrackerteam-final-v1.77"
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360

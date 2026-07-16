@@ -6,7 +6,7 @@ LOG_FILE="/tmp/autocamtracker-v177-launch.log"
 
 cd "$PROJECT_DIR"
 
-echo "Starting AutoCamTracker V1.77..." | tee "$LOG_FILE"
+echo "Starting AutoCamTrackerteam-final-v1.77..." | tee "$LOG_FILE"
 echo "Project: $PROJECT_DIR" | tee -a "$LOG_FILE"
 echo "Log: $LOG_FILE" | tee -a "$LOG_FILE"
 
