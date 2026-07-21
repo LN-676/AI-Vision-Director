@@ -35,6 +35,7 @@ src/autocamtracker/evaluation/reid.py
 src/autocamtracker/evaluation/system.py
 src/autocamtracker/evaluation/tracking.py
 src/autocamtracker/server/camera_stream_receiver.py
+src/autocamtracker/server/camera_control_policy.py
 src/autocamtracker/server/control_policy.py
 src/autocamtracker/server/control_publisher.py
 src/autocamtracker/server/protocol.py
@@ -77,6 +78,7 @@ src/autocamtracker/vision/types.py
 tests/test_application_layer.py
 tests/test_bootstrap.py
 tests/test_camera_calibration_gmc.py
+tests/test_camera_control_policy.py
 tests/test_desktop_optimizations.py
 tests/test_domain_contracts.py
 tests/test_feature_gallery_components.py

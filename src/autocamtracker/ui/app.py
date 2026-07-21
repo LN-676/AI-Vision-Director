@@ -91,6 +91,7 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
         self.camera_calibration = self.application.camera_calibration
         self.gmc = self.application.gmc
         self.latency_compensator = self.application.latency_compensator
+        self.camera_control_policy = self.application.camera_control_policy
         self.telemetry_logger = dependencies.telemetry_logger
         self.performance_evaluator = dependencies.performance_evaluator
         self.iphone_status_queue = dependencies.iphone_status_queue

@@ -16,6 +16,7 @@ from autocamtracker.vision.types import InputConfig
 from autocamtracker.vision.camera_calibration import CameraCalibrationSubsystem
 from autocamtracker.vision.gmc import GlobalMotionCompensator
 from autocamtracker.core.timestamps import LatencyCompensator
+from autocamtracker.server.camera_control_policy import CameraControlPolicy
 
 
 class TrackingApplication:
@@ -36,6 +37,7 @@ class TrackingApplication:
         camera_calibration: CameraCalibrationSubsystem,
         gmc: GlobalMotionCompensator,
         latency_compensator: LatencyCompensator,
+        camera_control_policy: CameraControlPolicy,
         pipeline: PipelineProcessor,
         tracking_session: TrackingSession,
     ) -> None:
@@ -51,10 +53,12 @@ class TrackingApplication:
         self.camera_calibration = camera_calibration
         self.gmc = gmc
         self.latency_compensator = latency_compensator
+        self.camera_control_policy = camera_control_policy
         self.pipeline = pipeline
         self.tracking_session = tracking_session
 
     def close(self) -> None:
         self.tracking_session.stop()
+        self.camera_control_policy.reset()
         self.feature_gallery.close()
         self.identity_store.close()

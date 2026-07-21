@@ -8,6 +8,8 @@ from typing import Any, Callable
 
 from autocamtracker.core.telemetry_logger import TelemetryLogger
 from autocamtracker.core.timestamps import LatencyCompensator
+from autocamtracker.server.camera_control_policy import CameraControlPolicy
+from autocamtracker.server.camera_control_policy import CameraControlDecision
 from autocamtracker.server.camera_stream_receiver import CameraStreamReceiver
 from autocamtracker.server.control_policy import (
     CENTER_ZOOM_FACTOR,
@@ -66,6 +68,7 @@ class TrackingWebSocketServer:
         on_control: Callable[[dict[str, Any]], None] | None = None,
         telemetry_logger: TelemetryLogger | None = None,
         latency_compensator: LatencyCompensator | None = None,
+        camera_control_policy: CameraControlPolicy | None = None,
     ) -> None:
         self.config = config or TrackingServerConfig()
         self.on_status = on_status
@@ -74,11 +77,15 @@ class TrackingWebSocketServer:
         self._motor_status_lock = Lock()
         self._latest_motor_status: MotorStatus | None = None
         self._latest_desktop_state: dict[str, Any] | None = None
+        self._last_camera_control_decision: CameraControlDecision | None = None
         self.camera_stream_receiver = CameraStreamReceiver(
             on_status=self._notify,
             on_event=self._component_event,
         )
-        self.control_policy = ControlPolicy(latency_compensator=latency_compensator)
+        self.control_policy = ControlPolicy(
+            latency_compensator=latency_compensator,
+            camera_control_policy=camera_control_policy,
+        )
         self.transport = WebSocketTransport(
             self.config,
             on_binary=self._accept_camera_frame,
@@ -114,6 +121,10 @@ class TrackingWebSocketServer:
         return bool(status and status.ready)
 
     @property
+    def last_camera_control_decision(self) -> CameraControlDecision | None:
+        return self._last_camera_control_decision
+
+    @property
     def local_urls(self) -> list[str]:
         return self.transport.local_urls
 
@@ -137,14 +148,22 @@ class TrackingWebSocketServer:
 
     def publish_frame(self, frame_data: Any, frame_shape: Any) -> None:
         decision = self.control_publisher.publish_frame(frame_data, frame_shape)
-        if decision is not None and decision.projected_target_center is not None:
-            frame_data.projected_target_center = decision.projected_target_center
+        if decision is not None:
+            self._last_camera_control_decision = decision.camera_control
+            if decision.projected_target_center is not None:
+                frame_data.projected_target_center = decision.projected_target_center
 
     def publish_test_pulse(self, error_x: float = 0.12) -> None:
         self.control_publisher.publish_test_pulse(error_x)
 
     def publish_stop(self, zoom_factor: float | None = CENTER_ZOOM_FACTOR) -> None:
         self.control_publisher.publish_stop(zoom_factor)
+
+    def reset_camera_control(self) -> None:
+        policy = self.control_policy.camera_control_policy
+        if policy is not None:
+            policy.reset()
+        self._last_camera_control_decision = None
 
     def publish_control(self, action: str) -> None:
         self.control_publisher.publish_control(action)

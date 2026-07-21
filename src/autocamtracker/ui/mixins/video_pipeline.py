@@ -103,13 +103,14 @@ class VideoPipelineMixin:
         self.track_shot_state_var.set(
             f"Shot: {self.track_shot_controller.mode} · {shot_decision.state} · {shot_decision.reason}"
         )
-        motor_output_active = should_publish_motor_tracking(
+        motor_session_active = should_publish_motor_tracking(
             self.input_config.source_type,
             self.iphone_motor_tracking_enabled,
             self.tracking_server.motor_ready,
             shot_decision,
-        ) and frame_data.motor_safe_to_track
-        if motor_output_active:
+        )
+        motor_output_active = motor_session_active and frame_data.motor_safe_to_track
+        if motor_session_active:
             self.tracking_server.publish_frame(frame_data, frame.shape)
         elif (
             self.input_config.source_type == "iphone"
@@ -146,6 +147,7 @@ class VideoPipelineMixin:
         )
         fresh_target = selected_target if target_locked else None
         motor_status = self.tracking_server.motor_status
+        camera_control = self.tracking_server.last_camera_control_decision
         self.telemetry_logger.log(
             "frame_state",
             tracking_status=frame_data.tracking_status,
@@ -188,6 +190,9 @@ class VideoPipelineMixin:
             error_x=frame_data.framing_status.error_x,
             error_y=frame_data.framing_status.error_y,
             framing_decision=frame_data.framing_status.to_dict(),
+            camera_control=(
+                camera_control.to_dict() if camera_control is not None else None
+            ),
             shot_state=shot_decision.state,
             shot_reason=shot_decision.reason,
             motor_armed=self.iphone_motor_tracking_enabled,
@@ -573,6 +578,11 @@ class VideoPipelineMixin:
                 "camera_zoom_factor": motor_status.camera_zoom_factor if motor_status is not None else None,
                 "camera_display_zoom_factor": (
                     motor_status.camera_display_zoom_factor if motor_status is not None else None
+                ),
+                "camera_control": (
+                    self.tracking_server.last_camera_control_decision.to_dict()
+                    if self.tracking_server.last_camera_control_decision is not None
+                    else None
                 ),
             },
             "framing": {

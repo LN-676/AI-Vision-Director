@@ -12,6 +12,11 @@ from autocamtracker.core.timestamps import (
     TimestampMark,
     evaluate_latency_compensation,
 )
+from autocamtracker.server.camera_control_policy import (
+    CameraControlDecision,
+    CameraControlPolicy,
+    CameraControlRequest,
+)
 from autocamtracker.server.protocol import tracking_message
 
 
@@ -26,6 +31,7 @@ COASTING_COMMAND_FRAMES = 12
 class FrameControlDecision:
     payload: dict[str, Any]
     projected_target_center: tuple[float, float] | None = None
+    camera_control: CameraControlDecision | None = None
 
 
 class ControlPolicy:
@@ -37,10 +43,12 @@ class ControlPolicy:
         last_locked_zoom_factor: float = CENTER_ZOOM_FACTOR,
         last_unlocked_at: float | None = None,
         latency_compensator: LatencyCompensator | None = None,
+        camera_control_policy: CameraControlPolicy | None = None,
     ) -> None:
         self.last_locked_zoom_factor = last_locked_zoom_factor
         self.last_unlocked_at = last_unlocked_at
         self.latency_compensator = latency_compensator
+        self.camera_control_policy = camera_control_policy
 
     @staticmethod
     def zoom_factor_for_framing(framing_mode: str | None) -> float:
@@ -86,18 +94,32 @@ class ControlPolicy:
         if (
             fresh_target is None
             or frame_data.tracking_status != "tracking"
-            or not getattr(frame_data, "motor_safe_to_track", True)
+            or (
+                not getattr(frame_data, "motor_safe_to_track", True)
+                and self.camera_control_policy is None
+            )
         ):
-            if self.last_unlocked_at is None:
-                self.last_unlocked_at = current_time
-            elapsed = current_time - self.last_unlocked_at
-            if elapsed <= LOST_ZOOM_HOLD_SECONDS:
-                zoom_factor = self.last_locked_zoom_factor
+            camera_control = None
+            if self.camera_control_policy is not None:
+                camera_control = self.camera_control_policy.evaluate(
+                    CameraControlRequest(
+                        target_locked=False,
+                        zoom_target=self.last_locked_zoom_factor,
+                    ),
+                    now=current_time,
+                )
+                zoom_factor = camera_control.zoom_output
             else:
-                ramp = min(1.0, (elapsed - LOST_ZOOM_HOLD_SECONDS) / LOST_ZOOM_RAMP_SECONDS)
-                zoom_factor = self.last_locked_zoom_factor + (
-                    CENTER_ZOOM_FACTOR - self.last_locked_zoom_factor
-                ) * ramp
+                if self.last_unlocked_at is None:
+                    self.last_unlocked_at = current_time
+                elapsed = current_time - self.last_unlocked_at
+                if elapsed <= LOST_ZOOM_HOLD_SECONDS:
+                    zoom_factor = self.last_locked_zoom_factor
+                else:
+                    ramp = min(1.0, (elapsed - LOST_ZOOM_HOLD_SECONDS) / LOST_ZOOM_RAMP_SECONDS)
+                    zoom_factor = self.last_locked_zoom_factor + (
+                        CENTER_ZOOM_FACTOR - self.last_locked_zoom_factor
+                    ) * ramp
             payload = tracking_message(
                 target_locked=False,
                 sequence=sequence,
@@ -105,7 +127,9 @@ class ControlPolicy:
                 latency_compensation_ms=latency_ms,
             )
             payload.update(timing_fields)
-            return FrameControlDecision(payload)
+            if camera_control is not None:
+                payload["camera_control"] = camera_control.to_dict()
+            return FrameControlDecision(payload, camera_control=camera_control)
 
         status = frame_data.framing_status
         bbox = fresh_target.bbox
@@ -122,16 +146,53 @@ class ControlPolicy:
                 )
             ),
         )
-        self.last_locked_zoom_factor = zoom_factor
-        self.last_unlocked_at = None
+        requested_zoom_factor = zoom_factor
         velocity_x, velocity_y = getattr(frame_data, "target_velocity", (0.0, 0.0))
         projected_x = max(0.0, min(float(frame_w), fresh_target.center[0] + float(velocity_x) * frames_ahead))
         projected_y = max(0.0, min(float(frame_h), fresh_target.center[1] + float(velocity_y) * frames_ahead))
+        raw_error_x = (status.error_x + projected_x - fresh_target.center[0]) / max(1.0, frame_w / 2.0)
+        raw_error_y = (status.error_y + projected_y - fresh_target.center[1]) / max(1.0, frame_h / 2.0)
+        camera_control = None
+        target_locked = True
+        if self.camera_control_policy is not None:
+            identity_decision = getattr(frame_data, "identity_decision", None)
+            uncertainty_score = float(
+                getattr(identity_decision, "score", fresh_target.confidence)
+            )
+            confidence_level = str(
+                getattr(frame_data, "reid_confidence_level", "unknown")
+            ).lower()
+            uncertain = (
+                not getattr(frame_data, "motor_safe_to_track", True)
+                or confidence_level in {"low", "candidate", "lost", "searching"}
+                or (
+                    identity_decision is not None
+                    and not bool(getattr(identity_decision, "accepted", False))
+                )
+            )
+            camera_control = self.camera_control_policy.evaluate(
+                CameraControlRequest(
+                    target_locked=True,
+                    error_x=raw_error_x,
+                    error_y=raw_error_y,
+                    zoom_target=requested_zoom_factor,
+                    uncertain=uncertain,
+                    uncertainty_score=max(0.0, min(1.0, uncertainty_score)),
+                    predicted_target=fresh_target.status == "coasting",
+                ),
+                now=current_time,
+            )
+            raw_error_x = camera_control.error_x
+            raw_error_y = camera_control.error_y
+            zoom_factor = camera_control.zoom_output
+            target_locked = not camera_control.frozen
+        self.last_locked_zoom_factor = zoom_factor
+        self.last_unlocked_at = None
         payload = tracking_message(
-            target_locked=True,
+            target_locked=target_locked,
             target_id=target_id,
-            error_x=(status.error_x + projected_x - fresh_target.center[0]) / max(1.0, frame_w / 2.0),
-            error_y=(status.error_y + projected_y - fresh_target.center[1]) / max(1.0, frame_h / 2.0),
+            error_x=raw_error_x,
+            error_y=raw_error_y,
             confidence=fresh_target.confidence,
             sequence=sequence,
             frame_width=frame_w,
@@ -158,6 +219,8 @@ class ControlPolicy:
             ),
         )
         payload.update(timing_fields)
+        if camera_control is not None:
+            payload["camera_control"] = camera_control.to_dict()
         payload.update({
             "framing_anchor": getattr(status, "framing_anchor", (0.5, 0.5)),
             "lead_room": getattr(status, "lead_room", (0.0, 0.0)),
@@ -167,12 +230,16 @@ class ControlPolicy:
             "actual_subject_scale": float(
                 getattr(status, "actual_subject_scale", 0.0)
             ),
-            "zoom_target": zoom_factor,
+            "zoom_target": requested_zoom_factor,
             "framing_reason_code": getattr(
                 getattr(status, "reason_code", None), "value", None
             ),
         })
-        return FrameControlDecision(payload, (projected_x, projected_y))
+        return FrameControlDecision(
+            payload,
+            (projected_x, projected_y),
+            camera_control,
+        )
 
     def _timing_fields(
         self,

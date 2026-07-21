@@ -159,6 +159,7 @@ class CommandsMixin:
         was_enabled = bool(self.iphone_motor_tracking_enabled)
         self.iphone_motor_tracking_enabled = False
         self.tracking_server.publish_stop()
+        self.tracking_server.reset_camera_control()
         self.telemetry_logger.log("motor_disarmed", reason=reason, was_enabled=was_enabled)
         if hasattr(self, "track_shot_state_var"):
             self.track_shot_state_var.set(

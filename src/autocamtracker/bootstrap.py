@@ -16,6 +16,7 @@ from autocamtracker.core.performance_evaluation import PerformanceEvaluationTrac
 from autocamtracker.core.telemetry_logger import TelemetryLogger
 from autocamtracker.core.track_shot_plan import TrackShotController
 from autocamtracker.server.websocket_server import TrackingWebSocketServer
+from autocamtracker.server.camera_control_policy import CameraControlPolicy
 from autocamtracker.tracking.auto_feature_sampler import AutoFeatureSampler
 from autocamtracker.tracking.detection_store import DetectionStore
 from autocamtracker.tracking.feature_gallery import FeatureGallery
@@ -90,6 +91,7 @@ def bootstrap(
     )
     gmc = GlobalMotionCompensator(calibration=camera_calibration)
     latency_compensator = LatencyCompensator()
+    camera_control_policy = CameraControlPolicy()
     framing_config = FramingConfig(
         output_width=app_config.output_width,
         output_height=app_config.output_height,
@@ -123,6 +125,7 @@ def bootstrap(
         camera_calibration=camera_calibration,
         gmc=gmc,
         latency_compensator=latency_compensator,
+        camera_control_policy=camera_control_policy,
         pipeline=pipeline,
         tracking_session=tracking_session,
     )
@@ -131,6 +134,7 @@ def bootstrap(
         on_control=control_queue.put,
         telemetry_logger=telemetry_logger,
         latency_compensator=latency_compensator,
+        camera_control_policy=camera_control_policy,
     )
     dependencies = AppDependencies(
         application=application,

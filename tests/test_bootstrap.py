@@ -72,6 +72,10 @@ class BootstrapTests(unittest.TestCase):
                     dependencies.tracking_server.control_policy.latency_compensator,
                     dependencies.application.latency_compensator,
                 )
+                self.assertIs(
+                    dependencies.tracking_server.control_policy.camera_control_policy,
+                    dependencies.application.camera_control_policy,
+                )
                 self.assertEqual(desktop.app.input_config.source_type, "video_file")
                 self.assertEqual(desktop.app.input_config.video_path, "sample.mp4")
 
@@ -117,6 +121,7 @@ class BootstrapTests(unittest.TestCase):
             "GlobalMotionCompensator",
             "FramingEngine",
             "LatencyCompensator",
+            "CameraControlPolicy",
         }
         diagnostic_exceptions = {
             ("core/self_test.py", "DetectionStore"),

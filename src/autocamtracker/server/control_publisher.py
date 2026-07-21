@@ -37,7 +37,11 @@ class ControlPublisher:
         if getattr(frame_data, "decode_time_ms", 0.0):
             payload["decode_time_ms"] = round(float(frame_data.decode_time_ms), 2)
         self.send(payload)
-        return FrameControlDecision(payload, decision.projected_target_center)
+        return FrameControlDecision(
+            payload,
+            decision.projected_target_center,
+            decision.camera_control,
+        )
 
     def publish_test_pulse(self, error_x: float = 0.12) -> None:
         self.sequence += 1
