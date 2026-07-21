@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 from types import SimpleNamespace
 import unittest
 
@@ -7,6 +8,7 @@ from autocamtracker.server.control_policy import ControlPolicy
 from autocamtracker.server.control_publisher import ControlPublisher
 from autocamtracker.server.protocol import decode_message, encode_message, tracking_message
 from autocamtracker.server.transport import WebSocketTransport
+from autocamtracker.server.transport import TrackingServerConfig
 from autocamtracker.server.websocket_server import TrackingWebSocketServer
 from autocamtracker.tracking.identity_components import (
     IdentityDecision,
@@ -15,6 +17,15 @@ from autocamtracker.tracking.identity_components import (
 
 
 class WebSocketComponentTests(unittest.TestCase):
+    @staticmethod
+    def _transport() -> WebSocketTransport:
+        return WebSocketTransport(
+            TrackingServerConfig(),
+            on_binary=lambda _: None,
+            on_text=lambda _: None,
+            initial_messages=list,
+        )
+
     def test_facade_composes_all_phase_eight_components(self) -> None:
         server = TrackingWebSocketServer()
         self.assertIsInstance(server.transport, WebSocketTransport)
@@ -85,6 +96,29 @@ class WebSocketComponentTests(unittest.TestCase):
             "projected_target_center",
         )
         self.assertEqual([token for token in forbidden if token in source], [])
+
+    def test_transport_prefers_stable_local_hostname_over_numeric_ips(self) -> None:
+        transport = self._transport()
+        with (
+            patch.object(
+                WebSocketTransport,
+                "_active_interface_addresses",
+                return_value=[("en0", "192.168.1.204")],
+            ),
+            patch("autocamtracker.server.transport.socket.gethostname", return_value="vision-mac"),
+            patch(
+                "autocamtracker.server.transport.socket.gethostbyname_ex",
+                return_value=("vision-mac", [], ["192.168.1.204"]),
+            ),
+        ):
+            self.assertEqual(
+                transport.local_urls,
+                [
+                    "ws://vision-mac.local:8765/ws/tracking",
+                    "ws://192.168.1.204:8765/ws/tracking",
+                ],
+            )
+            self.assertEqual(transport.preferred_url, "ws://vision-mac.local:8765/ws/tracking")
 
 
 if __name__ == "__main__":

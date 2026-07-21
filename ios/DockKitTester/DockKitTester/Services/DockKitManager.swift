@@ -420,7 +420,7 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
                 "Accessory docked: \(accessoryName ?? model); firmware: \(newAccessory.firmwareVersion ?? "unknown")."
             )
             if currentTracking, !isManualModeTransitioning {
-                logger.log(.info, "AI_Vison_Director disables iPhone System Tracking so only computer tracking is used.")
+                logger.log(.info, "AI Vision Director disables iPhone System Tracking so only computer tracking is used.")
                 Task { @MainActor [weak self] in
                     _ = await self?.enterManualMode()
                 }

@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass
 import ipaddress
 import re
+import shutil
 import socket
 import subprocess
 import threading
@@ -48,6 +49,7 @@ class WebSocketTransport:
         self._stop_event: asyncio.Event | None = None
         self._clients: set[Any] = set()
         self._running = threading.Event()
+        self._bonjour_process: subprocess.Popen[str] | None = None
 
     @property
     def is_running(self) -> bool:
@@ -70,8 +72,11 @@ class WebSocketTransport:
         link_local = sorted(address for address in usable if ipaddress.ip_address(address).is_link_local)
         private = sorted(address for address in usable if ipaddress.ip_address(address).is_private and address not in link_local)
         other = sorted(address for address in usable if address not in link_local and address not in private)
-        urls = [f"ws://{address}:{self.config.port}{self.config.path}" for address in (*private, *link_local, *other)]
-        urls.append(f"ws://{local_name}:{self.config.port}{self.config.path}")
+        urls = [f"ws://{local_name}:{self.config.port}{self.config.path}"]
+        urls.extend(
+            f"ws://{address}:{self.config.port}{self.config.path}"
+            for address in (*private, *link_local, *other)
+        )
         return urls
 
     @property
@@ -103,6 +108,7 @@ class WebSocketTransport:
         except Exception as error:  # pragma: no cover - surfaced through status callback
             self._notify(f"iPhone server failed: {error}")
         finally:
+            self._stop_bonjour_registration()
             self._running.clear()
             self._loop = None
             self._stop_event = None
@@ -115,10 +121,54 @@ class WebSocketTransport:
         self._loop = asyncio.get_running_loop()
         self._stop_event = asyncio.Event()
         async with serve(self._handle_client, self.config.host, self.config.port):
+            self._start_bonjour_registration()
             self._running.set()
-            self._notify("Waiting for iPhone")
-            await self._stop_event.wait()
+            self._notify(f"Waiting for iPhone · {self.preferred_url}")
+            try:
+                await self._stop_event.wait()
+            finally:
+                self._stop_bonjour_registration()
         self._clients.clear()
+
+    def _start_bonjour_registration(self) -> None:
+        """Advertise the tracking endpoint without adding a Python dependency."""
+
+        if self._bonjour_process is not None or self.config.host not in {"0.0.0.0", "::"}:
+            return
+        executable = shutil.which("dns-sd")
+        if executable is None:
+            self._notify("Bonjour unavailable; use the displayed WebSocket URL")
+            return
+        service_name = socket.gethostname().removesuffix(".local")
+        try:
+            self._bonjour_process = subprocess.Popen(
+                [
+                    executable,
+                    "-R",
+                    service_name,
+                    "_autocamtracker._tcp",
+                    "local.",
+                    str(self.config.port),
+                    f"path={self.config.path}",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+        except OSError as error:
+            self._notify(f"Bonjour registration failed: {error}")
+
+    def _stop_bonjour_registration(self) -> None:
+        process = self._bonjour_process
+        self._bonjour_process = None
+        if process is None or process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=1.0)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=1.0)
 
     async def _handle_client(self, websocket: Any) -> None:
         from websockets.exceptions import ConnectionClosed

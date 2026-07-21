@@ -8,7 +8,7 @@ struct NetworkTestView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("AI_Vison_Director V1.0-alpha.1")
+                Text("AI Vision Director 1.0-alpha.1")
                     .font(.headline)
                 Spacer()
                 Text(client.status.rawValue)
@@ -65,7 +65,7 @@ struct NetworkTestView: View {
             .buttonStyle(.bordered)
             .disabled(!canInjectCommand)
 
-            Text("Wi-Fi and USB network links use the same WebSocket URL. Missing tracking data for 500 ms always triggers STOP.")
+            Text("Bonjour checks the desktop endpoint on launch and repairs stale saved IP addresses. Camera frames remain paused until the WebSocket handshake succeeds.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

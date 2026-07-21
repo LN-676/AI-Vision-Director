@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Network
 
 @MainActor
 final class V13NetworkClient: ObservableObject {
@@ -33,15 +34,24 @@ final class V13NetworkClient: ObservableObject {
     private var latestCameraFrame: Data?
     private var cameraSendInFlight = false
     private var intentionalDisconnect = false
+    private var bonjourURLs: [URL] = []
     private var sequenceValidator = TrackingCommandSequenceValidator()
     private var timeout: Duration = .milliseconds(500)
     private var timeoutLabel = "500 ms"
+    private let handshakeTimeout: Duration = .seconds(4)
     private static let serverURLKey = "AI_Vison_DirectorServerURL"
+    private static let fallbackServerURL = "ws://192.168.1.100:8765/ws/tracking"
+    private lazy var bonjourBrowser = BonjourServerBrowser { [weak self] urls in
+        Task { @MainActor [weak self] in
+            self?.updateBonjourURLs(urls)
+        }
+    }
 
     init(logger: AppLogger) {
         self.logger = logger
         serverURL = UserDefaults.standard.string(forKey: Self.serverURLKey)
-            ?? "ws://192.168.1.100:8765/ws/tracking"
+            ?? Self.fallbackServerURL
+        bonjourBrowser.start()
     }
 
     deinit {
@@ -52,10 +62,10 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func connect() async {
-        let value = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: value), ["ws", "wss"].contains(url.scheme?.lowercased() ?? "") else {
+        let savedValue = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let savedURL = Self.validWebSocketURL(savedValue) else {
             status = .failed
-            logger.log(.error, "Invalid WebSocket URL: \(value)")
+            logger.log(.error, "Invalid WebSocket URL: \(savedValue)")
             await onTimeout?()
             return
         }
@@ -64,16 +74,39 @@ final class V13NetworkClient: ObservableObject {
         sequenceValidator.reset()
         intentionalDisconnect = false
         status = .connecting
-        logger.log(.info, "Connecting to AI_Vison_Director at \(url.absoluteString)")
+        let candidates = await connectionCandidates(savedURL: savedURL)
+        logger.log(.info, "Checking \(candidates.count) AI Vision Director WebSocket endpoint(s).")
 
-        let task = URLSession.shared.webSocketTask(with: url)
-        socketTask = task
-        task.resume()
-        receiveTask = Task { @MainActor [weak self, weak task] in
-            guard let self, let task else { return }
-            await self.receiveLoop(task: task)
+        for url in candidates {
+            guard !Task.isCancelled else { return }
+            logger.log(.info, "Connecting to AI Vision Director at \(url.absoluteString)")
+            let task = URLSession.shared.webSocketTask(with: url)
+            socketTask = task
+            task.resume()
+            do {
+                let firstMessage = try await receiveHandshakeMessage(from: task)
+                guard task === socketTask else { return }
+                serverURL = url.absoluteString
+                logger.log(.success, "WebSocket endpoint verified and saved: \(url.absoluteString)")
+                await handle(firstMessage)
+                receiveTask = Task { @MainActor [weak self, weak task] in
+                    guard let self, let task else { return }
+                    await self.receiveLoop(task: task)
+                }
+                await sendControl(action: "request_state")
+                return
+            } catch {
+                guard task === socketTask else { return }
+                task.cancel(with: .goingAway, reason: nil)
+                socketTask = nil
+                logger.log(.warning, "WebSocket check failed for \(url.absoluteString): \(error.localizedDescription)")
+            }
         }
-        await sendControl(action: "request_state")
+
+        status = .failed
+        logger.log(.error, "No reachable AI Vision Director WebSocket endpoint was found.")
+        await triggerTimeout(reason: "WebSocket handshake failed")
+        scheduleReconnect()
     }
 
     func setTrackingTimeout(seconds: Double) {
@@ -87,7 +120,7 @@ final class V13NetworkClient: ObservableObject {
 
     func receive(data: Data) async {
         guard let messageType = messageType(in: data) else {
-            logger.log(.info, "Ignored malformed AI_Vison_Director message.")
+            logger.log(.info, "Ignored malformed AI Vision Director message.")
             return
         }
 
@@ -102,7 +135,7 @@ final class V13NetworkClient: ObservableObject {
             markConnectedIfNeeded()
             await receiveControlMessage(data)
         default:
-            logger.log(.info, "Ignored unsupported AI_Vison_Director message type: \(messageType).")
+            logger.log(.info, "Ignored unsupported AI Vision Director message type: \(messageType).")
         }
     }
 
@@ -160,7 +193,7 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func sendControl(action: String, source: String? = nil, gid: Int? = nil, framing: String? = nil) async {
-        guard let socketTask, status != .offline, status != .failed else { return }
+        guard let socketTask, isHandshakeComplete else { return }
         let message = ControlMessage(action: action, source: source, gid: gid, framing: framing)
         do {
             let data = try JSONEncoder().encode(message)
@@ -173,7 +206,7 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func sendCameraFrame(_ data: Data) async {
-        guard status != .offline, status != .failed else { return }
+        guard isHandshakeComplete else { return }
         if cameraSendInFlight {
             if latestCameraFrame != nil {
                 cameraFramesDropped += 1
@@ -188,7 +221,7 @@ final class V13NetworkClient: ObservableObject {
 
         while let frame = latestCameraFrame {
             latestCameraFrame = nil
-            guard let socketTask, status != .offline, status != .failed else { return }
+            guard let socketTask, isHandshakeComplete else { return }
             do {
                 try await socketTask.send(.data(frame))
                 cameraFramesSent += 1
@@ -211,7 +244,7 @@ final class V13NetworkClient: ObservableObject {
         cameraZoomFactor: Double? = nil,
         cameraDisplayZoomFactor: Double? = nil
     ) async {
-        guard let socketTask, status != .offline, status != .failed else { return }
+        guard let socketTask, isHandshakeComplete else { return }
         let message = MotorStatusMessage(
             docked: docked,
             manualReady: manualReady,
@@ -250,7 +283,7 @@ final class V13NetworkClient: ObservableObject {
         cameraSendInFlight = false
         cameraFramesSent = 0
         cameraFramesDropped = 0
-        logger.log(.warning, "AI_Vison_Director client disconnected; requesting safety stop.")
+        logger.log(.warning, "AI Vision Director client disconnected; requesting safety stop.")
         await onTimeout?()
     }
 
@@ -258,14 +291,7 @@ final class V13NetworkClient: ObservableObject {
         do {
             while !Task.isCancelled, task === socketTask {
                 let message = try await task.receive()
-                switch message {
-                case .data(let data):
-                    await receive(data: data)
-                case .string(let text):
-                    await receive(data: Data(text.utf8))
-                @unknown default:
-                    logger.log(.warning, "Ignored an unknown WebSocket message type.")
-                }
+                await handle(message)
             }
         } catch {
             guard !intentionalDisconnect, task === socketTask else { return }
@@ -286,6 +312,70 @@ final class V13NetworkClient: ObservableObject {
         latestCameraFrame = nil
     }
 
+    private var isHandshakeComplete: Bool {
+        status == .connected || status == .receiving
+    }
+
+    private func connectionCandidates(savedURL: URL) async -> [URL] {
+        if bonjourURLs.isEmpty {
+            try? await Task.sleep(for: .milliseconds(1_200))
+        }
+        var candidates = bonjourURLs
+        candidates.append(savedURL)
+        var seen = Set<String>()
+        return candidates.filter { seen.insert($0.absoluteString).inserted }
+    }
+
+    private func receiveHandshakeMessage(
+        from task: URLSessionWebSocketTask
+    ) async throws -> URLSessionWebSocketTask.Message {
+        try await withThrowingTaskGroup(of: URLSessionWebSocketTask.Message.self) { group in
+            group.addTask { try await task.receive() }
+            group.addTask { [handshakeTimeout] in
+                try await Task.sleep(for: handshakeTimeout)
+                throw NetworkConnectionError.handshakeTimedOut
+            }
+            guard let message = try await group.next() else {
+                throw NetworkConnectionError.handshakeTimedOut
+            }
+            group.cancelAll()
+            return message
+        }
+    }
+
+    private func handle(_ message: URLSessionWebSocketTask.Message) async {
+        switch message {
+        case .data(let data):
+            await receive(data: data)
+        case .string(let text):
+            await receive(data: Data(text.utf8))
+        @unknown default:
+            logger.log(.warning, "Ignored an unknown WebSocket message type.")
+        }
+    }
+
+    private func updateBonjourURLs(_ urls: [URL]) {
+        let previous = Set(bonjourURLs.map(\.absoluteString))
+        bonjourURLs = urls
+        let current = Set(urls.map(\.absoluteString))
+        guard current != previous, let preferred = urls.first else { return }
+        logger.log(.info, "Bonjour discovered AI Vision Director at \(preferred.absoluteString)")
+        if status == .failed || status == .timedOut {
+            scheduleReconnect(immediately: true)
+        }
+    }
+
+    private static func validWebSocketURL(_ value: String) -> URL? {
+        guard
+            let url = URL(string: value),
+            ["ws", "wss"].contains(url.scheme?.lowercased() ?? ""),
+            url.host != nil
+        else {
+            return nil
+        }
+        return url
+    }
+
     private func messageType(in data: Data) -> String? {
         guard
             let object = try? JSONSerialization.jsonObject(with: data),
@@ -299,20 +389,23 @@ final class V13NetworkClient: ObservableObject {
     private func markConnectedIfNeeded() {
         if status == .connecting || status == .timedOut {
             status = .connected
-            logger.log(.success, "AI_Vison_Director WebSocket connected.")
+            logger.log(.success, "AI Vision Director WebSocket connected.")
         }
     }
 
-    private func scheduleReconnect() {
+    private func scheduleReconnect(immediately: Bool = false) {
         reconnectTask?.cancel()
         reconnectTask = Task { @MainActor [weak self] in
             do {
-                try await Task.sleep(for: .seconds(1))
+                if !immediately {
+                    try await Task.sleep(for: .seconds(1))
+                }
             } catch {
                 return
             }
             guard let self, !self.intentionalDisconnect else { return }
-            self.logger.log(.info, "Retrying AI_Vison_Director WebSocket connection.")
+            self.logger.log(.info, "Retrying AI Vision Director WebSocket connection.")
+            self.reconnectTask = nil
             await self.connect()
         }
     }
@@ -335,5 +428,47 @@ final class V13NetworkClient: ObservableObject {
         status = .timedOut
         logger.log(.warning, "V1.0-alpha.1 safety timeout: \(reason).")
         await onTimeout?()
+    }
+}
+
+private enum NetworkConnectionError: LocalizedError {
+    case handshakeTimedOut
+
+    var errorDescription: String? {
+        "WebSocket handshake timed out"
+    }
+}
+
+private final class BonjourServerBrowser: @unchecked Sendable {
+    private let browser = NWBrowser(
+        for: .bonjour(type: "_autocamtracker._tcp", domain: "local."),
+        using: .tcp
+    )
+    private let queue = DispatchQueue(label: "ai-vision-director.bonjour-browser")
+    private let onURLs: @Sendable ([URL]) -> Void
+
+    init(onURLs: @escaping @Sendable ([URL]) -> Void) {
+        self.onURLs = onURLs
+        browser.browseResultsChangedHandler = { [onURLs] results, _ in
+            let urls = results.compactMap { result -> URL? in
+                guard case let .service(name, _, _, _) = result.endpoint else { return nil }
+                var components = URLComponents()
+                components.scheme = "ws"
+                components.host = "\(name).local"
+                components.port = 8765
+                components.path = "/ws/tracking"
+                return components.url
+            }
+            .sorted { $0.absoluteString < $1.absoluteString }
+            onURLs(urls)
+        }
+    }
+
+    func start() {
+        browser.start(queue: queue)
+    }
+
+    deinit {
+        browser.cancel()
     }
 }

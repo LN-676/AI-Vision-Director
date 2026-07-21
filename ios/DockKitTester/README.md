@@ -1,6 +1,6 @@
-# AI_Vison_Director V1.0-alpha.1 Camera (iOS)
+# AI Vision Director 1.0-alpha.1 Camera (iOS)
 
-這是 AI_Vison_Director 的獨立 iOS 測試工具，用來驗證自製 App 能否透過 Apple DockKit 手動控制 Insta360 Flow 2 Pro。它不是完整相機 App，也不使用 Insta360 私有 SDK。
+這是 AI Vision Director 的獨立 iOS 測試工具，用來驗證自製 App 能否透過 Apple DockKit 手動控制 Insta360 Flow 2 Pro。它不是完整相機 App，也不使用 Insta360 私有 SDK。
 
 ## 已完成範圍
 
@@ -38,7 +38,7 @@ Apple 的軸向定義是 `Vector3D(x: pitch, y: yaw, z: roll)`；本專案依官
 4. 點左側藍色 DockKitTester project，選 Target `DockKitTester` > Signing & Capabilities：
    - 勾選 Automatically manage signing。
    - Team 選自己的 Personal Team 或開發團隊。
-   - 若 bundle identifier 衝突，將 `com.example.DockKitTester` 改成自己的唯一值，例如 `com.yourname.DockKitTester`。
+   - Bundle identifier 使用 `com.linen.AIVisionDirector`。
 5. 用 USB 連接 iPhone，手機上按「信任這部電腦」。也可在 Xcode 配對後使用 Wi-Fi deploy。
 6. iPhone 到「設定 > 隱私權與安全性 > 開發者模式」開啟 Developer Mode，依畫面重新啟動並確認。
 7. Xcode 上方執行裝置選你的 iPhone，不要選 Simulator，按 `⌘R`。
@@ -59,11 +59,13 @@ Apple 的軸向定義是 `Vector3D(x: pitch, y: yaw, z: roll)`；本專案依官
 11. 按 `Inject Fake JSON`，確認 V1.0-alpha.1 資料可解碼、控制迴路有輸出，500 ms 後自動停止。
 12. 複製 API Log 保存結果。判斷相容性的關鍵是 `Manual Mode ready` 與各能力測試是否成功。
 
-## 連接 AI_Vison_Director V1.0-alpha.1
+## 連接 AI Vision Director 1.0-alpha.1
 
 1. Mac 的 V1.0-alpha.1 預設選擇 `iphone`，並自動啟動 WebSocket 與影像管線。
 2. iPhone 與 Mac 使用同一 Wi-Fi，或先以 USB-C 建立 Personal Hotspot USB / USB Ethernet IP 網路。
-3. App 的 `AI_Vison_Director V1.0-alpha.1` 區會使用保存的 URL 自動連線；需要更換時可輸入 Mac 顯示的完整 URL，例如 `ws://MacBook.local:8765/ws/tracking`，再按 `Connect`。
+3. App 的 `AI Vision Director 1.0-alpha.1` 區會使用保存的 URL 自動連線；需要更換時可輸入 Mac 顯示的完整 URL，例如 `ws://MacBook.local:8765/ws/tracking`，再按 `Connect`。
+   - 桌面端會透過 Bonjour 廣播 `_autocamtracker._tcp`；App 每次啟動會優先驗證 `.local` 端點並自動覆寫失效的舊數字 IP。
+   - 每個候選端點有 4 秒握手期限，握手成功前不會上傳相機 frame 或馬達狀態。
 4. V1.0-alpha.1 顯示 `iPhone connected` 後會接收相機影像；iOS App 會自動關閉 DockKit System Tracking，並依桌面端 `zoom_factor` 平滑調整實體相機倍率。
 5. 任何無效訊息、target lost、斷線或超過 500 ms 沒有 tracking command 都會執行 STOP。
 
