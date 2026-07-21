@@ -39,7 +39,7 @@ class IdentityStateMachine:
 
 
 class IdentityMatcher:
-    """Matches detections using the unchanged v1.77 color/size/motion score."""
+    """Matches detections using the unchanged v1.0-alpha.1 color/size/motion score."""
 
     def __init__(self, min_score: float = 0.62, margin: float = 0.08, confirm_frames: int = 2) -> None:
         self.min_score = min_score
@@ -145,7 +145,7 @@ class ReacquisitionDecision:
 
 
 class ReacquisitionPolicy:
-    """Applies the unchanged v1.77 gallery thresholds and confirmation window."""
+    """Applies the unchanged v1.0-alpha.1 gallery thresholds and confirmation window."""
 
     def __init__(self, min_score: float = 0.72, high_score: float = 0.84, low_score: float = 0.58, margin: float = 0.08, confirm_frames: int = 3) -> None:
         self.min_score = min_score

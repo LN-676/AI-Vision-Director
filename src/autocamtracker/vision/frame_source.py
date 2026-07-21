@@ -35,7 +35,7 @@ class FrameSource(Protocol):
 
 
 class ConfiguredFrameSource:
-    """The v1.77 source implementation extracted from ``VideoDetector``."""
+    """The v1.0-alpha.1 source implementation extracted from ``VideoDetector``."""
 
     def __init__(
         self,

@@ -1,4 +1,4 @@
-"""Tkinter UI + Recording + Debug Log module for AutoCamTracker V1.
+"""Tkinter UI + Recording + Debug Log module for AI_Vison_Director.
 
 Responsibilities:
 - Create the Tkinter desktop UI.
@@ -29,11 +29,12 @@ except ImportError:  # pragma: no cover
     ImageTk = None
 
 from autocamtracker.application import FrameData
+from autocamtracker.product import DISPLAY_NAME
 
 
 @dataclass
 class AppConfig:
-    window_title: str = "AutoCamTracker V1.77"
+    window_title: str = DISPLAY_NAME
     update_interval_ms: int = 15
     output_width: int = 640
     output_height: int = 360
@@ -66,7 +67,7 @@ from autocamtracker.ui.mixins.video_pipeline import VideoPipelineMixin
 from autocamtracker.ui.mixins.commands import CommandsMixin
 from autocamtracker.ui.mixins.performance_panel import PerformancePanelMixin
 
-class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, CommandsMixin, PerformancePanelMixin):
+class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, CommandsMixin, PerformancePanelMixin):
     def __init__(self, root: tk.Tk, config: AppConfig, dependencies: AppDependencies) -> None:
         self.root = root
         self.config = config
@@ -150,3 +151,7 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.root.after_idle(self._preload_reid_model)
 
     """Tkinter integration shell for the five V1 modules."""
+
+
+# Backward-compatible import for integrations written before V1.0-alpha.1.
+AutoCamTrackerApp = AIVisonDirectorApp

@@ -539,7 +539,7 @@ class VideoPipelineMixin:
                 "zoom_factor": zoom_factor,
             },
             "diagnostics": {
-                "desktop_version": f"AutoCamTracker V{SOURCE_VERSION}",
+                "desktop_version": f"AI_Vison_Director V{SOURCE_VERSION}",
                 "display_fps": frame_data.display_fps if frame_data is not None else 0.0,
                 "source_fps": frame_data.source_fps if frame_data is not None else None,
                 "websocket_running": bool(self.tracking_server.is_running),

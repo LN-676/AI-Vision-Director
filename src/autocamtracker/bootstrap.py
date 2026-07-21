@@ -1,4 +1,4 @@
-"""The single composition root for the AutoCamTracker desktop process."""
+"""The single composition root for the AI_Vison_Director desktop process."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from autocamtracker.tracking.identity_components import (
 )
 from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
-from autocamtracker.ui.app import AppConfig, AppDependencies, AutoCamTrackerApp
+from autocamtracker.ui.app import AIVisonDirectorApp, AppConfig, AppDependencies
 from autocamtracker.vision.reframer import FramingConfig, Reframer
 from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.types import InputConfig
@@ -39,7 +39,7 @@ class BootstrappedDesktop:
     """The process objects needed to enter the Tk event loop."""
 
     root: Any
-    app: AutoCamTrackerApp
+    app: AIVisonDirectorApp
 
     def run(self) -> None:
         self.root.mainloop()
@@ -50,7 +50,7 @@ def bootstrap(
     config: AppConfig | None = None,
     argv: Sequence[str] | None = None,
     root_factory: Callable[[], Any] = tk.Tk,
-    app_factory: Callable[..., AutoCamTrackerApp] = AutoCamTrackerApp,
+    app_factory: Callable[..., AIVisonDirectorApp] = AIVisonDirectorApp,
 ) -> BootstrappedDesktop:
     """Construct the complete desktop object graph exactly once."""
 

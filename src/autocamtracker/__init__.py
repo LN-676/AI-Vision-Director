@@ -1,3 +1,6 @@
-"""AutoCamTracker package."""
+"""AI_Vison_Director package."""
 
-__version__ = "1.77"
+from autocamtracker.product import APP_NAME, VERSION
+
+__version__ = VERSION
+__app_name__ = APP_NAME

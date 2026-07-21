@@ -1,4 +1,4 @@
-# Phase 0: v1.77 Baseline
+# Phase 0: v1.0-alpha.1 Baseline
 
 This repository is the active continuation repository. Development must not be
 performed in the archived team repository or one of its old worktrees.
@@ -6,8 +6,8 @@ performed in the archived team repository or one of its old worktrees.
 ## Source control baseline
 
 - Repository: `git@github.com:LN-676/AI-Vision-Director.git`
-- Branch: `architecture/domain-contracts-v1.77`
-- Base tag: `v1.77`
+- Branch: `architecture/domain-contracts-v1.0-alpha.1`
+- Base tag: `v1.0-alpha.1`
 - Base commit: `1d305461615bbd56b1d265bc4e17d354bd32fbe8`
 - Archived source repository: `LN-676/AutoCamTracker-team_ver` (read-only)
 
@@ -36,7 +36,7 @@ Results:
 ## Repository infrastructure note
 
 The continuation repository currently returns HTTP 404 for the ten Git LFS
-model objects referenced by v1.77. The local checkout was completed from the
+model objects referenced by v1.0-alpha.1. The local checkout was completed from the
 archived read-only worktree only after each model's SHA-256 was verified against
 its committed LFS object ID. No model bytes or model configuration were changed.
 The missing remote LFS objects should be repaired separately from architecture

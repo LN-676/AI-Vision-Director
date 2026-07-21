@@ -1,4 +1,4 @@
-"""Frame pipeline boundary for AutoCamTracker V1.
+"""Frame pipeline boundary for AI_Vison_Director V1.
 
 The application layer owns scheduling and playback while this class owns the
 per-frame data flow from detections to identity, reframing, and FrameData.

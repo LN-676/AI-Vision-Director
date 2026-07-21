@@ -1,4 +1,4 @@
-"""WebSocket bridge from AutoCamTracker V1.77 to the DockKit iOS app."""
+"""WebSocket bridge from AI_Vison_Director V1.0-alpha.1 to the DockKit iOS app."""
 
 from __future__ import annotations
 
@@ -14,8 +14,9 @@ from time import monotonic, time
 from typing import Any, Callable
 
 from autocamtracker.core.telemetry_logger import TelemetryLogger
+from autocamtracker.product import VERSION
 
-SOURCE_VERSION = "1.77"
+SOURCE_VERSION = VERSION
 CAMERA_FRAME_ENVELOPE_MAGIC = b"ACTF1"
 CAMERA_FRAME_ENVELOPE_HEADER_BYTES = len(CAMERA_FRAME_ENVELOPE_MAGIC) + 8
 FRAMING_ZOOM_FACTORS = {"wide": 1.0, "medium": 1.6, "close": 2.4}

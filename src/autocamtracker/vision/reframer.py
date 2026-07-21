@@ -1,4 +1,4 @@
-"""Reframe / Digital Zoom / Output Frame module for AutoCamTracker V1.
+"""Reframe / Digital Zoom / Output Frame module for AI_Vison_Director V1.
 
 Responsibilities:
 - Build a crop window from selected target bboxes.

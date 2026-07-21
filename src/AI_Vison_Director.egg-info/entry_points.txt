@@ -1,0 +1,2 @@
+[console_scripts]
+AI_Vison_Director = autocamtracker.main:main

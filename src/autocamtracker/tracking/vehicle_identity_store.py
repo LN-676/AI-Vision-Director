@@ -1,4 +1,4 @@
-"""Persistent metadata-only vehicle identity store for AutoCamTracker V1."""
+"""Persistent metadata-only vehicle identity store for AI_Vison_Director V1."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Structured per-frame pipeline data for AutoCamTracker V1.
+"""Structured per-frame pipeline data for AI_Vison_Director V1.
 
 The UI can still render the familiar Before / After view, but status, logging,
 recording, and later worker-thread handoff should consume this typed snapshot

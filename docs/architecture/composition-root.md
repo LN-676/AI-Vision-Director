@@ -8,9 +8,9 @@ desktop object graph. It creates and connects:
 - telemetry and performance evaluation
 - WebSocket infrastructure and its thread-safe UI queues
 - track-shot and identity-session state
-- the Tk root and `AutoCamTrackerApp`
+- the Tk root and `AIVisonDirectorApp`
 
-`AutoCamTrackerApp` requires an `AppDependencies` bundle and performs no fallback
+`AIVisonDirectorApp` requires an `AppDependencies` bundle and performs no fallback
 service construction. `main.py` is now a thin entry-point adapter that calls
 `bootstrap.run()`. The former standalone entry point in `video_pipeline.py` was
 removed.

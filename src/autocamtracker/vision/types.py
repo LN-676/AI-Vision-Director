@@ -1,4 +1,4 @@
-"""Compatibility types shared by the v1.77 vision backends."""
+"""Compatibility types shared by the v1.0-alpha.1 vision backends."""
 
 from __future__ import annotations
 

@@ -36,7 +36,7 @@ final class V13NetworkClient: ObservableObject {
     private var sequenceValidator = TrackingCommandSequenceValidator()
     private var timeout: Duration = .milliseconds(500)
     private var timeoutLabel = "500 ms"
-    private static let serverURLKey = "AutoCamTrackerServerURL"
+    private static let serverURLKey = "AI_Vison_DirectorServerURL"
 
     init(logger: AppLogger) {
         self.logger = logger
@@ -64,7 +64,7 @@ final class V13NetworkClient: ObservableObject {
         sequenceValidator.reset()
         intentionalDisconnect = false
         status = .connecting
-        logger.log(.info, "Connecting to AutoCamTracker at \(url.absoluteString)")
+        logger.log(.info, "Connecting to AI_Vison_Director at \(url.absoluteString)")
 
         let task = URLSession.shared.webSocketTask(with: url)
         socketTask = task
@@ -87,7 +87,7 @@ final class V13NetworkClient: ObservableObject {
 
     func receive(data: Data) async {
         guard let messageType = messageType(in: data) else {
-            logger.log(.info, "Ignored malformed AutoCamTracker message.")
+            logger.log(.info, "Ignored malformed AI_Vison_Director message.")
             return
         }
 
@@ -102,7 +102,7 @@ final class V13NetworkClient: ObservableObject {
             markConnectedIfNeeded()
             await receiveControlMessage(data)
         default:
-            logger.log(.info, "Ignored unsupported AutoCamTracker message type: \(messageType).")
+            logger.log(.info, "Ignored unsupported AI_Vison_Director message type: \(messageType).")
         }
     }
 
@@ -110,14 +110,14 @@ final class V13NetworkClient: ObservableObject {
         switch JSONDecoder().decodeSafely(TrackingCommand.self, from: data) {
         case .success(let command):
             guard sequenceValidator.accept(command) else {
-                logger.log(.error, "V1.77 JSON rejected: duplicate or out-of-order sequence.")
+                logger.log(.error, "V1.0-alpha.1 JSON rejected: duplicate or out-of-order sequence.")
                 await triggerTimeout(reason: "stale tracking command")
                 return
             }
             lastCommand = command
             logger.log(
                 .success,
-                String(format: "V1.77 JSON decoded: locked=%@ error=(%.3f, %.3f) confidence=%.2f zoom=%@ predicted=%@.", String(command.targetLocked), command.errorX, command.errorY, command.confidence, command.zoomFactor.map { String(format: "%.2f", $0) } ?? "nil", String(command.predictedTarget ?? false))
+                String(format: "V1.0-alpha.1 JSON decoded: locked=%@ error=(%.3f, %.3f) confidence=%.2f zoom=%@ predicted=%@.", String(command.targetLocked), command.errorX, command.errorY, command.confidence, command.zoomFactor.map { String(format: "%.2f", $0) } ?? "nil", String(command.predictedTarget ?? false))
             )
             await onCommand?(command)
             if command.targetLocked {
@@ -128,7 +128,7 @@ final class V13NetworkClient: ObservableObject {
                 status = .connected
             }
         case .failure(let error):
-            logger.log(.error, "V1.77 JSON decode failed: \(error.localizedDescription)")
+            logger.log(.error, "V1.0-alpha.1 JSON decode failed: \(error.localizedDescription)")
             await triggerTimeout(reason: "JSON decode failure")
         }
     }
@@ -234,8 +234,8 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func sendFakeCommand() async {
-        let json = #"{"type":"tracking","version":"1.0","source_version":"1.77","target_locked":true,"target_id":7,"error_x":0.18,"error_y":-0.04,"confidence":0.91,"timestamp_ms":1781770000000,"zoom_factor":2.0}"#
-        logger.log(.info, "Injecting a fake V1.77 JSON command.")
+        let json = #"{"type":"tracking","version":"1.0","source_version":"1.0-alpha.1","target_locked":true,"target_id":7,"error_x":0.18,"error_y":-0.04,"confidence":0.91,"timestamp_ms":1781770000000,"zoom_factor":2.0}"#
+        logger.log(.info, "Injecting a fake V1.0-alpha.1 JSON command.")
         await receive(data: Data(json.utf8))
     }
 
@@ -250,7 +250,7 @@ final class V13NetworkClient: ObservableObject {
         cameraSendInFlight = false
         cameraFramesSent = 0
         cameraFramesDropped = 0
-        logger.log(.warning, "AutoCamTracker client disconnected; requesting safety stop.")
+        logger.log(.warning, "AI_Vison_Director client disconnected; requesting safety stop.")
         await onTimeout?()
     }
 
@@ -299,7 +299,7 @@ final class V13NetworkClient: ObservableObject {
     private func markConnectedIfNeeded() {
         if status == .connecting || status == .timedOut {
             status = .connected
-            logger.log(.success, "AutoCamTracker WebSocket connected.")
+            logger.log(.success, "AI_Vison_Director WebSocket connected.")
         }
     }
 
@@ -312,7 +312,7 @@ final class V13NetworkClient: ObservableObject {
                 return
             }
             guard let self, !self.intentionalDisconnect else { return }
-            self.logger.log(.info, "Retrying AutoCamTracker WebSocket connection.")
+            self.logger.log(.info, "Retrying AI_Vison_Director WebSocket connection.")
             await self.connect()
         }
     }
@@ -323,7 +323,7 @@ final class V13NetworkClient: ObservableObject {
             guard let self else { return }
             do {
                 try await Task.sleep(for: self.timeout)
-                await triggerTimeout(reason: "no V1.77 data for \(self.timeoutLabel)")
+                await triggerTimeout(reason: "no V1.0-alpha.1 data for \(self.timeoutLabel)")
             } catch {
                 return
             }
@@ -333,7 +333,7 @@ final class V13NetworkClient: ObservableObject {
     private func triggerTimeout(reason: String) async {
         timeoutTask?.cancel()
         status = .timedOut
-        logger.log(.warning, "V1.77 safety timeout: \(reason).")
+        logger.log(.warning, "V1.0-alpha.1 safety timeout: \(reason).")
         await onTimeout?()
     }
 }

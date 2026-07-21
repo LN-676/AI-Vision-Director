@@ -1,4 +1,4 @@
-"""YOLO Data module for AutoCamTracker V1.
+"""YOLO Data module for AI_Vison_Director V1.
 
 Responsibilities:
 - Store current tracked detections.

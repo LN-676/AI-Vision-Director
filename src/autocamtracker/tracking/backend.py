@@ -41,7 +41,7 @@ class TrackerBackend(Protocol):
 
 
 class TrackingResultParser:
-    """Maps native backend output without changing v1.77 filtering semantics."""
+    """Maps native backend output without changing v1.0-alpha.1 filtering semantics."""
 
     def __init__(self, config: InputConfig) -> None:
         self.config = config
@@ -219,7 +219,7 @@ class UltralyticsTrackerBackend:
 
 
 class DeepOcSortTrackerBackend:
-    """Deep OC-SORT using the same v1.77 predict → adapter update path."""
+    """Deep OC-SORT using the same v1.0-alpha.1 predict → adapter update path."""
 
     def __init__(self, config: InputConfig, detector: DetectorBackend) -> None:
         self.config = config

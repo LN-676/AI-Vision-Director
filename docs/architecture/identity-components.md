@@ -1,6 +1,6 @@
 # Phase 5 identity component boundaries
 
-`GlobalIdentityManager` remains the compatibility façade used by the v1.77 UI,
+`GlobalIdentityManager` remains the compatibility façade used by the v1.0-alpha.1 UI,
 pipeline, and self-test. Its former responsibilities are delegated to five
 independently testable components:
 
