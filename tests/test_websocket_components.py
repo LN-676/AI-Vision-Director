@@ -8,6 +8,10 @@ from autocamtracker.server.control_publisher import ControlPublisher
 from autocamtracker.server.protocol import decode_message, encode_message, tracking_message
 from autocamtracker.server.transport import WebSocketTransport
 from autocamtracker.server.websocket_server import TrackingWebSocketServer
+from autocamtracker.tracking.identity_components import (
+    IdentityDecision,
+    IdentityReasonCode,
+)
 
 
 class WebSocketComponentTests(unittest.TestCase):
@@ -40,6 +44,14 @@ class WebSocketComponentTests(unittest.TestCase):
             latency_compensation_ms=50.0,
             source_fps=30.0,
             projected_target_center=original_projection,
+            identity_decision=IdentityDecision(
+                IdentityReasonCode.CURRENT_TRACK_MATCH,
+                True,
+                "tracker_continuity",
+                1.0,
+                {"tracker_match": 1.0, "detection_confidence": 0.9},
+                4,
+            ),
         )
 
         decision = ControlPolicy().frame_command(frame_data, (360, 640, 3), sequence=8)
@@ -47,6 +59,8 @@ class WebSocketComponentTests(unittest.TestCase):
         self.assertTrue(decision.payload["target_locked"])
         self.assertNotEqual(decision.projected_target_center, original_projection)
         self.assertEqual(frame_data.projected_target_center, original_projection)
+        self.assertEqual(decision.payload["identity_reason_code"], "CURRENT_TRACK_MATCH")
+        self.assertEqual(decision.payload["identity_sub_scores"]["tracker_match"], 1.0)
 
     def test_control_publisher_sequences_without_transport_dependency(self) -> None:
         sent = []

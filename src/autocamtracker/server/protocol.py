@@ -63,6 +63,9 @@ def tracking_message(
     predicted: bool = False,
     latency_compensation_ms: float | None = None,
     reid_confidence_level: str | None = None,
+    identity_reason_code: str | None = None,
+    identity_score: float | None = None,
+    identity_sub_scores: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     message = {
         "type": "tracking",
@@ -93,6 +96,12 @@ def tracking_message(
         message["latency_compensation_ms"] = round(max(0.0, float(latency_compensation_ms)), 2)
     if reid_confidence_level:
         message["reid_confidence_level"] = str(reid_confidence_level)
+    if identity_reason_code:
+        message["identity_reason_code"] = str(identity_reason_code)
+        message["identity_score"] = float(identity_score or 0.0)
+        message["identity_sub_scores"] = {
+            str(name): float(value) for name, value in (identity_sub_scores or {}).items()
+        }
     return message
 
 

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Iterable
+from math import isfinite
+from typing import Any, Iterable, Mapping
 
 from autocamtracker.vision.detector import TrackedDetection
 
@@ -18,6 +19,73 @@ class IdentityLifecycleState(str, Enum):
     CANDIDATE = "CANDIDATE"
     CONFIRMED = "CONFIRMED"
     LOST = "LOST"
+
+
+class IdentityReasonCode(str, Enum):
+    """Stable machine-readable reasons for every selected-identity decision."""
+
+    IDLE_NO_IDENTITY = "IDLE_NO_IDENTITY"
+    RESET = "RESET"
+    MANUAL_SELECT_TRANSIENT = "MANUAL_SELECT_TRANSIENT"
+    MANUAL_SELECT_NEW_GID = "MANUAL_SELECT_NEW_GID"
+    MANUAL_SELECT_EXISTING_GID = "MANUAL_SELECT_EXISTING_GID"
+    MANUAL_LINK = "MANUAL_LINK"
+    MANUAL_LINK_GID_NOT_FOUND = "MANUAL_LINK_GID_NOT_FOUND"
+    STORED_GID_NOT_FOUND = "STORED_GID_NOT_FOUND"
+    STORED_REID_CONFIRMED = "STORED_REID_CONFIRMED"
+    STORED_ACTIVE_TRACK_PRESERVED = "STORED_ACTIVE_TRACK_PRESERVED"
+    STORED_GID_SEARCHING = "STORED_GID_SEARCHING"
+    CAMERA_CUT = "CAMERA_CUT"
+    CURRENT_TRACK_MATCH = "CURRENT_TRACK_MATCH"
+    GALLERY_UNAVAILABLE = "GALLERY_UNAVAILABLE"
+    GALLERY_NO_CANDIDATE = "GALLERY_NO_CANDIDATE"
+    GALLERY_LOW_SCORE = "GALLERY_LOW_SCORE"
+    GALLERY_AMBIGUOUS = "GALLERY_AMBIGUOUS"
+    GALLERY_BELOW_THRESHOLD = "GALLERY_BELOW_THRESHOLD"
+    GALLERY_PENDING_CONFIRMATION = "GALLERY_PENDING_CONFIRMATION"
+    GALLERY_HIGH_CONFIDENCE = "GALLERY_HIGH_CONFIDENCE"
+    GALLERY_CONFIRMED = "GALLERY_CONFIRMED"
+    LEGACY_NO_CANDIDATE = "LEGACY_NO_CANDIDATE"
+    LEGACY_LOW_SCORE = "LEGACY_LOW_SCORE"
+    LEGACY_AMBIGUOUS = "LEGACY_AMBIGUOUS"
+    LEGACY_PENDING_CONFIRMATION = "LEGACY_PENDING_CONFIRMATION"
+    LEGACY_CONFIRMED = "LEGACY_CONFIRMED"
+    COASTING_PREDICTION = "COASTING_PREDICTION"
+    SEARCHING_NO_MATCH = "SEARCHING_NO_MATCH"
+    SEARCHING_CANDIDATE = "SEARCHING_CANDIDATE"
+    LOST_MAX_FRAMES = "LOST_MAX_FRAMES"
+
+
+@dataclass(frozen=True)
+class IdentityDecision:
+    """Auditable output emitted for one identity association/state decision."""
+
+    reason_code: IdentityReasonCode
+    accepted: bool
+    source: str
+    score: float
+    sub_scores: Mapping[str, float]
+    candidate_track_id: int | None = None
+
+    def __post_init__(self) -> None:
+        score = float(self.score)
+        if not isfinite(score):
+            raise ValueError("identity decision score must be finite")
+        normalized = {str(name): float(value) for name, value in self.sub_scores.items()}
+        if any(not isfinite(value) for value in normalized.values()):
+            raise ValueError("identity decision sub-scores must be finite")
+        object.__setattr__(self, "score", score)
+        object.__setattr__(self, "sub_scores", normalized)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "reason_code": self.reason_code.value,
+            "accepted": self.accepted,
+            "source": self.source,
+            "score": self.score,
+            "sub_scores": dict(self.sub_scores),
+            "candidate_track_id": self.candidate_track_id,
+        }
 
 
 class IdentityStateMachine:
@@ -47,6 +115,9 @@ class IdentityMatcher:
         self.confirm_frames = confirm_frames
         self._pending_key: int | None = None
         self._pending_count = 0
+        self.last_decision = IdentityDecision(
+            IdentityReasonCode.LEGACY_NO_CANDIDATE, False, "legacy_matcher", 0.0, {}
+        )
 
     def reset_pending(self) -> None:
         self._pending_key = None
@@ -71,16 +142,48 @@ class IdentityMatcher:
         return hist.flatten().astype("float32")
 
     def choose(self, identity: Any, detections: list[TrackedDetection], frame) -> tuple[TrackedDetection | None, float]:
+        decision = self.choose_with_decision(identity, detections, frame)
+        return decision.detection, decision.identity.score
+
+    def choose_with_decision(
+        self, identity: Any, detections: list[TrackedDetection], frame
+    ) -> "IdentityMatchDecision":
         if not detections:
             self.reset_pending()
-            return None, 0.0
-        scored = [(self._score(identity, detection, frame), detection) for detection in detections]
-        scored.sort(key=lambda item: item[0], reverse=True)
-        best_score, best = scored[0]
-        second_score = scored[1][0] if len(scored) > 1 else 0.0
-        if best_score < self.min_score or best_score - second_score < self.margin:
+            self.last_decision = IdentityDecision(
+                IdentityReasonCode.LEGACY_NO_CANDIDATE, False, "legacy_matcher", 0.0,
+                {"candidate_count": 0.0, "min_score": self.min_score, "required_margin": self.margin},
+            )
+            return IdentityMatchDecision(None, self.last_decision)
+        scored = [(self._score_components(identity, detection, frame), detection) for detection in detections]
+        scored.sort(key=lambda item: item[0]["total_score"], reverse=True)
+        best_components, best = scored[0]
+        best_score = best_components["total_score"]
+        second_score = scored[1][0]["total_score"] if len(scored) > 1 else 0.0
+        sub_scores = {
+            **best_components,
+            "second_best_score": second_score,
+            "score_margin": best_score - second_score,
+            "min_score": self.min_score,
+            "required_margin": self.margin,
+            "candidate_count": float(len(scored)),
+            "confirmation_count": float(self._pending_count),
+            "confirmation_required": float(self.confirm_frames),
+        }
+        if best_score < self.min_score:
             self.reset_pending()
-            return None, best_score
+            self.last_decision = IdentityDecision(
+                IdentityReasonCode.LEGACY_LOW_SCORE, False, "legacy_matcher", best_score,
+                sub_scores, best.track_id,
+            )
+            return IdentityMatchDecision(None, self.last_decision)
+        if best_score - second_score < self.margin:
+            self.reset_pending()
+            self.last_decision = IdentityDecision(
+                IdentityReasonCode.LEGACY_AMBIGUOUS, False, "legacy_matcher", best_score,
+                sub_scores, best.track_id,
+            )
+            return IdentityMatchDecision(None, self.last_decision)
         pending_key = best.track_id if best.track_id is not None else best.frame_index
         if pending_key == self._pending_key:
             self._pending_count += 1
@@ -88,18 +191,40 @@ class IdentityMatcher:
             self._pending_key = pending_key
             self._pending_count = 1
         if self._pending_count >= self.confirm_frames:
+            sub_scores["confirmation_count"] = float(self._pending_count)
             self.reset_pending()
-            return best, best_score
-        return None, best_score
+            self.last_decision = IdentityDecision(
+                IdentityReasonCode.LEGACY_CONFIRMED, True, "legacy_matcher", best_score,
+                sub_scores, best.track_id,
+            )
+            return IdentityMatchDecision(best, self.last_decision)
+        sub_scores["confirmation_count"] = float(self._pending_count)
+        self.last_decision = IdentityDecision(
+            IdentityReasonCode.LEGACY_PENDING_CONFIRMATION, False, "legacy_matcher", best_score,
+            sub_scores, best.track_id,
+        )
+        return IdentityMatchDecision(None, self.last_decision)
 
     def _score(self, identity: Any, detection: TrackedDetection, frame) -> float:
+        return self._score_components(identity, detection, frame)["total_score"]
+
+    def _score_components(self, identity: Any, detection: TrackedDetection, frame) -> dict[str, float]:
         tracker_match = 1.0 if detection.track_id is not None and detection.track_id == identity.last_track_id else 0.0
         color = self._color_similarity(identity, detection, frame)
         size = self._size_similarity(identity.last_bbox, detection.bbox)
         motion = self._motion_similarity(identity.last_center, detection.center, frame.shape[1], frame.shape[0])
         confidence = max(0.0, min(1.0, detection.confidence))
         class_match = 1.0 if detection.class_name == identity.class_name else 0.0
-        return 0.34 * tracker_match + 0.24 * color + 0.14 * size + 0.12 * motion + 0.10 * confidence + 0.06 * class_match
+        total = 0.34 * tracker_match + 0.24 * color + 0.14 * size + 0.12 * motion + 0.10 * confidence + 0.06 * class_match
+        return {
+            "tracker_match": tracker_match,
+            "color_similarity": color,
+            "size_similarity": size,
+            "motion_similarity": motion,
+            "detection_confidence": confidence,
+            "class_match": class_match,
+            "total_score": total,
+        }
 
     def _color_similarity(self, identity: Any, detection: TrackedDetection, frame) -> float:
         import cv2
@@ -137,11 +262,37 @@ class IdentityMatcher:
 
 
 @dataclass(frozen=True)
+class IdentityMatchDecision:
+    detection: TrackedDetection | None
+    identity: IdentityDecision
+
+
+@dataclass(frozen=True)
 class ReacquisitionDecision:
     detection: TrackedDetection | None
     score: float
     confidence_level: str
     state: IdentityLifecycleState | None
+    reason_code: IdentityReasonCode = IdentityReasonCode.GALLERY_UNAVAILABLE
+    sub_scores: Mapping[str, float] = field(default_factory=dict)
+    candidate_track_id: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "sub_scores", dict(self.sub_scores or {}))
+
+    def as_identity_decision(self) -> IdentityDecision:
+        return IdentityDecision(
+            reason_code=self.reason_code,
+            accepted=self.detection is not None,
+            source="gallery_reid",
+            score=self.score,
+            sub_scores=self.sub_scores,
+            candidate_track_id=(
+                self.candidate_track_id
+                if self.candidate_track_id is not None
+                else self.detection.track_id if self.detection is not None else None
+            ),
+        )
 
 
 class ReacquisitionPolicy:
@@ -169,31 +320,74 @@ class ReacquisitionPolicy:
     def choose(self, identity: Any, detections: list[TrackedDetection], frame, feature_gallery: Any) -> ReacquisitionDecision:
         if identity is None or identity.global_vehicle_id is None or feature_gallery is None or not detections:
             self.reset_pending()
-            return ReacquisitionDecision(None, 0.0, "unknown", None)
+            return ReacquisitionDecision(
+                None, 0.0, "unknown", None, IdentityReasonCode.GALLERY_UNAVAILABLE,
+                {"candidate_count": float(len(detections)), "gallery_available": float(feature_gallery is not None)},
+            )
         candidates = self.spatial_candidates(identity, detections, frame.shape)
         ranked = feature_gallery.rank_detections_for_vehicle(identity.global_vehicle_id, candidates, frame)
         if not ranked:
-            return ReacquisitionDecision(None, 0.0, "none", IdentityLifecycleState.SEARCHING)
+            return ReacquisitionDecision(
+                None, 0.0, "none", IdentityLifecycleState.SEARCHING,
+                IdentityReasonCode.GALLERY_NO_CANDIDATE,
+                {"detection_count": float(len(detections)), "spatial_candidate_count": float(len(candidates))},
+            )
         best = ranked[0]
         second_score = ranked[1].score if len(ranked) > 1 else 0.0
-        if best.score < self.low_score or best.score - second_score < self.margin:
+        sub_scores = {
+            "feature_score": best.score,
+            "second_best_score": second_score,
+            "score_margin": best.score - second_score,
+            "low_score_threshold": self.low_score,
+            "min_score_threshold": self.min_score,
+            "high_score_threshold": self.high_score,
+            "required_margin": self.margin,
+            "detection_count": float(len(detections)),
+            "spatial_candidate_count": float(len(candidates)),
+            "confirmation_count": float(self._pending_count),
+            "confirmation_required": float(self.confirm_frames),
+        }
+        if best.score < self.low_score:
             self.reset_pending()
-            return ReacquisitionDecision(None, best.score, "low", IdentityLifecycleState.SEARCHING)
+            return ReacquisitionDecision(
+                None, best.score, "low", IdentityLifecycleState.SEARCHING,
+                IdentityReasonCode.GALLERY_LOW_SCORE, sub_scores, best.detection.track_id,
+            )
+        if best.score - second_score < self.margin:
+            self.reset_pending()
+            return ReacquisitionDecision(
+                None, best.score, "low", IdentityLifecycleState.SEARCHING,
+                IdentityReasonCode.GALLERY_AMBIGUOUS, sub_scores, best.detection.track_id,
+            )
         if best.score >= self.high_score:
             self.reset_pending()
-            return ReacquisitionDecision(best.detection, best.score, "high", IdentityLifecycleState.CONFIRMED)
+            return ReacquisitionDecision(
+                best.detection, best.score, "high", IdentityLifecycleState.CONFIRMED,
+                IdentityReasonCode.GALLERY_HIGH_CONFIDENCE, sub_scores, best.detection.track_id,
+            )
         if best.score < self.min_score:
             self.reset_pending()
-            return ReacquisitionDecision(None, best.score, "candidate", IdentityLifecycleState.CANDIDATE)
+            return ReacquisitionDecision(
+                None, best.score, "candidate", IdentityLifecycleState.CANDIDATE,
+                IdentityReasonCode.GALLERY_BELOW_THRESHOLD, sub_scores, best.detection.track_id,
+            )
         pending_key = self.pending_key(best.detection)
         if pending_key == self._pending_track_id:
             self._pending_count += 1
         else:
             self._pending_track_id, self._pending_count = pending_key, 1
         if self._pending_count >= self.confirm_frames:
+            sub_scores["confirmation_count"] = float(self._pending_count)
             self.reset_pending()
-            return ReacquisitionDecision(best.detection, best.score, "confirmed", IdentityLifecycleState.CONFIRMED)
-        return ReacquisitionDecision(None, best.score, "pending", IdentityLifecycleState.CANDIDATE)
+            return ReacquisitionDecision(
+                best.detection, best.score, "confirmed", IdentityLifecycleState.CONFIRMED,
+                IdentityReasonCode.GALLERY_CONFIRMED, sub_scores, best.detection.track_id,
+            )
+        sub_scores["confirmation_count"] = float(self._pending_count)
+        return ReacquisitionDecision(
+            None, best.score, "pending", IdentityLifecycleState.CANDIDATE,
+            IdentityReasonCode.GALLERY_PENDING_CONFIRMATION, sub_scores, best.detection.track_id,
+        )
 
     @staticmethod
     def pending_key(detection: TrackedDetection) -> int:

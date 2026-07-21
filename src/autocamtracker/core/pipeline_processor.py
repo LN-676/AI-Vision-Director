@@ -106,6 +106,8 @@ class PipelineProcessor:
             reacquire_score=self.identity_manager.last_reacquire_score,
             reid_confidence_level=self.identity_manager.last_reid_confidence_level,
             motor_safe_to_track=self.identity_manager.motor_safe_to_track,
+            identity_decision=self.identity_manager.last_identity_decision,
+            identity_decisions=list(self.identity_manager.identity_decisions),
             target_velocity=target_velocity,
             latency_compensation_ms=latency_compensation_ms,
             source_fps=source_fps,

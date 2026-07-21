@@ -115,7 +115,8 @@ class PerformancePanelMixin:
         labels["reid"].configure(
             text=(
                 f"{frame_data.reid_confidence_level} score={frame_data.reacquire_score:.2f} "
-                f"motor_safe={frame_data.motor_safe_to_track}"
+                f"motor_safe={frame_data.motor_safe_to_track} reason="
+                f"{frame_data.identity_decision.reason_code.value if frame_data.identity_decision else '--'}"
                 if frame_data is not None
                 else "--"
             )

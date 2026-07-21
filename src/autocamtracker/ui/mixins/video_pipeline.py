@@ -156,6 +156,19 @@ class VideoPipelineMixin:
             lost_frames=frame_data.lost_frames,
             reid_confidence_level=frame_data.reid_confidence_level,
             motor_safe_to_track=frame_data.motor_safe_to_track,
+            identity_reason_code=(
+                frame_data.identity_decision.reason_code.value
+                if frame_data.identity_decision is not None else None
+            ),
+            identity_score=(
+                frame_data.identity_decision.score
+                if frame_data.identity_decision is not None else None
+            ),
+            identity_sub_scores=(
+                dict(frame_data.identity_decision.sub_scores)
+                if frame_data.identity_decision is not None else {}
+            ),
+            identity_decisions=[item.to_dict() for item in frame_data.identity_decisions],
             candidate_count=len(frame_data.candidates),
             confidence=float(fresh_target.confidence) if fresh_target is not None else 0.0,
             bbox=fresh_target.bbox if fresh_target is not None else None,
@@ -504,6 +517,18 @@ class VideoPipelineMixin:
                 "predicted_target": bool(fresh_target is not None and fresh_target.status == "coasting"),
                 "reid_confidence_level": frame_data.reid_confidence_level if frame_data is not None else "unknown",
                 "motor_safe_to_track": frame_data.motor_safe_to_track if frame_data is not None else False,
+                "identity_reason_code": (
+                    frame_data.identity_decision.reason_code.value
+                    if frame_data is not None and frame_data.identity_decision is not None else None
+                ),
+                "identity_score": (
+                    frame_data.identity_decision.score
+                    if frame_data is not None and frame_data.identity_decision is not None else 0.0
+                ),
+                "identity_sub_scores": (
+                    dict(frame_data.identity_decision.sub_scores)
+                    if frame_data is not None and frame_data.identity_decision is not None else {}
+                ),
                 "lost_frames": int(frame_data.lost_frames) if frame_data is not None else 0,
                 "candidate_count": len(frame_data.candidates) if frame_data is not None else 0,
                 "bbox": fresh_target.bbox if fresh_target is not None else None,

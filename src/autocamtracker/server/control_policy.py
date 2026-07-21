@@ -121,5 +121,17 @@ class ControlPolicy:
             predicted=fresh_target.status == "coasting",
             latency_compensation_ms=latency_ms,
             reid_confidence_level=getattr(frame_data, "reid_confidence_level", None),
+            identity_reason_code=(
+                frame_data.identity_decision.reason_code.value
+                if getattr(frame_data, "identity_decision", None) is not None else None
+            ),
+            identity_score=(
+                frame_data.identity_decision.score
+                if getattr(frame_data, "identity_decision", None) is not None else None
+            ),
+            identity_sub_scores=(
+                dict(frame_data.identity_decision.sub_scores)
+                if getattr(frame_data, "identity_decision", None) is not None else None
+            ),
         )
         return FrameControlDecision(payload, (projected_x, projected_y))

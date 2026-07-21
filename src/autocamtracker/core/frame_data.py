@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from autocamtracker.tracking.detection_store import VehicleCandidate
+from autocamtracker.tracking.identity_components import IdentityDecision
 from autocamtracker.vision.reframer import FramingStatus
 from autocamtracker.tracking.target_tracker import SelectedTarget
 from autocamtracker.vision.detector import TrackedDetection
@@ -33,6 +34,8 @@ class FrameData:
     reacquire_score: float = 0.0
     reid_confidence_level: str = "unknown"
     motor_safe_to_track: bool = True
+    identity_decision: IdentityDecision | None = None
+    identity_decisions: list[IdentityDecision] = field(default_factory=list)
     target_velocity: tuple[float, float] = (0.0, 0.0)
     latency_compensation_ms: float = 0.0
     projected_target_center: tuple[float, float] | None = None
