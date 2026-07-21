@@ -15,6 +15,7 @@ from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.vision.reframer import Reframer
 from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.detector import TrackedDetection
+from autocamtracker.vision.gmc import GlobalMotionCompensator, GMCReasonCode
 
 
 class PipelineProcessor:
@@ -24,17 +25,21 @@ class PipelineProcessor:
         identity_manager: GlobalIdentityManager,
         scene_cut_detector: SceneCutDetector,
         reframer: Reframer,
+        gmc: GlobalMotionCompensator | None = None,
     ) -> None:
         self.store = store
         self.identity_manager = identity_manager
         self.scene_cut_detector = scene_cut_detector
         self.reframer = reframer
+        self.gmc = gmc
 
     def reset(self) -> None:
         self.store.reset()
         self.identity_manager.reset()
         self.scene_cut_detector.reset()
         self.reframer.reset()
+        if self.gmc is not None:
+            self.gmc.reset()
 
     def process(
         self,
@@ -50,7 +55,6 @@ class PipelineProcessor:
         receive_latency_ms: float | None = None,
     ) -> FrameData:
         pipeline_started_at = time()
-        identity_started_at = time()
         camera_cut = self.scene_cut_detector.update(frame)
         if camera_cut:
             if reset_tracker_state is not None:
@@ -59,6 +63,17 @@ class PipelineProcessor:
             self.identity_manager.handle_camera_cut()
             detections = []
 
+        gmc_started_at = time()
+        global_motion = None
+        if self.gmc is not None:
+            if camera_cut:
+                self.gmc.reset(GMCReasonCode.CAMERA_CUT_RESET)
+            global_motion = self.gmc.update(
+                frame, [detection.bbox for detection in detections]
+            )
+        gmc_time_ms = (time() - gmc_started_at) * 1000.0
+
+        identity_started_at = time()
         candidates = self.store.update(detections, frame.shape)
         selected_targets = self.identity_manager.update(detections, frame)
         identity_time_ms = (time() - identity_started_at) * 1000.0
@@ -108,6 +123,10 @@ class PipelineProcessor:
             motor_safe_to_track=self.identity_manager.motor_safe_to_track,
             identity_decision=self.identity_manager.last_identity_decision,
             identity_decisions=list(self.identity_manager.identity_decisions),
+            global_motion=global_motion,
+            camera_calibration_profile_id=(
+                global_motion.calibration_profile_id if global_motion is not None else None
+            ),
             target_velocity=target_velocity,
             latency_compensation_ms=latency_compensation_ms,
             source_fps=source_fps,
@@ -116,6 +135,7 @@ class PipelineProcessor:
             receive_latency_ms=receive_latency_ms,
             pipeline_time_ms=pipeline_time_ms,
             identity_time_ms=identity_time_ms,
+            gmc_time_ms=gmc_time_ms,
             reframe_time_ms=reframe_time_ms,
             preview_time_ms=preview_time_ms,
             skipped_frames=skipped_frames,

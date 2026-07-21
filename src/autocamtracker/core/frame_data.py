@@ -15,6 +15,7 @@ from autocamtracker.tracking.identity_components import IdentityDecision
 from autocamtracker.vision.reframer import FramingStatus
 from autocamtracker.tracking.target_tracker import SelectedTarget
 from autocamtracker.vision.detector import TrackedDetection
+from autocamtracker.vision.gmc import GlobalMotionEstimate
 
 
 @dataclass
@@ -36,6 +37,8 @@ class FrameData:
     motor_safe_to_track: bool = True
     identity_decision: IdentityDecision | None = None
     identity_decisions: list[IdentityDecision] = field(default_factory=list)
+    global_motion: GlobalMotionEstimate | None = None
+    camera_calibration_profile_id: str | None = None
     target_velocity: tuple[float, float] = (0.0, 0.0)
     latency_compensation_ms: float = 0.0
     projected_target_center: tuple[float, float] | None = None
@@ -46,6 +49,7 @@ class FrameData:
     receive_latency_ms: float | None = None
     pipeline_time_ms: float = 0.0
     identity_time_ms: float = 0.0
+    gmc_time_ms: float = 0.0
     reframe_time_ms: float = 0.0
     preview_time_ms: float = 0.0
     skipped_frames: int = 0

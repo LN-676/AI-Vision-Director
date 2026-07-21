@@ -32,6 +32,11 @@ from autocamtracker.ui.app import AIVisonDirectorApp, AppConfig, AppDependencies
 from autocamtracker.vision.reframer import FramingConfig, Reframer
 from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.types import InputConfig
+from autocamtracker.vision.camera_calibration import (
+    CameraCalibrationStore,
+    CameraCalibrationSubsystem,
+)
+from autocamtracker.vision.gmc import GlobalMotionCompensator
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,10 @@ def bootstrap(
         feature_gallery, identity_manager=identity_manager
     )
     scene_cut_detector = SceneCutDetector()
+    camera_calibration = CameraCalibrationSubsystem(
+        CameraCalibrationStore(app_config.camera_calibration_path)
+    )
+    gmc = GlobalMotionCompensator(calibration=camera_calibration)
     reframer = Reframer(
         FramingConfig(
             output_width=app_config.output_width,
@@ -89,6 +98,7 @@ def bootstrap(
         identity_manager=identity_manager,
         scene_cut_detector=scene_cut_detector,
         reframer=reframer,
+        gmc=gmc,
     )
     tracking_session = TrackingSession(pipeline)
     application = TrackingApplication(
@@ -100,6 +110,8 @@ def bootstrap(
         auto_feature_sampler=auto_feature_sampler,
         scene_cut_detector=scene_cut_detector,
         reframer=reframer,
+        camera_calibration=camera_calibration,
+        gmc=gmc,
         pipeline=pipeline,
         tracking_session=tracking_session,
     )

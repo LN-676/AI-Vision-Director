@@ -52,6 +52,14 @@ class BootstrapTests(unittest.TestCase):
                 self.assertIsNotNone(identity_manager.reacquisition_policy)
                 self.assertIsNotNone(identity_manager.track_identity_mapper)
                 self.assertIsNotNone(identity_manager.motor_safety_policy)
+                self.assertIs(
+                    dependencies.application.pipeline.gmc,
+                    dependencies.application.gmc,
+                )
+                self.assertIs(
+                    dependencies.application.gmc.calibration,
+                    dependencies.application.camera_calibration,
+                )
                 self.assertEqual(desktop.app.input_config.source_type, "video_file")
                 self.assertEqual(desktop.app.input_config.video_path, "sample.mp4")
 
@@ -92,6 +100,9 @@ class BootstrapTests(unittest.TestCase):
             "ReacquisitionPolicy",
             "TrackIdentityMapper",
             "MotorSafetyPolicy",
+            "CameraCalibrationStore",
+            "CameraCalibrationSubsystem",
+            "GlobalMotionCompensator",
         }
         diagnostic_exceptions = {
             ("core/self_test.py", "DetectionStore"),

@@ -169,6 +169,12 @@ class VideoPipelineMixin:
                 if frame_data.identity_decision is not None else {}
             ),
             identity_decisions=[item.to_dict() for item in frame_data.identity_decisions],
+            global_motion=(
+                frame_data.global_motion.to_dict()
+                if frame_data.global_motion is not None else None
+            ),
+            gmc_time_ms=frame_data.gmc_time_ms,
+            camera_calibration_profile_id=frame_data.camera_calibration_profile_id,
             candidate_count=len(frame_data.candidates),
             confidence=float(fresh_target.confidence) if fresh_target is not None else 0.0,
             bbox=fresh_target.bbox if fresh_target is not None else None,
@@ -574,6 +580,16 @@ class VideoPipelineMixin:
                 "decode_time_ms": frame_data.decode_time_ms if frame_data is not None else 0.0,
                 "inference_time_ms": frame_data.inference_time_ms if frame_data is not None else 0.0,
                 "pipeline_time_ms": frame_data.pipeline_time_ms if frame_data is not None else 0.0,
+                "gmc_time_ms": frame_data.gmc_time_ms if frame_data is not None else 0.0,
+                "camera_calibration_profile_id": (
+                    frame_data.camera_calibration_profile_id
+                    if frame_data is not None else None
+                ),
+                "global_motion": (
+                    frame_data.global_motion.to_dict()
+                    if frame_data is not None and frame_data.global_motion is not None
+                    else None
+                ),
                 "phone_last_command_source_version": (
                     motor_status.last_command.get("source_version")
                     if motor_status is not None and isinstance(motor_status.last_command, dict)

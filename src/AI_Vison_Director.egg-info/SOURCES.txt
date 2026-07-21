@@ -66,7 +66,9 @@ src/autocamtracker/ui/mixins/ui_builder.py
 src/autocamtracker/ui/mixins/video_pipeline.py
 src/autocamtracker/vision/detector.py
 src/autocamtracker/vision/detector_backend.py
+src/autocamtracker/vision/camera_calibration.py
 src/autocamtracker/vision/frame_source.py
+src/autocamtracker/vision/gmc.py
 src/autocamtracker/vision/reframer.py
 src/autocamtracker/vision/scene_cut.py
 src/autocamtracker/vision/types.py

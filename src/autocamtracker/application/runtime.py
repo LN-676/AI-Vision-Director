@@ -12,6 +12,8 @@ from autocamtracker.core.pipeline_processor import PipelineProcessor
 from autocamtracker.vision.reframer import Reframer
 from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.types import InputConfig
+from autocamtracker.vision.camera_calibration import CameraCalibrationSubsystem
+from autocamtracker.vision.gmc import GlobalMotionCompensator
 
 
 class TrackingApplication:
@@ -28,6 +30,8 @@ class TrackingApplication:
         auto_feature_sampler: AutoFeatureSampler,
         scene_cut_detector: SceneCutDetector,
         reframer: Reframer,
+        camera_calibration: CameraCalibrationSubsystem,
+        gmc: GlobalMotionCompensator,
         pipeline: PipelineProcessor,
         tracking_session: TrackingSession,
     ) -> None:
@@ -39,6 +43,8 @@ class TrackingApplication:
         self.auto_feature_sampler = auto_feature_sampler
         self.scene_cut_detector = scene_cut_detector
         self.reframer = reframer
+        self.camera_calibration = camera_calibration
+        self.gmc = gmc
         self.pipeline = pipeline
         self.tracking_session = tracking_session
 

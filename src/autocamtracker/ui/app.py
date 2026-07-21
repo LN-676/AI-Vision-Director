@@ -41,6 +41,7 @@ class AppConfig:
     log_dir: Path = Path("outputs")
     telemetry_dir: Path = Path("outputs") / "telemetry"
     identity_db_path: Path = Path("outputs") / "vehicle_identity.sqlite3"
+    camera_calibration_path: Path = Path("outputs") / "camera_calibrations.json"
     model_dir: Path = Path(__file__).resolve().parents[3] / "code" / "model"
     default_model: str = "yolo26n.pt"
     default_reid_model: str = "yolo26s-reid.onnx"
@@ -86,6 +87,8 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
         self.auto_feature_sampler = self.application.auto_feature_sampler
         self.scene_cut_detector = self.application.scene_cut_detector
         self.reframer = self.application.reframer
+        self.camera_calibration = self.application.camera_calibration
+        self.gmc = self.application.gmc
         self.telemetry_logger = dependencies.telemetry_logger
         self.performance_evaluator = dependencies.performance_evaluator
         self.iphone_status_queue = dependencies.iphone_status_queue
