@@ -103,12 +103,21 @@ class PipelineProcessor:
         candidates = self.store.update(detections, frame.shape)
         selected_targets = self.identity_manager.update(detections, frame)
         identity_time_ms = (time() - identity_started_at) * 1000.0
+        target_velocity = (
+            self.identity_manager.selected_identity.velocity
+            if self.identity_manager.selected_identity is not None
+            else (0.0, 0.0)
+        )
 
         reframe_started_at = time()
         if render_preview:
-            after_frame, framing_status = self.reframer.render(frame, selected_targets)
+            after_frame, framing_status = self.reframer.render(
+                frame, selected_targets, target_velocity
+            )
         else:
-            framing_status = self.reframer.status(frame, selected_targets)
+            framing_status = self.reframer.status(
+                frame, selected_targets, target_velocity
+            )
             after_frame = frame
         reframe_time_ms = (time() - reframe_started_at) * 1000.0
         preview_started_at = time()
@@ -129,12 +138,6 @@ class PipelineProcessor:
                 source_fps,
                 evaluated_at=pipeline_completed_mark,
             )
-        target_velocity = (
-            self.identity_manager.selected_identity.velocity
-            if self.identity_manager.selected_identity is not None
-            else (0.0, 0.0)
-        )
-
         return FrameData(
             raw_frame=frame,
             before_frame=before_frame,

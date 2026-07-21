@@ -57,6 +57,10 @@ class BootstrapTests(unittest.TestCase):
                     dependencies.application.gmc,
                 )
                 self.assertIs(
+                    dependencies.application.reframer.engine,
+                    dependencies.application.framing_engine,
+                )
+                self.assertIs(
                     dependencies.application.gmc.calibration,
                     dependencies.application.camera_calibration,
                 )
@@ -111,6 +115,7 @@ class BootstrapTests(unittest.TestCase):
             "CameraCalibrationStore",
             "CameraCalibrationSubsystem",
             "GlobalMotionCompensator",
+            "FramingEngine",
             "LatencyCompensator",
         }
         diagnostic_exceptions = {

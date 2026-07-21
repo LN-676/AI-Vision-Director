@@ -187,6 +187,7 @@ class VideoPipelineMixin:
             crop_window=frame_data.framing_status.crop_window,
             error_x=frame_data.framing_status.error_x,
             error_y=frame_data.framing_status.error_y,
+            framing_decision=frame_data.framing_status.to_dict(),
             shot_state=shot_decision.state,
             shot_reason=shot_decision.reason,
             motor_armed=self.iphone_motor_tracking_enabled,
@@ -580,6 +581,10 @@ class VideoPipelineMixin:
                 "error_x": frame_data.framing_status.error_x if frame_data is not None else 0.0,
                 "error_y": frame_data.framing_status.error_y if frame_data is not None else 0.0,
                 "zoom_factor": zoom_factor,
+                "decision": (
+                    frame_data.framing_status.to_dict()
+                    if frame_data is not None else None
+                ),
             },
             "diagnostics": {
                 "desktop_version": f"AI_Vison_Director V{SOURCE_VERSION}",
@@ -642,7 +647,13 @@ class VideoPipelineMixin:
     def _frame_zoom_factor(self, frame_data, target, frame_shape) -> float | None:
         if frame_data is None or target is None or frame_shape is None:
             return None
-        return zoom_factor_for_framing(self.framing_var.get())
+        return float(
+            getattr(
+                frame_data.framing_status,
+                "zoom_target",
+                zoom_factor_for_framing(self.framing_var.get()),
+            )
+        )
 
     def _desktop_state_gids(self) -> list[dict]:
         summary = self.identity_store.summary(feature_counts=self.feature_gallery.summary_by_vehicle())

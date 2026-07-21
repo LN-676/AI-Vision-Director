@@ -30,6 +30,7 @@ from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 from autocamtracker.ui.app import AIVisonDirectorApp, AppConfig, AppDependencies
 from autocamtracker.vision.reframer import FramingConfig, Reframer
+from autocamtracker.vision.framing_engine import FramingEngine, FramingEngineConfig
 from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.types import InputConfig
 from autocamtracker.vision.camera_calibration import (
@@ -89,12 +90,17 @@ def bootstrap(
     )
     gmc = GlobalMotionCompensator(calibration=camera_calibration)
     latency_compensator = LatencyCompensator()
-    reframer = Reframer(
-        FramingConfig(
-            output_width=app_config.output_width,
-            output_height=app_config.output_height,
+    framing_config = FramingConfig(
+        output_width=app_config.output_width,
+        output_height=app_config.output_height,
+    )
+    framing_engine = FramingEngine(
+        FramingEngineConfig(
+            center_smoothing=framing_config.smooth_factor,
+            movement_dead_zone_ratio=framing_config.dead_zone_ratio,
         )
     )
+    reframer = Reframer(framing_config, engine=framing_engine)
     pipeline = PipelineProcessor(
         store=store,
         identity_manager=identity_manager,
@@ -113,6 +119,7 @@ def bootstrap(
         auto_feature_sampler=auto_feature_sampler,
         scene_cut_detector=scene_cut_detector,
         reframer=reframer,
+        framing_engine=framing_engine,
         camera_calibration=camera_calibration,
         gmc=gmc,
         latency_compensator=latency_compensator,

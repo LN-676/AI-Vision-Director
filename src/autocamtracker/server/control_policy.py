@@ -112,7 +112,16 @@ class ControlPolicy:
         target_id = frame_data.selected_global_vehicle_id
         if target_id is None:
             target_id = frame_data.selected_local_track_id
-        zoom_factor = self.zoom_factor_for_framing(framing_mode)
+        zoom_factor = max(
+            0.1,
+            float(
+                getattr(
+                    status,
+                    "zoom_target",
+                    self.zoom_factor_for_framing(framing_mode),
+                )
+            ),
+        )
         self.last_locked_zoom_factor = zoom_factor
         self.last_unlocked_at = None
         velocity_x, velocity_y = getattr(frame_data, "target_velocity", (0.0, 0.0))
@@ -149,6 +158,20 @@ class ControlPolicy:
             ),
         )
         payload.update(timing_fields)
+        payload.update({
+            "framing_anchor": getattr(status, "framing_anchor", (0.5, 0.5)),
+            "lead_room": getattr(status, "lead_room", (0.0, 0.0)),
+            "desired_subject_scale": float(
+                getattr(status, "desired_subject_scale", 0.0)
+            ),
+            "actual_subject_scale": float(
+                getattr(status, "actual_subject_scale", 0.0)
+            ),
+            "zoom_target": zoom_factor,
+            "framing_reason_code": getattr(
+                getattr(status, "reason_code", None), "value", None
+            ),
+        })
         return FrameControlDecision(payload, (projected_x, projected_y))
 
     def _timing_fields(

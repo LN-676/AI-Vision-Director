@@ -69,6 +69,7 @@ src/autocamtracker/vision/detector.py
 src/autocamtracker/vision/detector_backend.py
 src/autocamtracker/vision/camera_calibration.py
 src/autocamtracker/vision/frame_source.py
+src/autocamtracker/vision/framing_engine.py
 src/autocamtracker/vision/gmc.py
 src/autocamtracker/vision/reframer.py
 src/autocamtracker/vision/scene_cut.py
@@ -79,6 +80,7 @@ tests/test_camera_calibration_gmc.py
 tests/test_desktop_optimizations.py
 tests/test_domain_contracts.py
 tests/test_feature_gallery_components.py
+tests/test_framing_engine.py
 tests/test_gid_loss_benchmark.py
 tests/test_identity_components.py
 tests/test_offline_replay.py

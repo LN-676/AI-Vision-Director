@@ -87,6 +87,7 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
         self.auto_feature_sampler = self.application.auto_feature_sampler
         self.scene_cut_detector = self.application.scene_cut_detector
         self.reframer = self.application.reframer
+        self.framing_engine = self.application.framing_engine
         self.camera_calibration = self.application.camera_calibration
         self.gmc = self.application.gmc
         self.latency_compensator = self.application.latency_compensator

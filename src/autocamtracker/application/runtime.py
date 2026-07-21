@@ -10,6 +10,7 @@ from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 from autocamtracker.core.pipeline_processor import PipelineProcessor
 from autocamtracker.vision.reframer import Reframer
+from autocamtracker.vision.framing_engine import FramingEngine
 from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.types import InputConfig
 from autocamtracker.vision.camera_calibration import CameraCalibrationSubsystem
@@ -31,6 +32,7 @@ class TrackingApplication:
         auto_feature_sampler: AutoFeatureSampler,
         scene_cut_detector: SceneCutDetector,
         reframer: Reframer,
+        framing_engine: FramingEngine,
         camera_calibration: CameraCalibrationSubsystem,
         gmc: GlobalMotionCompensator,
         latency_compensator: LatencyCompensator,
@@ -45,6 +47,7 @@ class TrackingApplication:
         self.auto_feature_sampler = auto_feature_sampler
         self.scene_cut_detector = scene_cut_detector
         self.reframer = reframer
+        self.framing_engine = framing_engine
         self.camera_calibration = camera_calibration
         self.gmc = gmc
         self.latency_compensator = latency_compensator

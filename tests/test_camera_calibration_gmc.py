@@ -19,6 +19,7 @@ from autocamtracker.core.pipeline_processor import PipelineProcessor
 from autocamtracker.tracking.detection_store import DetectionStore
 from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.vision.reframer import Reframer
+from autocamtracker.vision.framing_engine import FramingEngine
 
 
 def calibration(profile_id: str = "iphone-main") -> CameraCalibration:
@@ -254,7 +255,7 @@ class GlobalMotionCompensatorTests(unittest.TestCase):
             DetectionStore(),
             GlobalIdentityManager(),
             SceneCuts(),  # type: ignore[arg-type]
-            Reframer(),
+            Reframer(engine=FramingEngine()),
             gmc=gmc,  # type: ignore[arg-type]
         )
         frame = SimpleNamespace(shape=(360, 640, 3))
