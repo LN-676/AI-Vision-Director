@@ -24,6 +24,11 @@ src/autocamtracker/core/telemetry_logger.py
 src/autocamtracker/core/track_shot_plan.py
 src/autocamtracker/domain/__init__.py
 src/autocamtracker/domain/contracts.py
+src/autocamtracker/server/camera_stream_receiver.py
+src/autocamtracker/server/control_policy.py
+src/autocamtracker/server/control_publisher.py
+src/autocamtracker/server/protocol.py
+src/autocamtracker/server/transport.py
 src/autocamtracker/server/websocket_server.py
 src/autocamtracker/tracking/auto_feature_sampler.py
 src/autocamtracker/tracking/backend.py
@@ -68,3 +73,4 @@ tests/test_sqlite_threading.py
 tests/test_track_shot_plan.py
 tests/test_tracking_server.py
 tests/test_vision_backends.py
+tests/test_websocket_components.py
