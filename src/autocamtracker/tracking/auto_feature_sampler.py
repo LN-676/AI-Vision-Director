@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from autocamtracker.tracking.detection_store import DetectionStore
 from autocamtracker.tracking.feature_gallery import FeatureAddResult, FeatureGallery
+from autocamtracker.tracking.feature_models import GalleryWriteContext
 from autocamtracker.vision.detector import TrackedDetection
 
 
@@ -65,8 +66,11 @@ class AutoFeatureSampler:
         self,
         feature_gallery: FeatureGallery,
         config: AutoFeatureSamplerConfig | None = None,
+        *,
+        identity_manager: Any | None = None,
     ) -> None:
         self.feature_gallery = feature_gallery
+        self.identity_manager = identity_manager
         self.config = config or AutoFeatureSamplerConfig()
         self.active_vehicle_id: int | None = None
         self._states: dict[int, _VehicleSamplingState] = {}
@@ -185,7 +189,15 @@ class AutoFeatureSampler:
                 quality_score=quality.score,
             )
 
-        result = self.feature_gallery.add_master_feature(vehicle_id, detection, frame)
+        context = (
+            GalleryWriteContext.from_identity_manager(
+                self.identity_manager, source="auto_feature_sampler"
+            )
+            if self.identity_manager is not None else None
+        )
+        result = self.feature_gallery.add_master_feature(
+            vehicle_id, detection, frame, context=context
+        )
         if result.accepted:
             state.accepted.append(signature)
             state.accepted = state.accepted[-80:]

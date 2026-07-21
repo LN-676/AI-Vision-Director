@@ -70,6 +70,19 @@ class SQLiteThreadingTests(unittest.TestCase):
                         duplicate_score=None,
                         crop_jpeg=None,
                         model_path="test.onnx",
+                        provenance={
+                            "write_id": f"thread-{frame_index}",
+                            "source": "test",
+                            "global_vehicle_id": 1,
+                            "local_track_id": 1,
+                            "frame_index": frame_index,
+                            "identity_state": "LOCKED",
+                            "identity_reason_code": "CURRENT_TRACK_MATCH",
+                            "identity_score": 1.0,
+                            "identity_sub_scores": {"tracker_match": 1.0},
+                            "decision_accepted": True,
+                            "motor_safe_to_track": True,
+                        },
                     )
 
                 with ThreadPoolExecutor(max_workers=4) as executor:

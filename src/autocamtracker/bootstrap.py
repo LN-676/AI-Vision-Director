@@ -74,7 +74,9 @@ def bootstrap(
         track_identity_mapper=TrackIdentityMapper(),
         motor_safety_policy=MotorSafetyPolicy(),
     )
-    auto_feature_sampler = AutoFeatureSampler(feature_gallery)
+    auto_feature_sampler = AutoFeatureSampler(
+        feature_gallery, identity_manager=identity_manager
+    )
     scene_cut_detector = SceneCutDetector()
     reframer = Reframer(
         FramingConfig(
