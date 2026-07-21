@@ -1,16 +1,11 @@
-"""AutoCamTracker main entry point."""
+"""Thin command entry point; object construction lives in ``bootstrap``."""
 
-import sys
-import tkinter as tk
-from autocamtracker.ui.app import AutoCamTrackerApp, AppConfig
+from autocamtracker.bootstrap import run
+
 
 def main() -> None:
-    root = tk.Tk()
-    app = AutoCamTrackerApp(root, AppConfig())
-    if len(sys.argv) > 1:
-        app.input_config.source_type = "video_file"
-        app.input_config.video_path = sys.argv[1]
-    root.mainloop()
+    run()
+
 
 if __name__ == "__main__":
     main()

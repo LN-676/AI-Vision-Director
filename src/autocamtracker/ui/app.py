@@ -28,12 +28,7 @@ except ImportError:  # pragma: no cover
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.application import FrameData, TrackingApplication
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.core.telemetry_logger import TelemetryLogger
-from autocamtracker.core.performance_evaluation import PerformanceEvaluationTracker
-from autocamtracker.server.websocket_server import TrackingWebSocketServer
-from autocamtracker.core.track_shot_plan import TrackShotController
+from autocamtracker.application import FrameData
 
 
 @dataclass
@@ -50,6 +45,20 @@ class AppConfig:
     default_reid_model: str = "yolo26s-reid.onnx"
 
 
+@dataclass(frozen=True)
+class AppDependencies:
+    """Fully constructed services injected by the composition root."""
+
+    application: object
+    telemetry_logger: object
+    performance_evaluator: object
+    tracking_server: object
+    track_shot_controller: object
+    identity_session_links: object
+    iphone_status_queue: SimpleQueue[str]
+    iphone_control_queue: SimpleQueue[dict]
+
+
 
 from autocamtracker.ui.mixins.ui_builder import UIBuilderMixin
 from autocamtracker.ui.mixins.identity_panel import IdentityPanelMixin
@@ -58,18 +67,13 @@ from autocamtracker.ui.mixins.commands import CommandsMixin
 from autocamtracker.ui.mixins.performance_panel import PerformancePanelMixin
 
 class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, CommandsMixin, PerformancePanelMixin):
-    def __init__(self, root: tk.Tk, config: AppConfig | None = None) -> None:
+    def __init__(self, root: tk.Tk, config: AppConfig, dependencies: AppDependencies) -> None:
         self.root = root
-        self.config = config or AppConfig()
+        self.config = config
         self.root.title(self.config.window_title)
         self.root.minsize(1120, 720)
 
-        self.application = TrackingApplication(
-            identity_db_path=self.config.identity_db_path,
-            reid_model_path=str(self.config.model_dir / self.config.default_reid_model),
-            output_width=self.config.output_width,
-            output_height=self.config.output_height,
-        )
+        self.application = dependencies.application
         self.input_config = self.application.input_config
         self.tracking_session = self.application.tracking_session
         # Transitional aliases keep the existing identity-panel interactions
@@ -81,21 +85,17 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.auto_feature_sampler = self.application.auto_feature_sampler
         self.scene_cut_detector = self.application.scene_cut_detector
         self.reframer = self.application.reframer
-        self.telemetry_logger = TelemetryLogger(self.config.telemetry_dir)
-        self.performance_evaluator = PerformanceEvaluationTracker()
-        self.iphone_status_queue: SimpleQueue[str] = SimpleQueue()
-        self.iphone_control_queue: SimpleQueue[dict] = SimpleQueue()
-        self.tracking_server = TrackingWebSocketServer(
-            on_status=self._queue_iphone_status,
-            on_control=self._queue_iphone_control,
-            telemetry_logger=self.telemetry_logger,
-        )
+        self.telemetry_logger = dependencies.telemetry_logger
+        self.performance_evaluator = dependencies.performance_evaluator
+        self.iphone_status_queue = dependencies.iphone_status_queue
+        self.iphone_control_queue = dependencies.iphone_control_queue
+        self.tracking_server = dependencies.tracking_server
         self.telemetry_logger.log(
             "app_started",
             version=self.config.window_title,
             telemetry_path=self.telemetry_logger.path,
         )
-        self.track_shot_controller = TrackShotController()
+        self.track_shot_controller = dependencies.track_shot_controller
         # Physical motor output is explicitly armed by Auto Track or Find GID.
         # A selected target can therefore still drive digital reframing without
         # unexpectedly moving the DockKit accessory.
@@ -123,7 +123,7 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.timeline_dragging = False
         self.refreshing_identity_panel = False
         self.selected_identity_tree_ids: set[int] = set()
-        self.identity_session_links = IdentitySessionLinks()
+        self.identity_session_links = dependencies.identity_session_links
         self.last_identity_panel_refresh_at = 0.0
         self.identity_preview_window: tk.Toplevel | None = None
         self.performance_window: tk.Toplevel | None = None

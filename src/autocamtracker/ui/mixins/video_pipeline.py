@@ -633,13 +633,3 @@ class VideoPipelineMixin:
             self.before_canvas.itemconfig(self.before_image_id, image=self.before_image_ref)
             self.after_canvas.coords(self.after_image_id, 0, 0)
             self.after_canvas.itemconfig(self.after_image_id, image=self.after_image_ref)
-
-
-def main() -> None:
-    root = tk.Tk()
-    app = AutoCamTrackerApp(root)
-    root.mainloop()
-
-
-if __name__ == "__main__":
-    main()
