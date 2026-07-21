@@ -16,20 +16,6 @@ except ImportError:
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
-from autocamtracker.server.websocket_server import TrackingWebSocketServer
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 
 class IdentityPanelMixin:
     def refresh_identity_db_panel(self, force: bool = True) -> None:
@@ -486,7 +472,14 @@ class IdentityPanelMixin:
             self.status_var.set("Status: Link BBox to a visible vehicle before Add Feature")
             return "break"
 
-        result = self.feature_gallery.add_master_feature(vehicle_id, detection, self.last_raw_frame)
+        from autocamtracker.tracking.feature_models import GalleryWriteContext
+
+        context = GalleryWriteContext.from_identity_manager(
+            self.identity_manager, source="manual_feature_add"
+        )
+        result = self.feature_gallery.add_master_feature(
+            vehicle_id, detection, self.last_raw_frame, context=context
+        )
         self.refresh_identity_db_panel()
         label = self.identity_store.display_label(vehicle_id)
         if result.accepted:
@@ -784,9 +777,12 @@ class IdentityPanelMixin:
                     ttk.Label(tile, text="No preview", width=18, padding=20).pack()
 
                 created = strftime("%m-%d %H:%M:%S", localtime(snapshot.created_at))
+                provenance_reason = snapshot.provenance.get("identity_reason_code", "UNKNOWN")
+                provenance_score = float(snapshot.provenance.get("identity_score", 0.0) or 0.0)
                 info = (
                     f"#{snapshot.feature_id}  F{snapshot.frame_index}\n"
-                    f"Q {snapshot.quality_score:.2f}  {created}"
+                    f"Q {snapshot.quality_score:.2f}  {created}\n"
+                    f"{provenance_reason} {provenance_score:.2f}"
                 )
                 ttk.Label(tile, text=info, justify="center").pack(pady=(5, 3))
                 select_button = ttk.Button(tile, text="Select", command=lambda fid=snapshot.feature_id: toggle(fid))
@@ -798,14 +794,23 @@ class IdentityPanelMixin:
             if not selected_ids:
                 return
             if not messagebox.askyesno(
-                "Delete Master Snapshots",
-                f"Delete {len(selected_ids)} selected master snapshot(s)? This cannot be undone.",
+                "Rollback Master Snapshots",
+                f"Rollback {len(selected_ids)} selected master snapshot(s)? "
+                "They will stop participating in ReID and remain in the audit history.",
                 parent=window,
             ):
                 return
-            deleted = self.feature_gallery.delete_features(selected_ids, vehicle_id=vehicle_id)
+            rollback = self.feature_gallery.rollback_features(
+                selected_ids,
+                vehicle_id=vehicle_id,
+                reason="manual contamination rollback",
+                actor="desktop",
+            )
             self.refresh_identity_db_panel()
-            self.status_var.set(f"Status: deleted {deleted} master snapshot(s) from GID {label}")
+            self.status_var.set(
+                f"Status: rolled back {rollback.rolled_back_count} master snapshot(s) "
+                f"from GID {label}; audit event {rollback.event_id}"
+            )
             refresh()
 
         refresh()

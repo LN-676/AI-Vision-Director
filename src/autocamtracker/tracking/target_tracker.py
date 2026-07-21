@@ -1,4 +1,4 @@
-"""Target Tracking module for AutoCamTracker V1.
+"""Target Tracking module for AI_Vison_Director V1.
 
 Responsibilities:
 - Manage selected track IDs.

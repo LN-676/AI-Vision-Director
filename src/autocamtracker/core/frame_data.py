@@ -1,4 +1,4 @@
-"""Structured per-frame pipeline data for AutoCamTracker V1.
+"""Structured per-frame pipeline data for AI_Vison_Director V1.
 
 The UI can still render the familiar Before / After view, but status, logging,
 recording, and later worker-thread handoff should consume this typed snapshot
@@ -11,9 +11,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from autocamtracker.tracking.detection_store import VehicleCandidate
+from autocamtracker.tracking.identity_components import IdentityDecision
 from autocamtracker.vision.reframer import FramingStatus
 from autocamtracker.tracking.target_tracker import SelectedTarget
 from autocamtracker.vision.detector import TrackedDetection
+from autocamtracker.vision.gmc import GlobalMotionEstimate
+from autocamtracker.core.timestamps import (
+    FrameTimeline,
+    LatencyBreakdown,
+    LatencyCompensation,
+)
 
 
 @dataclass
@@ -33,7 +40,14 @@ class FrameData:
     reacquire_score: float = 0.0
     reid_confidence_level: str = "unknown"
     motor_safe_to_track: bool = True
+    identity_decision: IdentityDecision | None = None
+    identity_decisions: list[IdentityDecision] = field(default_factory=list)
+    global_motion: GlobalMotionEstimate | None = None
+    camera_calibration_profile_id: str | None = None
     target_velocity: tuple[float, float] = (0.0, 0.0)
+    timestamps: FrameTimeline | None = None
+    latency_breakdown: LatencyBreakdown | None = None
+    latency_compensation: LatencyCompensation | None = None
     latency_compensation_ms: float = 0.0
     projected_target_center: tuple[float, float] | None = None
     display_fps: float = 0.0
@@ -43,6 +57,7 @@ class FrameData:
     receive_latency_ms: float | None = None
     pipeline_time_ms: float = 0.0
     identity_time_ms: float = 0.0
+    gmc_time_ms: float = 0.0
     reframe_time_ms: float = 0.0
     preview_time_ms: float = 0.0
     skipped_frames: int = 0

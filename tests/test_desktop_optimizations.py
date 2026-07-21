@@ -14,6 +14,7 @@ if str(V1_DIR) not in sys.path:
 
 from autocamtracker.core.desktop_state import IdentitySessionLinks
 from autocamtracker.tracking.feature_gallery import DetectionFeatureMatch, FeatureGallery
+from autocamtracker.tracking.feature_models import GalleryWriteContext
 from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.core.pipeline_worker import TrackingWorker
 from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
@@ -35,14 +36,41 @@ def detection(track_id: int = 12, frame_index: int = 1) -> TrackedDetection:
     )
 
 
+def locked_context(vehicle_id: int, track_id: int | None = 12) -> GalleryWriteContext:
+    return GalleryWriteContext(
+        source="test",
+        global_vehicle_id=vehicle_id,
+        local_track_id=track_id,
+        identity_state="LOCKED",
+        identity_reason_code="CURRENT_TRACK_MATCH",
+        identity_score=1.0,
+        identity_sub_scores={"tracker_match": 1.0},
+        decision_accepted=True,
+        motor_safe_to_track=True,
+    )
+
+
 class FakeDetector:
     def __init__(self) -> None:
         self.calls = 0
+        self.config = type("Config", (), {"source_type": "webcam"})()
 
     def read_and_track(self):
         sleep(0.02)
         self.calls += 1
         return f"frame-{self.calls}", [self.calls]
+
+    def read_frame(self):
+        sleep(0.01)
+        self.calls += 1
+        return f"frame-{self.calls}"
+
+    def track_frame(self, frame):
+        sleep(0.01)
+        return [self.calls]
+
+    def get_current_frame_index(self):
+        return self.calls
 
     def get_source_fps(self):
         return 15.0
@@ -65,6 +93,7 @@ class FakePipeline:
         render_preview=True,
         decode_time_ms=0.0,
         receive_latency_ms=None,
+        timestamps=None,
     ):
         return {
             "frame": draw_detections(frame, detections),
@@ -75,6 +104,7 @@ class FakePipeline:
             "render_preview": render_preview,
             "decode_time_ms": decode_time_ms,
             "receive_latency_ms": receive_latency_ms,
+            "timestamps": timestamps,
         }
 
 
@@ -102,6 +132,10 @@ class TrackingWorkerTests(unittest.TestCase):
             self.assertEqual(result.frame_data["detections"], [1])
             self.assertEqual(result.frame_data["source_fps"], 15.0)
             self.assertGreaterEqual(result.inference_time_ms, 0.0)
+            timeline = result.frame_data["timestamps"]
+            self.assertEqual(timeline.source_id, "webcam")
+            self.assertIsNotNone(timeline.get("capture_started"))
+            self.assertIsNotNone(timeline.get("inference_completed"))
         finally:
             worker.close()
 
@@ -207,7 +241,9 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
             gallery = FeatureGallery(db_path)
             gallery.embedding_extractor = StaticExtractor()
 
-            result = gallery.import_jpg(vehicle_id, jpg_path)
+            result = gallery.import_jpg(
+                vehicle_id, jpg_path, context=locked_context(vehicle_id, 7)
+            )
 
             self.assertTrue(result.accepted)
             self.assertEqual(gallery.summary_by_vehicle()[vehicle_id]["master"], 1)
@@ -236,8 +272,12 @@ class VehicleIdentityStoreBatchingTests(unittest.TestCase):
             second = detection(track_id=7, frame_index=2)
             second.bbox = (70.0, 40.0, 160.0, 135.0)
             second.center = (115.0, 87.5)
-            first_result = gallery.add_master_feature(vehicle_id, first, frame)
-            second_result = gallery.add_master_feature(vehicle_id, second, frame)
+            first_result = gallery.add_master_feature(
+                vehicle_id, first, frame, context=locked_context(vehicle_id, 7)
+            )
+            second_result = gallery.add_master_feature(
+                vehicle_id, second, frame, context=locked_context(vehicle_id, 7)
+            )
 
             self.assertTrue(first_result.accepted)
             self.assertTrue(second_result.accepted)
@@ -288,7 +328,9 @@ class ReIDRuntimeOptimizationTests(unittest.TestCase):
             gallery = FeatureGallery(db_path)
             extractor = CountingExtractor()
             gallery.embedding_extractor = extractor
-            self.assertTrue(gallery.add_master_feature(vehicle_id, first, frame).accepted)
+            self.assertTrue(gallery.add_master_feature(
+                vehicle_id, first, frame, context=locked_context(vehicle_id, 7)
+            ).accepted)
 
             for frame_index in (2, 3, 4):
                 candidate = detection(track_id=11, frame_index=frame_index)

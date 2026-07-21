@@ -16,39 +16,27 @@ except ImportError:
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
+from autocamtracker.application import FrameData
 from autocamtracker.server.websocket_server import (
     CENTER_ZOOM_FACTOR,
     SOURCE_VERSION,
-    TrackingWebSocketServer,
     zoom_factor_for_framing,
 )
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
+from autocamtracker.core.track_shot_plan import should_publish_motor_tracking
 
 class VideoPipelineMixin:
     def _request_worker_frame(self) -> None:
-        if not self.running or self.tracking_worker is None:
+        if not self.running or not self.tracking_session.has_worker:
             return
-        if self.tracking_worker.request_frame():
+        if self.tracking_session.request_frame():
             self.loop_started_at = time()
         self.root.after(5, self._loop)
 
     def _loop(self) -> None:
-        if not self.running or self.detector is None or self.tracking_worker is None:
+        if not self.running or not self.tracking_session.has_source or not self.tracking_session.has_worker:
             return
 
-        result = self.tracking_worker.poll()
+        result = self.tracking_session.poll()
         if result is None:
             self.root.after(5, self._loop)
             return
@@ -74,7 +62,7 @@ class VideoPipelineMixin:
         self.fps = 1.0 / elapsed
         self.last_frame_time = now
         frame_data.display_fps = self.fps
-        frame_data.source_fps = self.detector.get_source_fps()
+        frame_data.source_fps = self.tracking_session.get_source_fps()
         frame_data.skipped_frames = self.skipped_frames
         self.performance_evaluator.record_frame(frame_data)
 
@@ -115,13 +103,14 @@ class VideoPipelineMixin:
         self.track_shot_state_var.set(
             f"Shot: {self.track_shot_controller.mode} · {shot_decision.state} · {shot_decision.reason}"
         )
-        motor_output_active = should_publish_motor_tracking(
+        motor_session_active = should_publish_motor_tracking(
             self.input_config.source_type,
             self.iphone_motor_tracking_enabled,
             self.tracking_server.motor_ready,
             shot_decision,
-        ) and frame_data.motor_safe_to_track
-        if motor_output_active:
+        )
+        motor_output_active = motor_session_active and frame_data.motor_safe_to_track
+        if motor_session_active:
             self.tracking_server.publish_frame(frame_data, frame.shape)
         elif (
             self.input_config.source_type == "iphone"
@@ -158,6 +147,7 @@ class VideoPipelineMixin:
         )
         fresh_target = selected_target if target_locked else None
         motor_status = self.tracking_server.motor_status
+        camera_control = self.tracking_server.last_camera_control_decision
         self.telemetry_logger.log(
             "frame_state",
             tracking_status=frame_data.tracking_status,
@@ -168,6 +158,25 @@ class VideoPipelineMixin:
             lost_frames=frame_data.lost_frames,
             reid_confidence_level=frame_data.reid_confidence_level,
             motor_safe_to_track=frame_data.motor_safe_to_track,
+            identity_reason_code=(
+                frame_data.identity_decision.reason_code.value
+                if frame_data.identity_decision is not None else None
+            ),
+            identity_score=(
+                frame_data.identity_decision.score
+                if frame_data.identity_decision is not None else None
+            ),
+            identity_sub_scores=(
+                dict(frame_data.identity_decision.sub_scores)
+                if frame_data.identity_decision is not None else {}
+            ),
+            identity_decisions=[item.to_dict() for item in frame_data.identity_decisions],
+            global_motion=(
+                frame_data.global_motion.to_dict()
+                if frame_data.global_motion is not None else None
+            ),
+            gmc_time_ms=frame_data.gmc_time_ms,
+            camera_calibration_profile_id=frame_data.camera_calibration_profile_id,
             candidate_count=len(frame_data.candidates),
             confidence=float(fresh_target.confidence) if fresh_target is not None else 0.0,
             bbox=fresh_target.bbox if fresh_target is not None else None,
@@ -180,6 +189,10 @@ class VideoPipelineMixin:
             crop_window=frame_data.framing_status.crop_window,
             error_x=frame_data.framing_status.error_x,
             error_y=frame_data.framing_status.error_y,
+            framing_decision=frame_data.framing_status.to_dict(),
+            camera_control=(
+                camera_control.to_dict() if camera_control is not None else None
+            ),
             shot_state=shot_decision.state,
             shot_reason=shot_decision.reason,
             motor_armed=self.iphone_motor_tracking_enabled,
@@ -203,6 +216,18 @@ class VideoPipelineMixin:
             ),
             receive_latency_ms=frame_data.receive_latency_ms,
             latency_compensation_ms=frame_data.latency_compensation_ms,
+            frame_timestamps=(
+                frame_data.timestamps.to_dict()
+                if frame_data.timestamps is not None else None
+            ),
+            latency_breakdown=(
+                frame_data.latency_breakdown.to_dict()
+                if frame_data.latency_breakdown is not None else None
+            ),
+            latency_compensation=(
+                frame_data.latency_compensation.to_dict()
+                if frame_data.latency_compensation is not None else None
+            ),
             decode_time_ms=frame_data.decode_time_ms,
             inference_time_ms=frame_data.inference_time_ms,
             pipeline_time_ms=frame_data.pipeline_time_ms,
@@ -212,30 +237,15 @@ class VideoPipelineMixin:
         )
 
     def _render_current_video_frame(self) -> None:
-        if self.detector is None:
+        if not self.tracking_session.has_source:
             return
-        
-        def read():
-            return self.detector.read_and_track()
-            
-        frame, detections = (
-            self.tracking_worker.run_locked(read)
-            if self.tracking_worker is not None
-            else read()
-        )
-        if frame is None:
-            return
-            
-        frame_data = self.pipeline.process(
-            frame=frame,
-            detections=detections,
+        frame, frame_data = self.tracking_session.process_next_frame(
             draw_detections=self._draw_detections,
-            reset_tracker_state=self.detector.reset_tracker_state if self.detector is not None else None,
             inference_time_ms=self.last_inference_time_ms,
-            source_fps=self.detector.get_source_fps() if self.detector is not None else None,
             skipped_frames=self.skipped_frames,
-            render_preview=True,
         )
+        if frame is None or frame_data is None:
+            return
         self._process_frame_data(frame_data, frame)
         self._sync_timeline_from_detector()
 
@@ -243,7 +253,7 @@ class VideoPipelineMixin:
         if not self._is_video_source_active():
             return self.config.update_interval_ms
 
-        source_fps = self.detector.get_source_fps()
+        source_fps = self.tracking_session.get_source_fps()
         if source_fps is None:
             return self.config.update_interval_ms
 
@@ -255,7 +265,7 @@ class VideoPipelineMixin:
         if not self._is_video_source_active():
             return
 
-        source_fps = self.detector.get_source_fps()
+        source_fps = self.tracking_session.get_source_fps()
         if source_fps is None:
             return
 
@@ -266,12 +276,7 @@ class VideoPipelineMixin:
         if frames_to_skip <= 0:
             return
 
-        skip = lambda: self.detector.skip_video_frames(frames_to_skip)
-        skipped = (
-            self.tracking_worker.run_locked(skip)
-            if self.tracking_worker is not None
-            else skip()
-        )
+        skipped = self.tracking_session.skip(frames_to_skip)
         self.skipped_frames += skipped
 
     def _playback_speed(self) -> float:
@@ -283,9 +288,9 @@ class VideoPipelineMixin:
         return max(0.05, speed)
 
     def _source_fps_label(self) -> str:
-        if self.detector is None:
+        if not self.tracking_session.has_source:
             return "--"
-        source_fps = self.detector.get_source_fps()
+        source_fps = self.tracking_session.get_source_fps()
         if source_fps is None:
             return "--"
         return f"{source_fps:.1f}"
@@ -297,16 +302,16 @@ class VideoPipelineMixin:
             self.timeline_label_var.set("00:00 / 00:00")
             return
 
-        frame_count = self.detector.get_source_frame_count() or 0
-        current_frame = self.detector.get_current_frame_index()
+        frame_count = self.tracking_session.get_source_frame_count() or 0
+        current_frame = self.tracking_session.get_current_frame_index()
         self.timeline_scale.configure(to=max(0, frame_count - 1))
         if not self.timeline_dragging:
             self.timeline_var.set(min(max(0, current_frame), max(0, frame_count - 1)))
             self._update_timeline_label(current_frame)
 
     def _update_timeline_label(self, frame_index: int) -> None:
-        frame_count = self.detector.get_source_frame_count() if self.detector is not None else None
-        fps = self.detector.get_source_fps() if self.detector is not None else None
+        frame_count = self.tracking_session.get_source_frame_count()
+        fps = self.tracking_session.get_source_fps()
         if not frame_count or not fps:
             self.timeline_label_var.set(f"{frame_index}")
             return
@@ -317,7 +322,7 @@ class VideoPipelineMixin:
         )
 
     def _reset_runtime_state(self) -> None:
-        self.pipeline.reset()
+        self.tracking_session.reset_pipeline()
         self.feature_gallery.reset_runtime_cache()
         self.identity_session_links.clear()
         self.last_frame_shape = None
@@ -334,15 +339,13 @@ class VideoPipelineMixin:
     def _clear_screen_region_selection(self) -> None:
         self.input_config.screen_region = None
         self.screen_region_var.set("No screen region selected")
-        if self.detector is not None and self.detector.config.source_type == "screen_region":
+        if self.tracking_session.source_type == "screen_region":
             self._close_detector()
-            self.detector = None
-            self.active_input_signature = None
         self._reset_runtime_state()
 
     def _is_video_source_active(self) -> bool:
         return (
-            self.detector is not None
+            self.tracking_session.has_source
             and self.input_config.source_type in {"video_file", "video_url"}
         )
 
@@ -375,8 +378,7 @@ class VideoPipelineMixin:
         frame_h, frame_w = frame_shape[:2]
         self.config.output_width = frame_w
         self.config.output_height = frame_h
-        self.reframer.config.output_width = frame_w
-        self.reframer.config.output_height = frame_h
+        self.tracking_session.set_output_size(frame_w, frame_h)
         width, height = self._fit_size_to_source_aspect(
             self.preview_width_limit,
             self.preview_height_limit,
@@ -384,13 +386,7 @@ class VideoPipelineMixin:
         self._set_display_size(width, height)
 
     def _close_detector(self) -> None:
-        if self.tracking_worker is not None:
-            self.tracking_worker.close()
-            self.tracking_worker = None
-        if self.detector is None:
-            return
-        clear_temp_cache = self.detector.config.source_type in {"video_file", "video_url"}
-        self.detector.close(clear_temp_cache=clear_temp_cache)
+        self.tracking_session.close_source()
 
     def _discover_model_files(self) -> list[Path]:
         suffixes = {".pt", ".pth", ".onnx", ".engine", ".mlpackage", ".torchscript"}
@@ -399,10 +395,7 @@ class VideoPipelineMixin:
         return sorted(
             path
             for path in self.config.model_dir.rglob("*")
-            if path.is_file()
-            and path.suffix.lower() in suffixes
-            and "reid" not in path.relative_to(self.config.model_dir).parts
-            and not path.name.endswith("-reid.onnx")
+            if path.is_file() and path.suffix.lower() in suffixes
         )
 
     def _model_label(self, path: Path) -> str:
@@ -548,6 +541,18 @@ class VideoPipelineMixin:
                 "predicted_target": bool(fresh_target is not None and fresh_target.status == "coasting"),
                 "reid_confidence_level": frame_data.reid_confidence_level if frame_data is not None else "unknown",
                 "motor_safe_to_track": frame_data.motor_safe_to_track if frame_data is not None else False,
+                "identity_reason_code": (
+                    frame_data.identity_decision.reason_code.value
+                    if frame_data is not None and frame_data.identity_decision is not None else None
+                ),
+                "identity_score": (
+                    frame_data.identity_decision.score
+                    if frame_data is not None and frame_data.identity_decision is not None else 0.0
+                ),
+                "identity_sub_scores": (
+                    dict(frame_data.identity_decision.sub_scores)
+                    if frame_data is not None and frame_data.identity_decision is not None else {}
+                ),
                 "lost_frames": int(frame_data.lost_frames) if frame_data is not None else 0,
                 "candidate_count": len(frame_data.candidates) if frame_data is not None else 0,
                 "bbox": fresh_target.bbox if fresh_target is not None else None,
@@ -574,6 +579,11 @@ class VideoPipelineMixin:
                 "camera_display_zoom_factor": (
                     motor_status.camera_display_zoom_factor if motor_status is not None else None
                 ),
+                "camera_control": (
+                    self.tracking_server.last_camera_control_decision.to_dict()
+                    if self.tracking_server.last_camera_control_decision is not None
+                    else None
+                ),
             },
             "framing": {
                 "mode": self.framing_var.get(),
@@ -581,18 +591,47 @@ class VideoPipelineMixin:
                 "error_x": frame_data.framing_status.error_x if frame_data is not None else 0.0,
                 "error_y": frame_data.framing_status.error_y if frame_data is not None else 0.0,
                 "zoom_factor": zoom_factor,
+                "decision": (
+                    frame_data.framing_status.to_dict()
+                    if frame_data is not None else None
+                ),
             },
             "diagnostics": {
-                "desktop_version": "AutoCamTrackerteam-final-v1.77",
+                "desktop_version": f"AI_Vison_Director V{SOURCE_VERSION}",
                 "display_fps": frame_data.display_fps if frame_data is not None else 0.0,
                 "source_fps": frame_data.source_fps if frame_data is not None else None,
                 "websocket_running": bool(self.tracking_server.is_running),
                 "websocket_clients": int(self.tracking_server.client_count),
                 "receive_latency_ms": frame_data.receive_latency_ms if frame_data is not None else None,
                 "latency_compensation_ms": frame_data.latency_compensation_ms if frame_data is not None else 0.0,
+                "frame_timestamps": (
+                    frame_data.timestamps.to_dict()
+                    if frame_data is not None and frame_data.timestamps is not None
+                    else None
+                ),
+                "latency_breakdown": (
+                    frame_data.latency_breakdown.to_dict()
+                    if frame_data is not None and frame_data.latency_breakdown is not None
+                    else None
+                ),
+                "latency_compensation": (
+                    frame_data.latency_compensation.to_dict()
+                    if frame_data is not None and frame_data.latency_compensation is not None
+                    else None
+                ),
                 "decode_time_ms": frame_data.decode_time_ms if frame_data is not None else 0.0,
                 "inference_time_ms": frame_data.inference_time_ms if frame_data is not None else 0.0,
                 "pipeline_time_ms": frame_data.pipeline_time_ms if frame_data is not None else 0.0,
+                "gmc_time_ms": frame_data.gmc_time_ms if frame_data is not None else 0.0,
+                "camera_calibration_profile_id": (
+                    frame_data.camera_calibration_profile_id
+                    if frame_data is not None else None
+                ),
+                "global_motion": (
+                    frame_data.global_motion.to_dict()
+                    if frame_data is not None and frame_data.global_motion is not None
+                    else None
+                ),
                 "phone_last_command_source_version": (
                     motor_status.last_command.get("source_version")
                     if motor_status is not None and isinstance(motor_status.last_command, dict)
@@ -618,7 +657,13 @@ class VideoPipelineMixin:
     def _frame_zoom_factor(self, frame_data, target, frame_shape) -> float | None:
         if frame_data is None or target is None or frame_shape is None:
             return None
-        return zoom_factor_for_framing(self.framing_var.get())
+        return float(
+            getattr(
+                frame_data.framing_status,
+                "zoom_target",
+                zoom_factor_for_framing(self.framing_var.get()),
+            )
+        )
 
     def _desktop_state_gids(self) -> list[dict]:
         summary = self.identity_store.summary(feature_counts=self.feature_gallery.summary_by_vehicle())
@@ -677,13 +722,3 @@ class VideoPipelineMixin:
             self.before_canvas.itemconfig(self.before_image_id, image=self.before_image_ref)
             self.after_canvas.coords(self.after_image_id, 0, 0)
             self.after_canvas.itemconfig(self.after_image_id, image=self.after_image_ref)
-
-
-def main() -> None:
-    root = tk.Tk()
-    app = AutoCamTrackerApp(root)
-    root.mainloop()
-
-
-if __name__ == "__main__":
-    main()

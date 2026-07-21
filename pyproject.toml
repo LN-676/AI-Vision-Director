@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "AutoCamTrackerteam-final-v1.77"
-version = "1.77"
-description = "AutoCamTracker team development final release v1.77"
+name = "AI_Vison_Director"
+version = "1.0-alpha.1"
+description = "AI vision direction, vehicle tracking, and digital reframing tool"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -21,7 +21,8 @@ dependencies = [
 ]
 
 [project.scripts]
-autocamtracker-app = "autocamtracker.main:main"
+AI_Vison_Director = "autocamtracker.main:main"
+gid-loss-benchmark = "autocamtracker.evaluation.gid_loss:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

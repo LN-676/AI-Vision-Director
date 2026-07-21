@@ -1,22 +1,15 @@
-"""Reframe / Digital Zoom / Output Frame module for AutoCamTracker V1.
-
-Responsibilities:
-- Build a crop window from selected target bboxes.
-- Support single-target and multi-target group framing.
-- Apply wide, medium, and close-up presets.
-- Apply smooth movement and dead zone.
-- Produce the tracking output frame and framing status.
-"""
+"""OpenCV rendering adapter for renderer-independent framing decisions."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
 from autocamtracker.tracking.target_tracker import SelectedTarget
-
-
-FramingMode = Literal["wide", "medium", "close"]
+from autocamtracker.vision.framing_engine import (
+    FramingDecision,
+    FramingEngine,
+    FramingMode,
+    FramingReasonCode,
+)
 
 
 @dataclass
@@ -37,28 +30,60 @@ class FramingStatus:
     frame_center: tuple[float, float]
     error_x: float
     error_y: float
+    framing_anchor: tuple[float, float] = (0.5, 0.5)
+    realized_anchor: tuple[float, float] | None = None
+    lead_room: tuple[float, float] = (0.0, 0.0)
+    desired_subject_scale: float = 0.0
+    actual_subject_scale: float = 0.0
+    zoom_target: float = 1.0
+    raw_zoom_target: float = 1.0
+    boundary_clamped: bool = False
+    reason_code: FramingReasonCode = FramingReasonCode.NO_SUBJECT
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "crop_window": self.crop_window,
+            "framing_mode": self.framing_mode,
+            "target_center": self.target_center,
+            "frame_center": self.frame_center,
+            "error_x": self.error_x,
+            "error_y": self.error_y,
+            "framing_anchor": self.framing_anchor,
+            "realized_anchor": self.realized_anchor,
+            "lead_room": self.lead_room,
+            "desired_subject_scale": self.desired_subject_scale,
+            "actual_subject_scale": self.actual_subject_scale,
+            "zoom_target": self.zoom_target,
+            "raw_zoom_target": self.raw_zoom_target,
+            "boundary_clamped": self.boundary_clamped,
+            "reason_code": self.reason_code.value,
+        }
 
 
 class Reframer:
-    """Creates the after-view frame from selected tracked targets."""
+    """Creates the after-view pixels from a FramingEngine plan."""
 
-    TARGET_WIDTH_RATIOS: dict[FramingMode, float] = {
-        "wide": 0.30,
-        "medium": 0.48,
-        "close": 0.68,
-    }
-
-    def __init__(self, config: FramingConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: FramingConfig | None = None,
+        *,
+        engine: FramingEngine,
+    ) -> None:
         self.config = config or FramingConfig()
-        self.current_center: tuple[float, float] | None = None
+        self.engine = engine
 
     def set_framing_mode(self, mode: FramingMode) -> None:
         self.config.framing_mode = mode
 
-    def render(self, frame, selected_targets: list[SelectedTarget]):
+    def render(
+        self,
+        frame,
+        selected_targets: list[SelectedTarget],
+        velocity: tuple[float, float] = (0.0, 0.0),
+    ):
         import cv2
 
-        status = self.status(frame, selected_targets)
+        status = self.status(frame, selected_targets, velocity)
         x, y, width, height = status.crop_window
         if not selected_targets:
             output = cv2.resize(frame, (self.config.output_width, self.config.output_height))
@@ -68,32 +93,59 @@ class Reframer:
         output = cv2.resize(cropped, (self.config.output_width, self.config.output_height))
         return output, status
 
-    def status(self, frame, selected_targets: list[SelectedTarget]) -> FramingStatus:
+    def status(
+        self,
+        frame,
+        selected_targets: list[SelectedTarget],
+        velocity: tuple[float, float] = (0.0, 0.0),
+    ) -> FramingStatus:
         frame_h, frame_w = frame.shape[:2]
-        if not selected_targets:
-            return FramingStatus(
-                crop_window=(0, 0, frame_w, frame_h),
-                framing_mode=self.config.framing_mode,
-                target_center=None,
-                frame_center=(frame_w / 2.0, frame_h / 2.0),
-                error_x=0.0,
-                error_y=0.0,
-            )
-
-        group_bbox = self._union_bbox([target.bbox for target in selected_targets])
-        target_center = self._bbox_center(group_bbox)
-        frame_center = (frame_w / 2.0, frame_h / 2.0)
-        desired_center = self._apply_dead_zone(target_center, frame_center, frame_w, frame_h)
-        smooth_center = self._smooth_center(desired_center)
-        crop_window = self._compute_crop_window(group_bbox, smooth_center, frame_w, frame_h)
-
-        return FramingStatus(
-            crop_window=crop_window,
+        decision = self.engine.plan(
+            frame_size=(frame_w, frame_h),
+            subject_bboxes=[target.bbox for target in selected_targets],
+            velocity=velocity,
             framing_mode=self.config.framing_mode,
-            target_center=target_center,
+            output_aspect_ratio=(
+                self.config.output_width / max(1.0, float(self.config.output_height))
+            ),
+        )
+        target_center = decision.subject_center
+        frame_center = (frame_w / 2.0, frame_h / 2.0)
+        anchor_point = (
+            decision.framing_anchor[0] * frame_w,
+            decision.framing_anchor[1] * frame_h,
+        )
+        return self._status_from_decision(
+            decision,
+            frame_center,
+            error=(
+                target_center[0] - anchor_point[0] if target_center is not None else 0.0,
+                target_center[1] - anchor_point[1] if target_center is not None else 0.0,
+            ),
+        )
+
+    @staticmethod
+    def _status_from_decision(
+        decision: FramingDecision,
+        frame_center: tuple[float, float],
+        error: tuple[float, float],
+    ) -> FramingStatus:
+        return FramingStatus(
+            crop_window=decision.crop_window,
+            framing_mode=decision.framing_mode,
+            target_center=decision.subject_center,
             frame_center=frame_center,
-            error_x=target_center[0] - frame_center[0],
-            error_y=target_center[1] - frame_center[1],
+            error_x=error[0],
+            error_y=error[1],
+            framing_anchor=decision.framing_anchor,
+            realized_anchor=decision.realized_anchor,
+            lead_room=decision.lead_room,
+            desired_subject_scale=decision.desired_subject_scale,
+            actual_subject_scale=decision.actual_subject_scale,
+            zoom_target=decision.zoom_target,
+            raw_zoom_target=decision.raw_zoom_target,
+            boundary_clamped=decision.boundary_clamped,
+            reason_code=decision.reason_code,
         )
 
     def make_comparison_frame(self, before_frame, after_frame):
@@ -105,77 +157,4 @@ class Reframer:
         return np.hstack([before, after])
 
     def reset(self) -> None:
-        self.current_center = None
-
-    def _compute_crop_window(
-        self,
-        bbox: tuple[float, float, float, float],
-        center: tuple[float, float],
-        frame_w: int,
-        frame_h: int,
-    ) -> tuple[int, int, int, int]:
-        x1, _, x2, _ = bbox
-        target_width = max(1.0, x2 - x1)
-        target_ratio = self.TARGET_WIDTH_RATIOS[self.config.framing_mode]
-        crop_w = min(float(frame_w), max(target_width / target_ratio, 1.0))
-        crop_h = crop_w * (self.config.output_height / self.config.output_width)
-        if crop_h > frame_h:
-            crop_h = float(frame_h)
-            crop_w = crop_h * (self.config.output_width / self.config.output_height)
-
-        x = int(round(center[0] - crop_w / 2.0))
-        y = int(round(center[1] - crop_h / 2.0))
-        width = int(round(crop_w))
-        height = int(round(crop_h))
-
-        x = max(0, min(frame_w - width, x))
-        y = max(0, min(frame_h - height, y))
-        width = max(1, min(width, frame_w))
-        height = max(1, min(height, frame_h))
-        return (x, y, width, height)
-
-    def _apply_dead_zone(
-        self,
-        target_center: tuple[float, float],
-        frame_center: tuple[float, float],
-        frame_w: int,
-        frame_h: int,
-    ) -> tuple[float, float]:
-        dead_x = frame_w * self.config.dead_zone_ratio
-        dead_y = frame_h * self.config.dead_zone_ratio
-        error_x = target_center[0] - frame_center[0]
-        error_y = target_center[1] - frame_center[1]
-
-        adjusted_x = frame_center[0] if abs(error_x) <= dead_x else target_center[0]
-        adjusted_y = frame_center[1] if abs(error_y) <= dead_y else target_center[1]
-        return (adjusted_x, adjusted_y)
-
-    def _smooth_center(self, target_center: tuple[float, float]) -> tuple[float, float]:
-        if self.current_center is None:
-            self.current_center = target_center
-            return target_center
-
-        alpha = max(0.0, min(1.0, self.config.smooth_factor))
-        current_x, current_y = self.current_center
-        target_x, target_y = target_center
-        smoothed = (
-            current_x + (target_x - current_x) * alpha,
-            current_y + (target_y - current_y) * alpha,
-        )
-        self.current_center = smoothed
-        return smoothed
-
-    @staticmethod
-    def _union_bbox(
-        bboxes: list[tuple[float, float, float, float]],
-    ) -> tuple[float, float, float, float]:
-        x1 = min(bbox[0] for bbox in bboxes)
-        y1 = min(bbox[1] for bbox in bboxes)
-        x2 = max(bbox[2] for bbox in bboxes)
-        y2 = max(bbox[3] for bbox in bboxes)
-        return (x1, y1, x2, y2)
-
-    @staticmethod
-    def _bbox_center(bbox: tuple[float, float, float, float]) -> tuple[float, float]:
-        x1, y1, x2, y2 = bbox
-        return ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
+        self.engine.reset()

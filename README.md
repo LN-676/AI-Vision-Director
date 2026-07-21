@@ -1,111 +1,191 @@
-# AutoCamTrackerteam-final-v1.77
+# AI_Vison_Director V1.0-alpha.1
 
-> **團隊開發最終版本 / Team development final release:** `team-final-v1.77`
->
-> 本倉庫記錄 AutoCamTracker 的早期團隊開發成果；團隊共同開發正式截止於此版本，後續不再以團隊版本繼續演進。歷史倉庫保留為 [`LN-676/AutoCamTracker-team_ver`](https://github.com/LN-676/AutoCamTracker-team_ver)，個人延續開發移至 [`LN-676/AI-Vision-Director`](https://github.com/LN-676/AI-Vision-Director)。
+AI_Vison_Director 是一個以影片、螢幕區域、webcam 或 iPhone 作為輸入的車輛偵測、單車追蹤、數位構圖與 GID 重新辨識工具。V1.0-alpha.1 加入可實際回到相對姿態的 DockKit Home、失追 zoom 保持與緩退、12 幀自信度衰減 coasting、彎道更快的雲台前饋與動態平滑，以及完整 1.0-alpha.1 iOS / desktop 版本同步。
 
-AutoCamTracker 是一個把 iPhone / webcam / 影片 / 螢幕畫面變成「自動攝影助理」的車輛追蹤專案。桌面端負責車輛偵測、單一目標追蹤、GID 長期身份管理與數位構圖；iPhone 端負責傳送相機畫面，並透過 DockKit 控制實體雲台與相機變焦。
+## 功能簡述
 
-## 專案目標
+- 支援 `webcam`、`video_file`、`video_url`、`screen_region` 與 `iphone` 相機串流。
+- 預設 High FPS profile 使用 `code/model/model/yolo26n.pt` + `bytetrack`，以 30 FPS iPhone 串流為目標。
+- Balanced ID profile 可切回 `code/model/model/yolo26s.pt` + `botsort` + tracker ReID。
+- 預設 Identity ReID 模型為 `code/model/reid/yolo26s-reid.onnx`。
+- Tracking buffer 依來源 FPS 設定為約 5 秒，降低短暫遮擋或漏檢造成的掉 ID。
+- Before 畫面以紅色數字顯示 GID，選取中的紅框 GID 為 65 px、其他 GID 為 50 px，LID 為 30 px。
+- After 畫面依選定車輛做數位變焦與置中構圖。
+- `GID` 是長期車輛身份，`LID` 是 YOLO / tracker 的短期 local track id。
+- 一般點選 bbox 只會選取目前 LID；再按 `Add Selected Vehicle`，立即建立新的 GID 資料庫欄位。
+- 選取 bbox 與 Identity DB 的 GID row 後，按 `Link BBox → GID` 立即完成綁定。
+- Vehicle Database 使用固定右側欄；Tracking 主區塊可切換 High FPS / Balanced ID profile，ReID 模型、門檻與 Feature Mode 收在可展開的 Advanced ReID settings。
+- `Find GID` 會用該 GID 的 Master features 對目前畫面 detections 做 ReID matching。
+- `Auto ReID Th` 可調整 Find GID / 自動 GID reacquire 的 ReID 相似度門檻。
+- `Auto Add Feature` 可啟動目前 GID 的持續自動 Master feature 採樣。
+- `Manual Add 1 Photo` 會先停止背景自動採樣，每次按下最多只嘗試加入目前 GID 的一張 Master feature。
+- `Auto Add Feature` 僅在目前鏡頭場景內有效；偵測到切鏡後會自動停止，必須再次按下才能在新場景繼續採樣。
+- `Auto Feature Mode` 支援 `Balanced`、`Diverse`、`Strict`：
+  - `Balanced`：一般使用，品質與多樣性平衡。
+  - `Diverse`：更積極收集遠車、近車、不同位置/角度 proxy、太陽/陰影光影差異。
+  - `Strict`：高品質、少量、保守寫入。
+- 自動寫入 Master 前會做防污染檢查：
+  - 如果 GID 已有 Master feature，新增 feature 必須通過 dominant class 檢查。
+  - 新增 feature 必須與該 GID Master features 達到 ReID 分數門檻。
+  - 避免 tracker ID switch 後把錯車寫入同一個 GID。
+- Identity row hover 會顯示該 GID 的第一張 feature crop 預覽。
+- 雙擊 GID 欄位可自訂顯示名稱。
 
-這個專案的目標是讓拍攝賽車、車聚、測試影片或其他車輛動態場景時，可以用 AI 自動鎖定指定車輛，讓畫面維持在可用的構圖範圍內，並在短暫遮擋、切鏡或 tracker 掉 ID 時盡量找回同一台車。
+## 專案結構
 
-長期方向包括：
+- `src/autocamtracker/main.py`：目前 V1.0-alpha.1 桌面版 Tkinter app 啟動入口。
+- `src/autocamtracker/ui/app.py`：Tkinter integration shell、視窗標題、核心物件 wiring。
+- `src/autocamtracker/ui/mixins/`：控制列、Before / After 顯示、時間軸、Identity panel 與互動命令。
+- `src/autocamtracker/vision/detector.py`：來源讀取、YOLO 模型載入、偵測與 tracker 串接。
+- `src/autocamtracker/tracking/detection_store.py`：保存目前 detections、track history、候選排序。
+- `src/autocamtracker/tracking/identity_manager.py`：GID / LID 狀態管理、Find GID、自動 reacquire。
+- `src/autocamtracker/tracking/auto_feature_sampler.py`：自動 Master feature 採樣與防污染 gating。
+- `src/autocamtracker/tracking/feature_gallery.py`：Phase 6 相容門面，組裝 crop quality、encoder、repository、vector index、policy 與 identity matcher。
+- `src/autocamtracker/tracking/crop_quality_assessor.py`：crop 品質評估與 JPEG preview。
+- `src/autocamtracker/tracking/embedding_encoder.py`：ReID model lifecycle、batch encoding 與 runtime cache。
+- `src/autocamtracker/tracking/feature_repository.py`：SQLite feature persistence。
+- `src/autocamtracker/tracking/vector_index.py`：top-k vector similarity index。
+- `src/autocamtracker/tracking/gallery_policy.py`：duplicate threshold 與 gallery limit policy。
+- `src/autocamtracker/tracking/identity_matcher.py`：detection-to-identity ranking。
+- `src/autocamtracker/tracking/sqlite_worker.py`：Phase 7 單一 owner database worker queue，避免跨執行緒共享 SQLite connection。
+- `src/autocamtracker/tracking/reid_embedding.py`：Ultralytics ReID encoder 包裝。
+- `src/autocamtracker/vision/reframer.py`：依目標 bbox 產生數位構圖輸出。
+- `src/autocamtracker/server/websocket_server.py`：V1.0-alpha.1 桌面端與 DockKit iOS app 的 WebSocket bridge。
+- `src/autocamtracker/server/protocol.py`：Phase 8 wire schema、JSON codec 與 camera envelope。
+- `src/autocamtracker/server/transport.py`：只處理 bytes/text 與連線生命週期，不接觸 CV domain state。
+- `src/autocamtracker/server/camera_stream_receiver.py`：iPhone JPEG latest-frame receiver。
+- `src/autocamtracker/server/control_publisher.py`：控制訊息 sequencing 與 rate limiting。
+- `src/autocamtracker/server/control_policy.py`：純 frame-to-control 決策與 remote-control validation。
+- `src/autocamtracker/evaluation/offline_replay.py`：Phase 9 無 UI、無網路、無即時排程依賴的離線重播與評估入口。
+- `src/autocamtracker/evaluation/`：Detection、Tracking、ReID、System 與 Control 指標實作。
+- `docs/architecture/offline-replay.md`：replay JSONL 格式、指標口徑與架構邊界。
+- `src/autocamtracker/evaluation/gid_loss.py`：Phase 10 的 14 類 GID loss benchmark、門檻判定與 JSON report。
+- `evaluation/gid_loss_scenarios.json`：版本化的 GID loss 情境、replay 路徑與正式驗收門檻。
+- `docs/architecture/gid-loss-benchmark.md`：資料標註格式、指標口徑與 benchmark 執行方式。
+- `docs/architecture/identity-decisions.md`：Phase 11 identity reason code、子分數與輸出契約。
+- `docs/architecture/gallery-contamination-prevention.md`：Phase 12 高信心 LOCKED gate、embedding provenance 與 rollback。
+- `src/autocamtracker/vision/camera_calibration.py`：Phase 13 相機內參、鏡頭畸變校正與版本化 profile store。
+- `src/autocamtracker/vision/gmc.py`：Phase 13 前景排除、稀疏光流與 affine RANSAC Global Motion Compensation。
+- `docs/architecture/camera-calibration-gmc.md`：Camera Calibration 與 GMC 的契約、品質閘門及 pipeline 邊界。
+- `src/autocamtracker/core/timestamps.py`：Phase 14 capture-to-control timestamp timeline、latency breakdown 與有界補償。
+- `docs/architecture/timestamp-pipeline.md`：跨裝置/本機 clock domain、逐階段時間戳與 latency compensation 契約。
+- `src/autocamtracker/vision/framing_engine.py`：Phase 15 framing anchor、velocity lead room、subject scale 與動態 zoom target。
+- `docs/architecture/framing-engine.md`：FramingEngine 的構圖公式、平滑策略、輸出契約與控制邊界。
+- `src/autocamtracker/server/camera_control_policy.py`：Phase 16 dead zone、hysteresis、平滑、速度/加速度與 zoom/freeze 安全策略。
+- `docs/architecture/camera-control-policy.md`：CameraControlPolicy 狀態、限制單位、reason code 與 uncertainty freeze 契約。
+- `code/model/`：預設 YOLO / ReID 模型與 tracker 相關資源。
+- `code/V1/`：舊版 V1 目錄，目前主要程式已搬到 `src/autocamtracker/`。
+- `outputs/`：本機執行產生的資料庫、測試影片與暫存輸出。此資料夾不應上傳到 GitHub。
 
-- 降低 iPhone 串流到桌面辨識再回控雲台的延遲。
-- 提高指定車輛在遮擋、遠近變化、光影變化下的 GID 重新辨識穩定度。
-- 讓使用者可以用簡單的 UI 選車、建立身份、找回身份與累積 Master features。
-- 讓 DockKit 雲台與 iPhone 實體變焦能跟桌面端追蹤結果同步工作。
+## 安裝與執行
 
-## 目前做到的項目
+建議使用 Python 3.13 或目前專案相容的 Python 版本。
 
-- 桌面版 Python / Tkinter app，可從 `webcam`、影片檔、影片網址、螢幕區域或 iPhone 串流讀取畫面。
-- YOLO 車輛偵測與 tracking profile：
-  - High FPS profile 預設使用 `model/yolo26n.pt` + `bytetrack`，目標是降低 iPhone 30 FPS 串流延遲。
-  - Balanced ID profile 可切換到 `model/yolo26s.pt` + `botsort`，搭配 ReID 做較穩定的身份追蹤。
-- GID / LID 身份系統：
-  - `GID` 是使用者建立的長期車輛身份。
-  - `LID` 是 tracker 當下產生的短期 local track id。
-  - 可以點選 bbox 建立 GID、把 bbox 綁定到既有 GID，或用 `Find GID` 從目前畫面找回指定車輛。
-- Master feature gallery：
-  - 支援手動加入單張 feature。
-  - 支援自動採樣 feature，並用 crop 品質、class 與 ReID 分數做防污染檢查。
-  - 偵測到切鏡後會停止自動採樣，避免把不同場景的錯車寫入同一個 GID。
-- 數位構圖與失追處理：
-  - After 畫面會依選定車輛重新置中與變焦。
-  - target lost 時會短暫保留 zoom，再平滑退回 wide。
-  - GID 失追時有短期 coasting，降低畫面瞬間跳動。
-- iPhone / DockKit 整合：
-  - iOS App 可透過 WebSocket 傳 JPEG 相機畫面到桌面端。
-  - 桌面端會回傳 tracking command 與 `zoom_factor`。
-  - iOS 端會關閉 DockKit System Tracking，改由桌面 AI 辨識結果控制雲台。
-  - 支援相對 Home / Return Home、動態 smoothing 與前饋控制。
-- 測試與驗證：
-  - Python tests 覆蓋 tracking server、GID loss benchmark、performance evaluation、track shot plan 與桌面最佳化邏輯。
-  - iOS Swift tests 覆蓋雲台速度計算與 tracking command parsing。
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -e .
+.venv/bin/AI_Vison_Director
+```
 
-## 主要目錄
+如果你已經有 `.venv`，可直接執行：
 
-- `src/autocamtracker/`：桌面端主要程式碼。
-- `ios/DockKitTester/`：iPhone / DockKit 測試 App。
-- `tests/`：Python 測試。
-- `evaluation/`：GID loss benchmark 設定。
-- `tools/`：macOS 啟動用 command 檔。
-- `code/model/`：本機模型與 tracker 相關資源；大型模型權重不建議直接放進一般 Git history。
+```bash
+.venv/bin/AI_Vison_Director
+```
+
+若尚未安裝 editable package，也可從專案根目錄用模組入口啟動：
+
+```bash
+PYTHONPATH=src .venv/bin/python -m autocamtracker.main
+```
+
+macOS webcam 若無法開啟，請到 System Settings > Privacy & Security > Camera，允許 Terminal、Visual Studio Code 或啟動 Python 的 app 使用相機，重新開啟終端機後再執行。
+
+## 基本使用流程
+
+1. 在 `Source` 區選擇輸入來源。
+2. 如果使用影片，按 `Browse Video` 選檔；如果使用網址，填入 URL。
+3. 在 `Tracking` 區選擇 Performance profile、模型、tracker 與 framing 模式；預設 High FPS 會用 `yolo26n.pt` + `bytetrack`。
+4. `Playback` 區位於 `Tracking` 下方，可控制 Start / Pause / Stop / Record 與速度。
+5. 按 `Start` 開始偵測。
+6. 在 Before 畫面點選車輛 bbox，再按 `Add Selected Vehicle` 建立 GID。
+7. 需要補綁既有 GID 時，點 bbox、選 Identity DB 的 GID row，再按 `Link BBox → GID`。
+8. 需要用 GID 找回車輛時，選 GID row 後按 `Find GID`。
+9. 需要持續收集特徵時，選 GID row 後按 `Auto Add Feature`，或直接點 bbox 啟動自動採樣；切換鏡頭後需重新啟動。
+10. 需要人工驗證單張特徵時，按 `Manual Add 1 Photo`；照片仍需通過品質與重複檢查。
+11. 使用 `Auto Feature Mode` 決定自動採樣保守程度。
+
+### iPhone / DockKit 連線
+
+1. 安裝依賴與 editable package：`.venv/bin/python -m pip install -r requirements.txt`，接著 `.venv/bin/python -m pip install -e .`。
+2. V1.0-alpha.1 預設選擇 `iphone`，會在 `8765` port 啟動 WebSocket Server 並自動啟動影像管線；畫面會顯示可連線網址與 Copy 按鈕。
+3. iOS App 會使用已保存的 URL 自動連線；需要更換 Mac 時，也可在連線頁輸入 `ws://<Mac 位址>:8765/ws/tracking` 後按 `Connect`。
+4. iOS App 會以最高約 30 FPS 傳送 JPEG 相機畫面給 V1.0-alpha.1；桌面端預設以 YOLO + ByteTrack 低延遲追蹤，GID ReID 僅在 Find GID、掉 LID 或需要重新辨識時介入，再透過相同 WebSocket 回傳 tracking command 與實體相機 `zoom_factor`。
+5. DockKit System Tracking 會由 iOS App 自動關閉，避免手機內建人物追蹤與電腦辨識同時搶控制權。
+
+無線模式要求 Mac 與 iPhone 在可互相存取的同一區域網路。有線 USB-C 模式仍使用相同 WebSocket 協議，但 macOS 與 iOS 必須先透過 Personal Hotspot USB、USB Ethernet 或其他方式建立可互通的 IP 網路介面；單純接上充電線或 Xcode USB deploy 不會自動建立 App 的資料通道。
+
+## V1.0-alpha.1 注意事項
+
+- V1.0-alpha.1 仍以單一車輛追蹤與互動式 GID 管理為主。
+- Set Home 會保存目前累積的相對 yaw / pitch / roll offset；Return Home 會以相對姿態 delta 走回該 Home。
+- target lost 時桌面端會保留最後 locked zoom 約 1 秒，再慢慢 ramp 回 wide，避免畫面瞬間跳回 x1。
+- GID 失追 coasting 延長到 12 幀；前 3 幀維持 confidence，之後逐步衰減並持續輸出 predicted target。
+- iOS 雲台控制會在 predicted target 或 error 加速度升高時降低 smoothing old weight，並用 error delta 加前饋。
+- V1.0-alpha.1 新增 High FPS profile、30 FPS iPhone frame budget、ByteTrack 預設追蹤與可選 Balanced ID BoT-SORT ReID，降低每幀追蹤延遲。
+- V1.0-alpha.1 的 GID reacquire 可暫時鎖定 `LID=None` 的 detection，並使用 NumPy 加速 Master feature gallery 比對。
+- 實體變焦已接到 iOS 相機端；若 telemetry 的 `camera_display_zoom_factor` 仍不動，優先檢查 iOS App 是否為 1.0-alpha.1、是否收到 `zoom_factor`、以及相機硬體可用倍率範圍。
+- `Auto Add Feature` 會寫入 Master gallery；如果 Master 已存在，新增 feature 會先通過 class 與 ReID 防污染檢查。
+- 如果 YOLO / tracker 產生 `LID=None`，V1.0-alpha.1 會先用 visual temporary lock 保持 GID；等 tracker 後續恢復 LID 時再重新綁定。
+- 若 GID 已被舊版本寫入錯車 feature，V1.0-alpha.1 會防止繼續污染，但不會自動清理既有髒資料。
+- Identity DB 是本機資料，預設位於 `outputs/vehicle_identity.sqlite3`，不應作為 release 檔案上傳。
+- `outputs/`、`.venv/`、cache、測試輸出都不屬於乾淨 release 內容。
 
 ---
 
-# AutoCamTrackerteam-final-v1.77 (English)
+# AI_Vison_Director V1.0-alpha.1 English
 
-> **Team development final release:** `team-final-v1.77`
->
-> This repository preserves the early team-developed AutoCamTracker project. Team development ends at this release. The historical team repository remains at [`LN-676/AutoCamTracker-team_ver`](https://github.com/LN-676/AutoCamTracker-team_ver), while the personal continuation moves to [`LN-676/AI-Vision-Director`](https://github.com/LN-676/AI-Vision-Director).
+AI_Vison_Director is a vehicle detection, single-target tracking, digital reframing, and GID re-identification tool. V1.0-alpha.1 adds physical iPhone camera zoom control, a 30 FPS iPhone stream, automatic connection and startup, cached and trajectory-gated ReID, safer DockKit control, and racetrack Fixed Cut, AI Tracking, and In/Out Auto shot modes.
 
-AutoCamTracker is a vehicle-tracking project that turns an iPhone, webcam, video file, video URL, or screen capture into an automatic camera assistant. The desktop app handles vehicle detection, single-target tracking, long-lived GID identity management, and digital reframing. The iPhone app sends camera frames to the desktop app and uses DockKit to control the physical gimbal and camera zoom.
+## Highlights
 
-## Project Goals
+- Supports `webcam`, `video_file`, `video_url`, `screen_region`, and `iphone` inputs.
+- Defaults to `code/model/model/yolo26n.pt` + `bytetrack` in the High FPS profile.
+- Balanced ID can switch back to `code/model/model/yolo26s.pt` + `botsort` + tracker ReID.
+- Defaults to `code/model/reid/yolo26s-reid.onnx` for Identity ReID.
+- Keeps tracker lost-buffer at about 5 seconds based on source FPS.
+- `GID` is the long-lived vehicle identity; `LID` is the short-lived tracker id.
+- The Before view renders the selected red-box GID at 65 px, other GIDs at 50 px, and the LID at 30 px.
+- Clicking a bbox selects a local track without writing the database; `Add Selected Vehicle` creates a GID explicitly.
+- Select both a bbox and a GID row, then use `Link BBox → GID` to link them immediately.
+- `Find GID` matches current detections against the selected GID's Master gallery.
+- `Auto ReID Th` controls Find GID and automatic reacquire similarity threshold.
+- `Auto Feature Mode` supports `Balanced`, `Diverse`, and `Strict`.
+- `Manual Add 1 Photo` stops background automatic sampling and attempts at most one Master feature per click.
+- Automatic feature capture stops at a detected camera cut and must be started again for the new scene.
+- Automatic Master writes are guarded by dominant class and ReID checks once a GID already has Master features.
+- Hovering an Identity DB row previews that GID's first feature crop.
 
-The goal is to make vehicle filming easier for racing, car meets, test footage, and other dynamic driving scenes. AutoCamTracker lets the user choose a target vehicle, keeps that vehicle framed, and tries to recover the same vehicle after short occlusions, camera cuts, or tracker ID loss.
+## Run
 
-Long-term goals include:
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -e .
+.venv/bin/AI_Vison_Director
+```
 
-- Reduce latency from iPhone streaming to desktop inference and back to gimbal control.
-- Improve GID re-identification stability across occlusion, distance changes, angle changes, and lighting changes.
-- Provide a simple UI for selecting vehicles, creating identities, recovering identities, and collecting Master features.
-- Keep DockKit gimbal motion and physical iPhone camera zoom synchronized with desktop tracking results.
+If dependencies are already installed:
 
-## Current Items
+```bash
+.venv/bin/AI_Vison_Director
+```
 
-- Python / Tkinter desktop app that can read from `webcam`, video files, video URLs, screen regions, or iPhone streams.
-- YOLO vehicle detection and tracking profiles:
-  - High FPS profile defaults to `model/yolo26n.pt` + `bytetrack` for lower-latency iPhone 30 FPS streaming.
-  - Balanced ID profile can switch to `model/yolo26s.pt` + `botsort` with ReID for more stable identity tracking.
-- GID / LID identity system:
-  - `GID` is the long-lived vehicle identity created by the user.
-  - `LID` is the short-lived local track id produced by the tracker.
-  - Users can click a bbox to create a GID, link a bbox to an existing GID, or use `Find GID` to recover a selected vehicle in the current frame.
-- Master feature gallery:
-  - Supports manual single-feature capture.
-  - Supports automatic feature sampling with crop quality, class, and ReID anti-contamination checks.
-  - Stops automatic sampling after a detected camera cut to avoid writing the wrong vehicle into the same GID.
-- Digital reframing and target-loss handling:
-  - The After view recenters and zooms based on the selected vehicle.
-  - When the target is lost, zoom is held briefly and then smoothly ramps back to wide.
-  - Short GID coasting reduces sudden frame jumps during temporary target loss.
-- iPhone / DockKit integration:
-  - The iOS app sends JPEG camera frames to the desktop app over WebSocket.
-  - The desktop app sends back tracking commands and `zoom_factor`.
-  - The iOS app disables DockKit System Tracking and lets desktop AI results control the gimbal.
-  - Supports relative Home / Return Home, dynamic smoothing, and feed-forward control.
-- Testing and validation:
-  - Python tests cover the tracking server, GID loss benchmark, performance evaluation, track shot plan, and desktop optimization logic.
-  - iOS Swift tests cover gimbal velocity calculation and tracking command parsing.
+Without an editable install, run the module entry point from the project root:
 
-## Main Directories
+```bash
+PYTHONPATH=src .venv/bin/python -m autocamtracker.main
+```
 
-- `src/autocamtracker/`: main desktop app code.
-- `ios/DockKitTester/`: iPhone / DockKit test app.
-- `tests/`: Python tests.
-- `evaluation/`: GID loss benchmark configuration.
-- `tools/`: macOS launcher command file.
-- `code/model/`: local model and tracker resources; large model weights should not be kept in normal Git history.
+Runtime files such as `outputs/vehicle_identity.sqlite3` are local user data and are intentionally excluded from releases.
