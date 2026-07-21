@@ -24,6 +24,14 @@ src/autocamtracker/core/telemetry_logger.py
 src/autocamtracker/core/track_shot_plan.py
 src/autocamtracker/domain/__init__.py
 src/autocamtracker/domain/contracts.py
+src/autocamtracker/evaluation/__init__.py
+src/autocamtracker/evaluation/control.py
+src/autocamtracker/evaluation/detection.py
+src/autocamtracker/evaluation/models.py
+src/autocamtracker/evaluation/offline_replay.py
+src/autocamtracker/evaluation/reid.py
+src/autocamtracker/evaluation/system.py
+src/autocamtracker/evaluation/tracking.py
 src/autocamtracker/server/camera_stream_receiver.py
 src/autocamtracker/server/control_policy.py
 src/autocamtracker/server/control_publisher.py
@@ -68,6 +76,7 @@ tests/test_domain_contracts.py
 tests/test_feature_gallery_components.py
 tests/test_gid_loss_benchmark.py
 tests/test_identity_components.py
+tests/test_offline_replay.py
 tests/test_performance_evaluation.py
 tests/test_sqlite_threading.py
 tests/test_track_shot_plan.py
