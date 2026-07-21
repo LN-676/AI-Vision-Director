@@ -6,9 +6,11 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
+from threading import RLock
 from time import time
 from typing import Any
 
+from autocamtracker.tracking.sqlite_worker import SQLiteConnectionProxy, SQLiteWorker
 from autocamtracker.vision.detector import TrackedDetection
 
 
@@ -59,45 +61,39 @@ class VehicleIdentityStore:
     def __init__(self, db_path: Path | str, commit_interval_seconds: float = 0.5) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.connection.row_factory = sqlite3.Row
+        self._database = SQLiteWorker(self.db_path, name="identity-database")
+        self.connection = SQLiteConnectionProxy(self._database)
         self.commit_interval_seconds = max(0.0, float(commit_interval_seconds))
         self._last_commit_at = time()
         self._pending_updates: dict[int, tuple[Any, ...]] = {}
+        self._pending_lock = RLock()
         self._ensure_schema()
 
     def close(self) -> None:
         self.flush()
-        self.connection.close()
+        self._database.close()
 
     def flush(self) -> None:
-        if not self._pending_updates:
-            return
-        for parameters in self._pending_updates.values():
-            self.connection.execute(
-                """
-                UPDATE vehicles
-                SET updated_at = ?,
-                    class_name = ?,
-                    last_track_id = ?,
-                    last_frame_index = ?,
-                    last_seen_timestamp = ?,
-                    confidence = ?,
-                    bbox_json = ?,
-                    center_json = ?,
+        with self._pending_lock:
+            if not self._pending_updates:
+                return
+            updates = list(self._pending_updates.values())
+            self._database.executemany(
+                """UPDATE vehicles
+                SET updated_at = ?, class_name = ?, last_track_id = ?, last_frame_index = ?,
+                    last_seen_timestamp = ?, confidence = ?, bbox_json = ?, center_json = ?,
                     metadata_json = COALESCE(?, metadata_json)
-                WHERE id = ?
-                """,
-                parameters,
+                WHERE id = ?""",
+                updates,
+                commit=True,
             )
-        self.connection.commit()
-        self._last_commit_at = time()
-        self._pending_updates.clear()
+            self._last_commit_at = time()
+            self._pending_updates.clear()
 
     def create_vehicle(self, detection: TrackedDetection, metadata: dict[str, Any] | None = None) -> int:
         now = time()
         payload = self._detection_payload(detection)
-        cursor = self.connection.execute(
+        cursor = self._database.execute(
             """
             INSERT INTO vehicles (
                 created_at,
@@ -125,8 +121,10 @@ class VehicleIdentityStore:
                 payload["center_json"],
                 self._metadata_json(metadata),
             ),
+            commit=True,
         )
-        self._commit_now()
+        with self._pending_lock:
+            self._last_commit_at = time()
         return int(cursor.lastrowid)
 
     def update_vehicle(
@@ -136,29 +134,30 @@ class VehicleIdentityStore:
         metadata: dict[str, Any] | None = None,
     ) -> bool:
         payload = self._detection_payload(detection)
-        exists = self.connection.execute(
+        exists = self._database.execute(
             "SELECT 1 FROM vehicles WHERE id = ?",
             (vehicle_id,),
         ).fetchone() is not None
         if not exists:
             return False
-        self._pending_updates[vehicle_id] = (
-            time(),
-            detection.class_name,
-            detection.track_id,
-            detection.frame_index,
-            detection.timestamp,
-            detection.confidence,
-            payload["bbox_json"],
-            payload["center_json"],
-            self._metadata_json(metadata),
-            vehicle_id,
-        )
+        with self._pending_lock:
+            self._pending_updates[vehicle_id] = (
+                time(),
+                detection.class_name,
+                detection.track_id,
+                detection.frame_index,
+                detection.timestamp,
+                detection.confidence,
+                payload["bbox_json"],
+                payload["center_json"],
+                self._metadata_json(metadata),
+                vehicle_id,
+            )
         self._commit_if_due()
         return True
 
     def get_vehicle(self, vehicle_id: int) -> StoredVehicleIdentity | None:
-        row = self.connection.execute(
+        row = self._database.execute(
             """
             SELECT
                 id,
@@ -192,7 +191,7 @@ class VehicleIdentityStore:
         )
 
     def display_label(self, vehicle_id: int) -> str:
-        row = self.connection.execute(
+        row = self._database.execute(
             "SELECT id, display_name FROM vehicles WHERE id = ?",
             (vehicle_id,),
         ).fetchone()
@@ -202,43 +201,46 @@ class VehicleIdentityStore:
 
     def update_display_name(self, vehicle_id: int, display_name: str) -> bool:
         value = display_name.strip() or None
-        cursor = self.connection.execute(
+        cursor = self._database.execute(
             "UPDATE vehicles SET display_name = ?, updated_at = ? WHERE id = ?",
             (value, time(), vehicle_id),
+            commit=True,
         )
-        self._commit_now()
         return cursor.rowcount > 0
 
     def delete_vehicle(self, vehicle_id: int) -> bool:
-        cursor = self.connection.execute("DELETE FROM vehicles WHERE id = ?", (vehicle_id,))
+        with self._pending_lock:
+            self._pending_updates.pop(vehicle_id, None)
+        cursor = self._database.execute(
+            "DELETE FROM vehicles WHERE id = ?",
+            (vehicle_id,),
+            commit=True,
+        )
         deleted = cursor.rowcount > 0
-        self._commit_now()
         return deleted
 
     def clear_track_link(self, vehicle_id: int, track_id: int | None) -> bool:
         if track_id is None:
             return False
-        cursor = self.connection.execute(
+        with self._pending_lock:
+            self._pending_updates.pop(vehicle_id, None)
+        cursor = self._database.execute(
             "UPDATE vehicles SET last_track_id = NULL, updated_at = ? WHERE id = ? AND last_track_id = ?",
             (time(), vehicle_id, track_id),
+            commit=True,
         )
-        if cursor.rowcount > 0:
-            self._commit_now()
-            return True
-        return False
+        return cursor.rowcount > 0
 
     def _commit_if_due(self) -> None:
-        if self._pending_updates and time() - self._last_commit_at >= self.commit_interval_seconds:
+        with self._pending_lock:
+            due = bool(self._pending_updates) and time() - self._last_commit_at >= self.commit_interval_seconds
+        if due:
             self.flush()
-
-    def _commit_now(self) -> None:
-        self.connection.commit()
-        self._last_commit_at = time()
 
     def summary(self, feature_counts: dict[int, dict[str, int]] | None = None, limit: int = 50) -> IdentityStoreSummary:
         feature_counts = feature_counts or {}
-        total = self.connection.execute("SELECT COUNT(*) AS vehicle_count FROM vehicles").fetchone()
-        rows = self.connection.execute(
+        total = self._database.execute("SELECT COUNT(*) AS vehicle_count FROM vehicles").fetchone()
+        rows = self._database.execute(
             """
             SELECT
                 id,
@@ -280,7 +282,7 @@ class VehicleIdentityStore:
         )
 
     def _ensure_schema(self) -> None:
-        self.connection.execute(
+        self._database.execute(
             """
             CREATE TABLE IF NOT EXISTS vehicles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -296,15 +298,16 @@ class VehicleIdentityStore:
                 center_json TEXT NOT NULL,
                 metadata_json TEXT
             )
-            """
+            """,
+            commit=True,
         )
         self._ensure_column("vehicles", "display_name", "TEXT")
         self._ensure_column("vehicles", "metadata_json", "TEXT")
-        self.connection.execute("DROP TABLE IF EXISTS observations")
-        self.connection.execute(
-            "CREATE INDEX IF NOT EXISTS idx_vehicles_updated_at ON vehicles(updated_at)"
+        self._database.execute("DROP TABLE IF EXISTS observations", commit=True)
+        self._database.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vehicles_updated_at ON vehicles(updated_at)",
+            commit=True,
         )
-        self.connection.commit()
 
     @staticmethod
     def _detection_payload(detection: TrackedDetection) -> dict[str, str]:
@@ -345,7 +348,10 @@ class VehicleIdentityStore:
         return str(value).strip() if value else str(row["id"])
 
     def _ensure_column(self, table_name: str, column_name: str, column_type: str) -> None:
-        rows = self.connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        rows = self._database.execute(f"PRAGMA table_info({table_name})").fetchall()
         if any(row["name"] == column_name for row in rows):
             return
-        self.connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+        self._database.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}",
+            commit=True,
+        )

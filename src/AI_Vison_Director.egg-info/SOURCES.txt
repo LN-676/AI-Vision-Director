@@ -38,6 +38,7 @@ src/autocamtracker/tracking/identity_components.py
 src/autocamtracker/tracking/identity_manager.py
 src/autocamtracker/tracking/identity_matcher.py
 src/autocamtracker/tracking/reid_embedding.py
+src/autocamtracker/tracking/sqlite_worker.py
 src/autocamtracker/tracking/target_tracker.py
 src/autocamtracker/tracking/tracker_adapter.py
 src/autocamtracker/tracking/vector_index.py
@@ -63,6 +64,7 @@ tests/test_feature_gallery_components.py
 tests/test_gid_loss_benchmark.py
 tests/test_identity_components.py
 tests/test_performance_evaluation.py
+tests/test_sqlite_threading.py
 tests/test_track_shot_plan.py
 tests/test_tracking_server.py
 tests/test_vision_backends.py
