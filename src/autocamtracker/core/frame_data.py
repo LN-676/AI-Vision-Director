@@ -16,6 +16,11 @@ from autocamtracker.vision.reframer import FramingStatus
 from autocamtracker.tracking.target_tracker import SelectedTarget
 from autocamtracker.vision.detector import TrackedDetection
 from autocamtracker.vision.gmc import GlobalMotionEstimate
+from autocamtracker.core.timestamps import (
+    FrameTimeline,
+    LatencyBreakdown,
+    LatencyCompensation,
+)
 
 
 @dataclass
@@ -40,6 +45,9 @@ class FrameData:
     global_motion: GlobalMotionEstimate | None = None
     camera_calibration_profile_id: str | None = None
     target_velocity: tuple[float, float] = (0.0, 0.0)
+    timestamps: FrameTimeline | None = None
+    latency_breakdown: LatencyBreakdown | None = None
+    latency_compensation: LatencyCompensation | None = None
     latency_compensation_ms: float = 0.0
     projected_target_center: tuple[float, float] | None = None
     display_fps: float = 0.0

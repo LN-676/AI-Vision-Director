@@ -6,6 +6,11 @@ from threading import Lock
 from time import monotonic, time
 from typing import Any, Callable
 
+from autocamtracker.core.timestamps import (
+    FrameTimeline,
+    TimestampMark,
+    TimestampStage,
+)
 from autocamtracker.server.protocol import unpack_camera_frame
 
 
@@ -30,6 +35,7 @@ class CameraStreamReceiver:
             return False
         jpeg, capture_timestamp_ms = unpacked
         received_at = monotonic()
+        received_wall_time_ms = time() * 1000.0
         with self._lock:
             self._received_frame_count += 1
             frame_count = self._received_frame_count
@@ -38,6 +44,7 @@ class CameraStreamReceiver:
                 "frame_count": frame_count,
                 "frame_bytes": len(jpeg),
                 "capture_timestamp_ms": capture_timestamp_ms,
+                "received_timestamp_ms": received_wall_time_ms,
                 "received_monotonic_s": received_at,
             }
         if frame_count == 1:
@@ -62,17 +69,47 @@ class CameraStreamReceiver:
         import numpy as np
 
         decoded_started_at = monotonic()
+        decoded_started_wall_time_ms = time() * 1000.0
         frame = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
         decoded_at = monotonic()
+        decoded_wall_time_ms = time() * 1000.0
         capture_timestamp_ms = info.get("capture_timestamp_ms")
+        timeline = FrameTimeline(
+            frame_id=int(info.get("frame_count") or 0),
+            source_id="iphone",
+            capture_timestamp_ms=(
+                float(capture_timestamp_ms) if capture_timestamp_ms is not None else None
+            ),
+        )
+        timeline.mark(
+            TimestampStage.RECEIVED,
+            TimestampMark(
+                float(info["received_timestamp_ms"]),
+                float(info["received_monotonic_s"]) * 1000.0,
+            ),
+        )
+        timeline.mark(
+            TimestampStage.DECODE_STARTED,
+            TimestampMark(decoded_started_wall_time_ms, decoded_started_at * 1000.0),
+        )
+        timeline.mark(
+            TimestampStage.DECODE_COMPLETED,
+            TimestampMark(decoded_wall_time_ms, decoded_at * 1000.0),
+        )
         receive_latency_ms = None
         if capture_timestamp_ms is not None:
-            receive_latency_ms = max(0.0, time() * 1000.0 - float(capture_timestamp_ms))
+            transport_ms = float(info["received_timestamp_ms"]) - float(
+                capture_timestamp_ms
+            )
+            if 0.0 <= transport_ms <= timeline.max_transport_latency_ms:
+                receive_latency_ms = transport_ms
         timing = {
             **info,
             "decode_time_ms": (decoded_at - decoded_started_at) * 1000.0,
             "receive_latency_ms": receive_latency_ms,
             "decoded_monotonic_s": decoded_at,
+            "decoded_timestamp_ms": decoded_wall_time_ms,
+            "timeline": timeline,
         }
         with self._lock:
             self._latest_decoded_frame_info = timing

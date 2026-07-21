@@ -21,6 +21,7 @@ src/autocamtracker/core/pipeline_processor.py
 src/autocamtracker/core/pipeline_worker.py
 src/autocamtracker/core/self_test.py
 src/autocamtracker/core/telemetry_logger.py
+src/autocamtracker/core/timestamps.py
 src/autocamtracker/core/track_shot_plan.py
 src/autocamtracker/domain/__init__.py
 src/autocamtracker/domain/contracts.py
@@ -74,6 +75,7 @@ src/autocamtracker/vision/scene_cut.py
 src/autocamtracker/vision/types.py
 tests/test_application_layer.py
 tests/test_bootstrap.py
+tests/test_camera_calibration_gmc.py
 tests/test_desktop_optimizations.py
 tests/test_domain_contracts.py
 tests/test_feature_gallery_components.py
@@ -83,6 +85,7 @@ tests/test_offline_replay.py
 tests/test_performance_evaluation.py
 tests/test_sqlite_threading.py
 tests/test_track_shot_plan.py
+tests/test_timestamp_pipeline.py
 tests/test_tracking_server.py
 tests/test_vision_backends.py
 tests/test_websocket_components.py

@@ -8,6 +8,7 @@ from typing import Any, Callable
 from autocamtracker.core.pipeline_processor import PipelineProcessor
 from autocamtracker.core.pipeline_worker import TrackingWorker, TrackingWorkerResult
 from autocamtracker.vision.detector import InputConfig, VideoDetector
+from autocamtracker.core.timestamps import FrameTimeline, TimestampStage, timestamp_now
 
 
 class TrackingSession:
@@ -118,6 +119,15 @@ class TrackingSession:
             frame, detections = detector.read_and_track()
             if frame is None:
                 return None, None
+            captured = timestamp_now()
+            timeline = FrameTimeline.local(
+                max(0, detector.get_current_frame_index()),
+                str(detector.config.source_type),
+                captured,
+            )
+            timeline.mark(TimestampStage.CAPTURE_COMPLETED, captured)
+            timeline.mark(TimestampStage.INFERENCE_STARTED, captured)
+            timeline.mark(TimestampStage.INFERENCE_COMPLETED, captured)
             frame_data = self.pipeline.process(
                 frame=frame,
                 detections=detections,
@@ -127,6 +137,7 @@ class TrackingSession:
                 source_fps=detector.get_source_fps(),
                 skipped_frames=skipped_frames,
                 render_preview=True,
+                timestamps=timeline,
             )
             return frame, frame_data
 

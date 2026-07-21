@@ -277,6 +277,9 @@ class GlobalMotionCompensatorTests(unittest.TestCase):
 
         self.assertIsNotNone(first.global_motion)
         self.assertIsNotNone(second.global_motion)
+        self.assertIsNotNone(first.timestamps)
+        self.assertIsNotNone(first.latency_breakdown)
+        self.assertIsNotNone(first.latency_compensation)
         self.assertEqual(gmc.resets, [GMCReasonCode.CAMERA_CUT_RESET])
         self.assertEqual(gmc.exclusions, [[], []])
         self.assertEqual(tracker_resets, [True])

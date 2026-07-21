@@ -210,6 +210,18 @@ class VideoPipelineMixin:
             ),
             receive_latency_ms=frame_data.receive_latency_ms,
             latency_compensation_ms=frame_data.latency_compensation_ms,
+            frame_timestamps=(
+                frame_data.timestamps.to_dict()
+                if frame_data.timestamps is not None else None
+            ),
+            latency_breakdown=(
+                frame_data.latency_breakdown.to_dict()
+                if frame_data.latency_breakdown is not None else None
+            ),
+            latency_compensation=(
+                frame_data.latency_compensation.to_dict()
+                if frame_data.latency_compensation is not None else None
+            ),
             decode_time_ms=frame_data.decode_time_ms,
             inference_time_ms=frame_data.inference_time_ms,
             pipeline_time_ms=frame_data.pipeline_time_ms,
@@ -577,6 +589,21 @@ class VideoPipelineMixin:
                 "websocket_clients": int(self.tracking_server.client_count),
                 "receive_latency_ms": frame_data.receive_latency_ms if frame_data is not None else None,
                 "latency_compensation_ms": frame_data.latency_compensation_ms if frame_data is not None else 0.0,
+                "frame_timestamps": (
+                    frame_data.timestamps.to_dict()
+                    if frame_data is not None and frame_data.timestamps is not None
+                    else None
+                ),
+                "latency_breakdown": (
+                    frame_data.latency_breakdown.to_dict()
+                    if frame_data is not None and frame_data.latency_breakdown is not None
+                    else None
+                ),
+                "latency_compensation": (
+                    frame_data.latency_compensation.to_dict()
+                    if frame_data is not None and frame_data.latency_compensation is not None
+                    else None
+                ),
                 "decode_time_ms": frame_data.decode_time_ms if frame_data is not None else 0.0,
                 "inference_time_ms": frame_data.inference_time_ms if frame_data is not None else 0.0,
                 "pipeline_time_ms": frame_data.pipeline_time_ms if frame_data is not None else 0.0,

@@ -7,6 +7,7 @@ from time import monotonic
 from typing import Any, Callable
 
 from autocamtracker.core.telemetry_logger import TelemetryLogger
+from autocamtracker.core.timestamps import LatencyCompensator
 from autocamtracker.server.camera_stream_receiver import CameraStreamReceiver
 from autocamtracker.server.control_policy import (
     CENTER_ZOOM_FACTOR,
@@ -64,6 +65,7 @@ class TrackingWebSocketServer:
         on_status: Callable[[str], None] | None = None,
         on_control: Callable[[dict[str, Any]], None] | None = None,
         telemetry_logger: TelemetryLogger | None = None,
+        latency_compensator: LatencyCompensator | None = None,
     ) -> None:
         self.config = config or TrackingServerConfig()
         self.on_status = on_status
@@ -76,7 +78,7 @@ class TrackingWebSocketServer:
             on_status=self._notify,
             on_event=self._component_event,
         )
-        self.control_policy = ControlPolicy()
+        self.control_policy = ControlPolicy(latency_compensator=latency_compensator)
         self.transport = WebSocketTransport(
             self.config,
             on_binary=self._accept_camera_frame,

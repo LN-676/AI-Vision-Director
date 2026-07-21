@@ -14,6 +14,7 @@ from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.vision.types import InputConfig
 from autocamtracker.vision.camera_calibration import CameraCalibrationSubsystem
 from autocamtracker.vision.gmc import GlobalMotionCompensator
+from autocamtracker.core.timestamps import LatencyCompensator
 
 
 class TrackingApplication:
@@ -32,6 +33,7 @@ class TrackingApplication:
         reframer: Reframer,
         camera_calibration: CameraCalibrationSubsystem,
         gmc: GlobalMotionCompensator,
+        latency_compensator: LatencyCompensator,
         pipeline: PipelineProcessor,
         tracking_session: TrackingSession,
     ) -> None:
@@ -45,6 +47,7 @@ class TrackingApplication:
         self.reframer = reframer
         self.camera_calibration = camera_calibration
         self.gmc = gmc
+        self.latency_compensator = latency_compensator
         self.pipeline = pipeline
         self.tracking_session = tracking_session
 

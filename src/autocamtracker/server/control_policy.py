@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from time import monotonic
+from time import monotonic, time
 from typing import Any
 
+from autocamtracker.core.timestamps import (
+    FrameTimeline,
+    LatencyCompensator,
+    TimestampMark,
+    evaluate_latency_compensation,
+)
 from autocamtracker.server.protocol import tracking_message
 
 
@@ -30,9 +36,11 @@ class ControlPolicy:
         *,
         last_locked_zoom_factor: float = CENTER_ZOOM_FACTOR,
         last_unlocked_at: float | None = None,
+        latency_compensator: LatencyCompensator | None = None,
     ) -> None:
         self.last_locked_zoom_factor = last_locked_zoom_factor
         self.last_unlocked_at = last_unlocked_at
+        self.latency_compensator = latency_compensator
 
     @staticmethod
     def zoom_factor_for_framing(framing_mode: str | None) -> float:
@@ -58,6 +66,11 @@ class ControlPolicy:
         now: float | None = None,
     ) -> FrameControlDecision:
         frame_h, frame_w = frame_shape[:2]
+        current_time = monotonic() if now is None else now
+        source_fps = float(getattr(frame_data, "source_fps", None) or 30.0)
+        latency_ms, frames_ahead, timing_fields = self._timing_fields(
+            frame_data, source_fps, current_time
+        )
         fresh_target = next(
             (
                 target
@@ -75,7 +88,6 @@ class ControlPolicy:
             or frame_data.tracking_status != "tracking"
             or not getattr(frame_data, "motor_safe_to_track", True)
         ):
-            current_time = monotonic() if now is None else now
             if self.last_unlocked_at is None:
                 self.last_unlocked_at = current_time
             elapsed = current_time - self.last_unlocked_at
@@ -86,9 +98,14 @@ class ControlPolicy:
                 zoom_factor = self.last_locked_zoom_factor + (
                     CENTER_ZOOM_FACTOR - self.last_locked_zoom_factor
                 ) * ramp
-            return FrameControlDecision(
-                tracking_message(target_locked=False, sequence=sequence, zoom_factor=zoom_factor)
+            payload = tracking_message(
+                target_locked=False,
+                sequence=sequence,
+                zoom_factor=zoom_factor,
+                latency_compensation_ms=latency_ms,
             )
+            payload.update(timing_fields)
+            return FrameControlDecision(payload)
 
         status = frame_data.framing_status
         bbox = fresh_target.bbox
@@ -98,9 +115,6 @@ class ControlPolicy:
         zoom_factor = self.zoom_factor_for_framing(framing_mode)
         self.last_locked_zoom_factor = zoom_factor
         self.last_unlocked_at = None
-        latency_ms = float(getattr(frame_data, "latency_compensation_ms", 0.0) or 0.0)
-        source_fps = float(getattr(frame_data, "source_fps", None) or 30.0)
-        frames_ahead = min(3.0, max(0.0, latency_ms / max(1.0, 1000.0 / max(1.0, source_fps))))
         velocity_x, velocity_y = getattr(frame_data, "target_velocity", (0.0, 0.0))
         projected_x = max(0.0, min(float(frame_w), fresh_target.center[0] + float(velocity_x) * frames_ahead))
         projected_y = max(0.0, min(float(frame_h), fresh_target.center[1] + float(velocity_y) * frames_ahead))
@@ -134,4 +148,42 @@ class ControlPolicy:
                 if getattr(frame_data, "identity_decision", None) is not None else None
             ),
         )
+        payload.update(timing_fields)
         return FrameControlDecision(payload, (projected_x, projected_y))
+
+    def _timing_fields(
+        self,
+        frame_data: Any,
+        source_fps: float,
+        now_monotonic_s: float,
+    ) -> tuple[float, float, dict[str, Any]]:
+        timeline = getattr(frame_data, "timestamps", None)
+        if not isinstance(timeline, FrameTimeline):
+            latency_ms = max(
+                0.0, float(getattr(frame_data, "latency_compensation_ms", 0.0) or 0.0)
+            )
+            frame_duration_ms = 1000.0 / max(1.0, source_fps)
+            return latency_ms, min(3.0, latency_ms / frame_duration_ms), {}
+        evaluated_at = TimestampMark(time() * 1000.0, now_monotonic_s * 1000.0)
+        if self.latency_compensator is not None:
+            breakdown, compensation = self.latency_compensator.evaluate(
+                timeline,
+                source_fps,
+                evaluated_at=evaluated_at,
+            )
+        else:
+            breakdown, compensation = evaluate_latency_compensation(
+                timeline,
+                source_fps,
+                evaluated_at=evaluated_at,
+            )
+        return (
+            compensation.applied_latency_ms,
+            compensation.frames_ahead,
+            {
+                "frame_timestamps": timeline.to_dict(),
+                "latency_breakdown": breakdown.to_dict(),
+                "latency_compensation": compensation.to_dict(),
+                "capture_timestamp_ms": timeline.capture_timestamp_ms,
+            },
+        )

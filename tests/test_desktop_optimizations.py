@@ -53,11 +53,24 @@ def locked_context(vehicle_id: int, track_id: int | None = 12) -> GalleryWriteCo
 class FakeDetector:
     def __init__(self) -> None:
         self.calls = 0
+        self.config = type("Config", (), {"source_type": "webcam"})()
 
     def read_and_track(self):
         sleep(0.02)
         self.calls += 1
         return f"frame-{self.calls}", [self.calls]
+
+    def read_frame(self):
+        sleep(0.01)
+        self.calls += 1
+        return f"frame-{self.calls}"
+
+    def track_frame(self, frame):
+        sleep(0.01)
+        return [self.calls]
+
+    def get_current_frame_index(self):
+        return self.calls
 
     def get_source_fps(self):
         return 15.0
@@ -80,6 +93,7 @@ class FakePipeline:
         render_preview=True,
         decode_time_ms=0.0,
         receive_latency_ms=None,
+        timestamps=None,
     ):
         return {
             "frame": draw_detections(frame, detections),
@@ -90,6 +104,7 @@ class FakePipeline:
             "render_preview": render_preview,
             "decode_time_ms": decode_time_ms,
             "receive_latency_ms": receive_latency_ms,
+            "timestamps": timestamps,
         }
 
 
@@ -117,6 +132,10 @@ class TrackingWorkerTests(unittest.TestCase):
             self.assertEqual(result.frame_data["detections"], [1])
             self.assertEqual(result.frame_data["source_fps"], 15.0)
             self.assertGreaterEqual(result.inference_time_ms, 0.0)
+            timeline = result.frame_data["timestamps"]
+            self.assertEqual(timeline.source_id, "webcam")
+            self.assertIsNotNone(timeline.get("capture_started"))
+            self.assertIsNotNone(timeline.get("inference_completed"))
         finally:
             worker.close()
 

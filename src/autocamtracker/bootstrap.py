@@ -37,6 +37,7 @@ from autocamtracker.vision.camera_calibration import (
     CameraCalibrationSubsystem,
 )
 from autocamtracker.vision.gmc import GlobalMotionCompensator
+from autocamtracker.core.timestamps import LatencyCompensator
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,7 @@ def bootstrap(
         CameraCalibrationStore(app_config.camera_calibration_path)
     )
     gmc = GlobalMotionCompensator(calibration=camera_calibration)
+    latency_compensator = LatencyCompensator()
     reframer = Reframer(
         FramingConfig(
             output_width=app_config.output_width,
@@ -99,6 +101,7 @@ def bootstrap(
         scene_cut_detector=scene_cut_detector,
         reframer=reframer,
         gmc=gmc,
+        latency_compensator=latency_compensator,
     )
     tracking_session = TrackingSession(pipeline)
     application = TrackingApplication(
@@ -112,6 +115,7 @@ def bootstrap(
         reframer=reframer,
         camera_calibration=camera_calibration,
         gmc=gmc,
+        latency_compensator=latency_compensator,
         pipeline=pipeline,
         tracking_session=tracking_session,
     )
@@ -119,6 +123,7 @@ def bootstrap(
         on_status=status_queue.put,
         on_control=control_queue.put,
         telemetry_logger=telemetry_logger,
+        latency_compensator=latency_compensator,
     )
     dependencies = AppDependencies(
         application=application,

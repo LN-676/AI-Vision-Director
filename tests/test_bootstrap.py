@@ -60,6 +60,14 @@ class BootstrapTests(unittest.TestCase):
                     dependencies.application.gmc.calibration,
                     dependencies.application.camera_calibration,
                 )
+                self.assertIs(
+                    dependencies.application.pipeline.latency_compensator,
+                    dependencies.application.latency_compensator,
+                )
+                self.assertIs(
+                    dependencies.tracking_server.control_policy.latency_compensator,
+                    dependencies.application.latency_compensator,
+                )
                 self.assertEqual(desktop.app.input_config.source_type, "video_file")
                 self.assertEqual(desktop.app.input_config.video_path, "sample.mp4")
 
@@ -103,6 +111,7 @@ class BootstrapTests(unittest.TestCase):
             "CameraCalibrationStore",
             "CameraCalibrationSubsystem",
             "GlobalMotionCompensator",
+            "LatencyCompensator",
         }
         diagnostic_exceptions = {
             ("core/self_test.py", "DetectionStore"),
