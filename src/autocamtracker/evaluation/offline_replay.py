@@ -13,6 +13,7 @@ from autocamtracker.evaluation.models import (
     ControlObservation,
     EvaluationObject,
     FrameEvaluation,
+    GIDObservation,
     ReIDObservation,
     ReplayFrame,
     ReplayOutput,
@@ -162,6 +163,7 @@ def _frame_from_mapping(payload: dict[str, Any]) -> ReplayFrame:
 
 def _output_from_mapping(payload: dict[str, Any]) -> ReplayOutput:
     reid_payload = payload.get("reid")
+    gid_payload = payload.get("gid")
     control_payload = payload.get("control")
     reid = None
     if isinstance(reid_payload, dict):
@@ -173,6 +175,17 @@ def _output_from_mapping(payload: dict[str, Any]) -> ReplayOutput:
                 int(reid_payload["reacquired_identity_id"])
                 if reid_payload.get("reacquired_identity_id") is not None else None
             ),
+        )
+    gid = None
+    if isinstance(gid_payload, dict):
+        gid = GIDObservation(
+            expected_identity_id=int(gid_payload["expected_identity_id"]),
+            assigned_identity_id=(
+                int(gid_payload["assigned_identity_id"])
+                if gid_payload["assigned_identity_id"] is not None else None
+            ),
+            target_visible=bool(gid_payload["target_visible"]),
+            motor_safe=bool(gid_payload["motor_safe"]),
         )
     control = None
     if isinstance(control_payload, dict):
@@ -191,6 +204,7 @@ def _output_from_mapping(payload: dict[str, Any]) -> ReplayOutput:
             if payload.get("command_timestamp_ms") is not None else None
         ),
         reid=reid,
+        gid=gid,
         control=control,
     )
 

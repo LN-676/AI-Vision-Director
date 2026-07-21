@@ -1,7 +1,8 @@
 {
-  "version": 1,
-  "video_root": "evaluation/gid_loss_videos",
-  "metrics": {
+  "version": 2,
+  "dataset_version": "phase-10-v1",
+  "replay_root": "evaluation/gid_loss_replays",
+  "thresholds": {
     "gid_lock_rate_min": 0.9,
     "max_consecutive_lost_frames": 12,
     "id_switches_max": 0,
@@ -11,27 +12,101 @@
   "scenarios": [
     {
       "id": "occlusion",
-      "name": "遮擋",
-      "video": "occlusion.mp4",
-      "description": "Target vehicle is briefly blocked by foreground objects or other cars."
+      "name": "Occlusion",
+      "replay": "occlusion.jsonl",
+      "minimum_frames": 1,
+      "description": "The selected vehicle is temporarily hidden by foreground objects or traffic."
     },
     {
-      "id": "crossing_traffic",
-      "name": "車交會",
-      "video": "crossing_traffic.mp4",
-      "description": "Multiple visually similar vehicles pass or overlap near the selected target."
+      "id": "vehicle_crossing",
+      "name": "Vehicle crossing",
+      "replay": "vehicle_crossing.jsonl",
+      "minimum_frames": 1,
+      "description": "Another vehicle crosses or overlaps the selected vehicle."
     },
     {
-      "id": "fast_lateral",
-      "name": "快速橫移",
-      "video": "fast_lateral.mp4",
-      "description": "Selected vehicle moves quickly across the frame and stresses latency compensation."
+      "id": "fast_lateral_motion",
+      "name": "Fast lateral motion",
+      "replay": "fast_lateral_motion.jsonl",
+      "minimum_frames": 1,
+      "description": "The selected vehicle moves rapidly across the image plane."
     },
     {
-      "id": "exit_reenter",
-      "name": "出畫面再進來",
-      "video": "exit_reenter.mp4",
-      "description": "Selected vehicle leaves the frame and later re-enters from a plausible corridor."
+      "id": "re_entry",
+      "name": "Re-entry",
+      "replay": "re_entry.jsonl",
+      "minimum_frames": 1,
+      "description": "The selected vehicle leaves the frame and later re-enters."
+    },
+    {
+      "id": "same_color",
+      "name": "Same color",
+      "replay": "same_color.jsonl",
+      "minimum_frames": 1,
+      "description": "Distractor vehicles share the selected vehicle's dominant color."
+    },
+    {
+      "id": "same_vehicle_model",
+      "name": "Same vehicle model",
+      "replay": "same_vehicle_model.jsonl",
+      "minimum_frames": 1,
+      "description": "Distractors are the same make and model as the selected vehicle."
+    },
+    {
+      "id": "similar_livery",
+      "name": "Similar livery",
+      "replay": "similar_livery.jsonl",
+      "minimum_frames": 1,
+      "description": "Distractors carry visually similar paint, decals, or racing livery."
+    },
+    {
+      "id": "fast_camera_pan",
+      "name": "Fast camera pan",
+      "replay": "fast_camera_pan.jsonl",
+      "minimum_frames": 1,
+      "description": "A rapid camera pan creates large global image motion."
+    },
+    {
+      "id": "zoom_change",
+      "name": "Zoom change",
+      "replay": "zoom_change.jsonl",
+      "minimum_frames": 1,
+      "description": "Optical or digital zoom changes the target scale abruptly."
+    },
+    {
+      "id": "motion_blur",
+      "name": "Motion blur",
+      "replay": "motion_blur.jsonl",
+      "minimum_frames": 1,
+      "description": "Target or camera motion substantially blurs vehicle appearance."
+    },
+    {
+      "id": "backlight",
+      "name": "Backlight",
+      "replay": "backlight.jsonl",
+      "minimum_frames": 1,
+      "description": "Strong backlighting reduces visible target detail."
+    },
+    {
+      "id": "low_light",
+      "name": "Low light",
+      "replay": "low_light.jsonl",
+      "minimum_frames": 1,
+      "description": "Low illumination increases noise and reduces target detail."
+    },
+    {
+      "id": "far_distance",
+      "name": "Far distance",
+      "replay": "far_distance.jsonl",
+      "minimum_frames": 1,
+      "description": "The selected vehicle occupies a small region at long range."
+    },
+    {
+      "id": "scene_cut",
+      "name": "Scene cut",
+      "replay": "scene_cut.jsonl",
+      "minimum_frames": 1,
+      "description": "A hard edit changes the scene while preserving the selected GID target."
     }
   ]
 }

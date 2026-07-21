@@ -1,2 +1,3 @@
 [console_scripts]
 AI_Vison_Director = autocamtracker.main:main
+gid-loss-benchmark = autocamtracker.evaluation.gid_loss:main

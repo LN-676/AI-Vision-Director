@@ -27,6 +27,7 @@ src/autocamtracker/domain/contracts.py
 src/autocamtracker/evaluation/__init__.py
 src/autocamtracker/evaluation/control.py
 src/autocamtracker/evaluation/detection.py
+src/autocamtracker/evaluation/gid_loss.py
 src/autocamtracker/evaluation/models.py
 src/autocamtracker/evaluation/offline_replay.py
 src/autocamtracker/evaluation/reid.py

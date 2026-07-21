@@ -9,6 +9,7 @@ cmake-build-*/
 outputs/
 output/
 tmp/
+evaluation/gid_loss_replays/
 *.pt
 *.pth
 *.onnx

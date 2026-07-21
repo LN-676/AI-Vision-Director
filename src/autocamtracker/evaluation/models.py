@@ -32,6 +32,16 @@ class ReIDObservation:
 
 
 @dataclass(frozen=True)
+class GIDObservation:
+    """Frame-level ground truth and output for the selected global identity."""
+
+    expected_identity_id: int
+    assigned_identity_id: int | None
+    target_visible: bool = True
+    motor_safe: bool = True
+
+
+@dataclass(frozen=True)
 class ControlObservation:
     timestamp_ms: float
     error_x: float
@@ -47,6 +57,7 @@ class ReplayOutput:
     command_timestamp_ms: float | None = None
     reid: ReIDObservation | None = None
     control: ControlObservation | None = None
+    gid: GIDObservation | None = None
 
 
 @dataclass(frozen=True)
