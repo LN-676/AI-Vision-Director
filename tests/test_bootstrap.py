@@ -43,6 +43,15 @@ class BootstrapTests(unittest.TestCase):
                 self.assertIs(desktop.app.root, desktop.root)
                 self.assertIs(dependencies.application.tracking_session.pipeline, dependencies.application.pipeline)
                 self.assertIs(dependencies.tracking_server.telemetry_logger, dependencies.telemetry_logger)
+                identity_manager = dependencies.application.identity_manager
+                self.assertIs(
+                    dependencies.application.pipeline.identity_manager,
+                    identity_manager,
+                )
+                self.assertIsNotNone(identity_manager.state_machine)
+                self.assertIsNotNone(identity_manager.reacquisition_policy)
+                self.assertIsNotNone(identity_manager.track_identity_mapper)
+                self.assertIsNotNone(identity_manager.motor_safety_policy)
                 self.assertEqual(desktop.app.input_config.source_type, "video_file")
                 self.assertEqual(desktop.app.input_config.video_path, "sample.mp4")
 
@@ -78,6 +87,11 @@ class BootstrapTests(unittest.TestCase):
             "Reframer",
             "PipelineProcessor",
             "TrackingSession",
+            "IdentityStateMachine",
+            "IdentityMatcher",
+            "ReacquisitionPolicy",
+            "TrackIdentityMapper",
+            "MotorSafetyPolicy",
         }
         diagnostic_exceptions = {
             ("core/self_test.py", "DetectionStore"),
@@ -86,6 +100,11 @@ class BootstrapTests(unittest.TestCase):
             ("core/self_test.py", "GlobalIdentityManager"),
             ("core/self_test.py", "AutoFeatureSampler"),
             ("vision/reframer.py", "FramingConfig"),
+            ("tracking/identity_manager.py", "IdentityStateMachine"),
+            ("tracking/identity_manager.py", "IdentityMatcher"),
+            ("tracking/identity_manager.py", "ReacquisitionPolicy"),
+            ("tracking/identity_manager.py", "TrackIdentityMapper"),
+            ("tracking/identity_manager.py", "MotorSafetyPolicy"),
         }
         offenders = []
         for path in source_root.rglob("*.py"):

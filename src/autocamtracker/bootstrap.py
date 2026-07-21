@@ -19,6 +19,13 @@ from autocamtracker.server.websocket_server import TrackingWebSocketServer
 from autocamtracker.tracking.auto_feature_sampler import AutoFeatureSampler
 from autocamtracker.tracking.detection_store import DetectionStore
 from autocamtracker.tracking.feature_gallery import FeatureGallery
+from autocamtracker.tracking.identity_components import (
+    IdentityMatcher,
+    IdentityStateMachine,
+    MotorSafetyPolicy,
+    ReacquisitionPolicy,
+    TrackIdentityMapper,
+)
 from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 from autocamtracker.ui.app import AppConfig, AppDependencies, AutoCamTrackerApp
@@ -61,6 +68,11 @@ def bootstrap(
     identity_manager = GlobalIdentityManager(
         identity_store=identity_store,
         feature_gallery=feature_gallery,
+        state_machine=IdentityStateMachine(),
+        identity_matcher=IdentityMatcher(),
+        reacquisition_policy=ReacquisitionPolicy(),
+        track_identity_mapper=TrackIdentityMapper(),
+        motor_safety_policy=MotorSafetyPolicy(),
     )
     auto_feature_sampler = AutoFeatureSampler(feature_gallery)
     scene_cut_detector = SceneCutDetector()
