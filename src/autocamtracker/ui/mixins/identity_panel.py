@@ -16,20 +16,6 @@ except ImportError:
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
-from autocamtracker.server.websocket_server import TrackingWebSocketServer
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
 
 class IdentityPanelMixin:
     def refresh_identity_db_panel(self, force: bool = True) -> None:

@@ -1,4 +1,4 @@
-"""Background detector and tracking worker used by the Tk desktop application."""
+"""UI-independent background worker for detector and pipeline execution."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class TrackingWorkerResult:
 
 
 class TrackingWorker:
-    """Runs detector step and pipeline processing away from Tk's main thread."""
+    """Runs detector and pipeline processing away from the delivery thread."""
 
     def __init__(
         self,

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from queue import Empty, SimpleQueue
@@ -16,20 +16,7 @@ except ImportError:
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
-from autocamtracker.server.websocket_server import TrackingWebSocketServer
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
+from autocamtracker.application import InputConfig
 
 class CommandsMixin:
     def start(self) -> None:
@@ -37,63 +24,38 @@ class CommandsMixin:
             self.apply_ui_config()
             if self.input_config.source_type == "iphone":
                 self._start_iphone_link()
-            desired_signature = self._input_signature(self.input_config)
-            can_resume_current_source = (
-                self.detector is not None
-                and not self.running
-                and self.active_input_signature == desired_signature
-            )
-            if can_resume_current_source:
-                self.running = True
-                self.last_frame_time = time()
-                self.tracking_worker = TrackingWorker(
-                    self.detector,
-                    self.pipeline,
-                    self._draw_detections,
-                    lambda: getattr(self, "skipped_frames", 0),
-                    self._should_render_preview_frame,
-                    self.tracking_server.latest_frame_timing,
-                )
-                self.tracking_worker.discard_results()
-                self._update_transport_actions()
-                self._request_worker_frame()
-                return
-
-            if self.detector is not None:
-                self._close_detector()
-            self._reset_runtime_state()
+            can_resume_current_source = self.tracking_session.can_resume(self.input_config)
+            if not can_resume_current_source:
+                self.tracking_session.close_source()
+                self._reset_runtime_state()
             frame_provider = (
                 self.tracking_server.read_latest_frame
                 if self.input_config.source_type == "iphone"
                 else None
             )
-            self.detector = VideoDetector(replace(self.input_config), frame_provider=frame_provider)
-            self.detector.load_model()
-            self.detector.open_source()
-            self.tracking_worker = TrackingWorker(
-                self.detector,
-                self.pipeline,
-                self._draw_detections,
-                lambda: getattr(self, "skipped_frames", 0),
-                self._should_render_preview_frame,
-                self.tracking_server.latest_frame_timing,
+            self.tracking_session.start(
+                self.input_config,
+                frame_provider=frame_provider,
+                draw_detections=self._draw_detections,
+                get_skipped_frames=lambda: getattr(self, "skipped_frames", 0),
+                should_render_preview=self._should_render_preview_frame,
+                get_frame_timing=self.tracking_server.latest_frame_timing,
             )
-            self.active_input_signature = desired_signature
             self.running = True
             self.last_frame_time = time()
-            self.skipped_frames = 0
+            if not can_resume_current_source:
+                self.skipped_frames = 0
             self._update_transport_actions()
             self._request_worker_frame()
         except Exception as exc:
             self.running = False
-            if self.detector is not None:
-                self._close_detector()
-                self.detector = None
+            self.tracking_session.stop()
             self._update_transport_actions()
             messagebox.showerror("Start failed", str(exc))
 
     def pause(self) -> None:
         self.running = False
+        self.tracking_session.pause()
         self._disable_iphone_motor_tracking("tracking paused")
         self._update_transport_actions()
 
@@ -101,10 +63,7 @@ class CommandsMixin:
         self.running = False
         self.gid_follow_vehicle_id = None
         self._disable_iphone_motor_tracking("tracking stopped")
-        if self.detector is not None:
-            self._close_detector()
-        self.detector = None
-        self.active_input_signature = None
+        self.tracking_session.stop()
         self._reset_runtime_state()
         self._update_transport_actions()
 
@@ -140,7 +99,7 @@ class CommandsMixin:
     def on_source_selected(self, _event=None) -> None:
         self.gid_follow_vehicle_id = None
         self._disable_iphone_motor_tracking("input source changed")
-        if self.detector is not None:
+        if self.tracking_session.has_source:
             self.stop()
         self._update_source_controls()
         if self.source_var.get() == "iphone":
@@ -148,7 +107,7 @@ class CommandsMixin:
             self.root.after_idle(self.start)
 
     def on_tracking_configuration_changed(self, _event=None) -> None:
-        if self.detector is not None:
+        if self.tracking_session.has_source:
             self.stop()
         self.apply_ui_config()
         self.status_var.set("Status: tracking configuration changed; press Start")
@@ -348,7 +307,7 @@ class CommandsMixin:
             self.publish_desktop_state(force=True)
             return False
         self.framing_var.set(mode)
-        self.reframer.set_framing_mode(mode)
+        self.tracking_session.set_framing_mode(mode)
         self.telemetry_logger.log("control_set_framing", actor=actor, mode=mode)
         self.status_var.set(f"Status: {actor} set framing: {mode}")
         self.publish_desktop_state(force=True)
@@ -435,26 +394,17 @@ class CommandsMixin:
 
         was_running = self.running
         self.running = False
-        if self.tracking_worker is not None:
-            self.tracking_worker.discard_results()
+        self.tracking_session.discard_results()
         target_frame = int(self.timeline_var.get())
-        seek = lambda: self.detector.seek_video_frame(target_frame)
-        seek_succeeded = (
-            self.tracking_worker.run_locked(seek)
-            if self.tracking_worker is not None
-            else seek()
-        )
+        seek_succeeded = self.tracking_session.seek(target_frame)
         if not seek_succeeded:
             self.running = was_running
             if was_running:
                 self._request_worker_frame()
             return
 
-        self.store.reset()
-        self.identity_manager.reset()
+        self.tracking_session.reset_pipeline()
         self.gid_follow_vehicle_id = None
-        self.scene_cut_detector.reset()
-        self.reframer.reset()
         self.identity_session_links.clear()
         self.skipped_frames = 0
         self._render_current_video_frame()
@@ -514,24 +464,8 @@ class CommandsMixin:
         if getattr(self, "diagnostics_window", None) is not None and self.diagnostics_window.winfo_exists():
             self.diagnostics_window.destroy()
             self.diagnostics_window = None
-        if self.detector is not None:
-            self._close_detector()
-            self.detector = None
-        self.feature_gallery.close()
-        self.identity_store.close()
+        self.application.close()
         self.root.destroy()
 
-    @staticmethod
-    def _input_signature(config: InputConfig) -> tuple[object, ...]:
-        return (
-            config.source_type,
-            config.camera_index,
-            config.video_path,
-            config.video_url,
-            config.screen_region,
-            config.model_path,
-            config.tracker_name,
-            config.confidence_threshold,
-            config.iou_threshold,
-            config.vehicle_classes_only,
-        )
+    def _input_signature(self, config: InputConfig) -> tuple[object, ...]:
+        return self.tracking_session.input_signature(config)

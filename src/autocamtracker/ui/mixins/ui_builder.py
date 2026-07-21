@@ -16,20 +16,8 @@ except ImportError:
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
-from autocamtracker.server.websocket_server import TrackingWebSocketServer
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
+from autocamtracker.application import InputConfig
+from autocamtracker.core.track_shot_plan import TrackZone
 
 class UIBuilderMixin:
     def _build_ui(self) -> None:
@@ -442,7 +430,7 @@ class UIBuilderMixin:
 
     def apply_ui_config(self) -> None:
         self.input_config = self._ui_input_config()
-        self.reframer.set_framing_mode(self.framing_var.get())
+        self.tracking_session.set_framing_mode(self.framing_var.get())
 
     def apply_performance_profile(self, _event=None) -> str:
         profile = self.performance_profile_var.get()
@@ -724,7 +712,7 @@ class UIBuilderMixin:
     def _update_transport_actions(self) -> None:
         if not hasattr(self, "start_button"):
             return
-        has_source = self.detector is not None
+        has_source = self.tracking_session.has_source
         if self.running:
             self.start_button.configure(text="Running")
             self._set_button_enabled(self.start_button, False)

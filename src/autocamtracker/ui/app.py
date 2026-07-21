@@ -2,17 +2,16 @@
 
 Responsibilities:
 - Create the Tkinter desktop UI.
-- Wire together input, YOLO tracking, data store, target tracking, and reframe.
+- Invoke application-layer tracking and identity use cases.
 - Show before and after views.
 - Expose controls for source, tracker, framing mode, and recording.
 
-This file is intentionally a V1 integration scaffold. The core logic lives in
-the other four modules.
+CV runtime construction and execution live in ``autocamtracker.application``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from queue import Empty, SimpleQueue
@@ -29,22 +28,12 @@ except ImportError:  # pragma: no cover
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
+from autocamtracker.application import FrameData, TrackingApplication
 from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
 from autocamtracker.core.telemetry_logger import TelemetryLogger
 from autocamtracker.core.performance_evaluation import PerformanceEvaluationTracker
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
 from autocamtracker.server.websocket_server import TrackingWebSocketServer
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
+from autocamtracker.core.track_shot_plan import TrackShotController
 
 
 @dataclass
@@ -75,35 +64,25 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.root.title(self.config.window_title)
         self.root.minsize(1120, 720)
 
-        self.input_config = InputConfig()
-        self.detector: VideoDetector | None = None
-        self.tracking_worker: TrackingWorker | None = None
-        self.store = DetectionStore()
-        self.identity_store = VehicleIdentityStore(self.config.identity_db_path)
-        self.feature_gallery = FeatureGallery(
-            self.config.identity_db_path,
+        self.application = TrackingApplication(
+            identity_db_path=self.config.identity_db_path,
             reid_model_path=str(self.config.model_dir / self.config.default_reid_model),
+            output_width=self.config.output_width,
+            output_height=self.config.output_height,
         )
-        self.identity_manager = GlobalIdentityManager(
-            identity_store=self.identity_store,
-            feature_gallery=self.feature_gallery,
-        )
-        self.auto_feature_sampler = AutoFeatureSampler(self.feature_gallery)
-        self.scene_cut_detector = SceneCutDetector()
+        self.input_config = self.application.input_config
+        self.tracking_session = self.application.tracking_session
+        # Transitional aliases keep the existing identity-panel interactions
+        # stable while CV construction and session execution live outside Tk.
+        self.store = self.application.store
+        self.identity_store = self.application.identity_store
+        self.feature_gallery = self.application.feature_gallery
+        self.identity_manager = self.application.identity_manager
+        self.auto_feature_sampler = self.application.auto_feature_sampler
+        self.scene_cut_detector = self.application.scene_cut_detector
+        self.reframer = self.application.reframer
         self.telemetry_logger = TelemetryLogger(self.config.telemetry_dir)
         self.performance_evaluator = PerformanceEvaluationTracker()
-        self.reframer = Reframer(
-            FramingConfig(
-                output_width=self.config.output_width,
-                output_height=self.config.output_height,
-            )
-        )
-        self.pipeline = PipelineProcessor(
-            store=self.store,
-            identity_manager=self.identity_manager,
-            scene_cut_detector=self.scene_cut_detector,
-            reframer=self.reframer,
-        )
         self.iphone_status_queue: SimpleQueue[str] = SimpleQueue()
         self.iphone_control_queue: SimpleQueue[dict] = SimpleQueue()
         self.tracking_server = TrackingWebSocketServer(
@@ -132,7 +111,6 @@ class AutoCamTrackerApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, 
         self.last_inference_time_ms = 0.0
         self.model_options: dict[str, str] = {}
         self.reid_model_options: dict[str, str] = {}
-        self.active_input_signature: tuple[object, ...] | None = None
         self.last_frame_shape: tuple[int, int, int] | tuple[int, int] | None = None
         self.last_raw_frame = None
         self.current_frame_data: FrameData | None = None

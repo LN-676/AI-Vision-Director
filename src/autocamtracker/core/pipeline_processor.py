@@ -1,7 +1,6 @@
 """Frame pipeline boundary for AutoCamTracker V1.
 
-This is the UI-safe stepping stone toward a threaded PipelineWorker: the Tk app
-still owns scheduling, playback, and image rendering, while this class owns the
+The application layer owns scheduling and playback while this class owns the
 per-frame data flow from detections to identity, reframing, and FrameData.
 """
 

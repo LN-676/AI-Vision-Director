@@ -16,39 +16,27 @@ except ImportError:
     ImageGrab = None
     ImageTk = None
 
-from autocamtracker.tracking.auto_feature_sampler import AutoFeatureMode, AutoFeatureSampler
-from autocamtracker.vision.detector import InputConfig, VideoDetector
-from autocamtracker.tracking.detection_store import DetectionStore
-from autocamtracker.core.desktop_state import IdentitySessionLinks
-from autocamtracker.tracking.feature_gallery import FeatureGallery
-from autocamtracker.core.frame_data import FrameData
-from autocamtracker.tracking.identity_manager import GlobalIdentityManager
-from autocamtracker.core.pipeline_processor import PipelineProcessor
-from autocamtracker.core.pipeline_worker import TrackingWorker
-from autocamtracker.vision.reframer import FramingConfig, Reframer
-from autocamtracker.vision.scene_cut import SceneCutDetector
+from autocamtracker.application import FrameData
 from autocamtracker.server.websocket_server import (
     CENTER_ZOOM_FACTOR,
     SOURCE_VERSION,
-    TrackingWebSocketServer,
     zoom_factor_for_framing,
 )
-from autocamtracker.core.track_shot_plan import TrackShotController, TrackZone, should_publish_motor_tracking
-from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
+from autocamtracker.core.track_shot_plan import should_publish_motor_tracking
 
 class VideoPipelineMixin:
     def _request_worker_frame(self) -> None:
-        if not self.running or self.tracking_worker is None:
+        if not self.running or not self.tracking_session.has_worker:
             return
-        if self.tracking_worker.request_frame():
+        if self.tracking_session.request_frame():
             self.loop_started_at = time()
         self.root.after(5, self._loop)
 
     def _loop(self) -> None:
-        if not self.running or self.detector is None or self.tracking_worker is None:
+        if not self.running or not self.tracking_session.has_source or not self.tracking_session.has_worker:
             return
 
-        result = self.tracking_worker.poll()
+        result = self.tracking_session.poll()
         if result is None:
             self.root.after(5, self._loop)
             return
@@ -74,7 +62,7 @@ class VideoPipelineMixin:
         self.fps = 1.0 / elapsed
         self.last_frame_time = now
         frame_data.display_fps = self.fps
-        frame_data.source_fps = self.detector.get_source_fps()
+        frame_data.source_fps = self.tracking_session.get_source_fps()
         frame_data.skipped_frames = self.skipped_frames
         self.performance_evaluator.record_frame(frame_data)
 
@@ -212,30 +200,15 @@ class VideoPipelineMixin:
         )
 
     def _render_current_video_frame(self) -> None:
-        if self.detector is None:
+        if not self.tracking_session.has_source:
             return
-        
-        def read():
-            return self.detector.read_and_track()
-            
-        frame, detections = (
-            self.tracking_worker.run_locked(read)
-            if self.tracking_worker is not None
-            else read()
-        )
-        if frame is None:
-            return
-            
-        frame_data = self.pipeline.process(
-            frame=frame,
-            detections=detections,
+        frame, frame_data = self.tracking_session.process_next_frame(
             draw_detections=self._draw_detections,
-            reset_tracker_state=self.detector.reset_tracker_state if self.detector is not None else None,
             inference_time_ms=self.last_inference_time_ms,
-            source_fps=self.detector.get_source_fps() if self.detector is not None else None,
             skipped_frames=self.skipped_frames,
-            render_preview=True,
         )
+        if frame is None or frame_data is None:
+            return
         self._process_frame_data(frame_data, frame)
         self._sync_timeline_from_detector()
 
@@ -243,7 +216,7 @@ class VideoPipelineMixin:
         if not self._is_video_source_active():
             return self.config.update_interval_ms
 
-        source_fps = self.detector.get_source_fps()
+        source_fps = self.tracking_session.get_source_fps()
         if source_fps is None:
             return self.config.update_interval_ms
 
@@ -255,7 +228,7 @@ class VideoPipelineMixin:
         if not self._is_video_source_active():
             return
 
-        source_fps = self.detector.get_source_fps()
+        source_fps = self.tracking_session.get_source_fps()
         if source_fps is None:
             return
 
@@ -266,12 +239,7 @@ class VideoPipelineMixin:
         if frames_to_skip <= 0:
             return
 
-        skip = lambda: self.detector.skip_video_frames(frames_to_skip)
-        skipped = (
-            self.tracking_worker.run_locked(skip)
-            if self.tracking_worker is not None
-            else skip()
-        )
+        skipped = self.tracking_session.skip(frames_to_skip)
         self.skipped_frames += skipped
 
     def _playback_speed(self) -> float:
@@ -283,9 +251,9 @@ class VideoPipelineMixin:
         return max(0.05, speed)
 
     def _source_fps_label(self) -> str:
-        if self.detector is None:
+        if not self.tracking_session.has_source:
             return "--"
-        source_fps = self.detector.get_source_fps()
+        source_fps = self.tracking_session.get_source_fps()
         if source_fps is None:
             return "--"
         return f"{source_fps:.1f}"
@@ -297,16 +265,16 @@ class VideoPipelineMixin:
             self.timeline_label_var.set("00:00 / 00:00")
             return
 
-        frame_count = self.detector.get_source_frame_count() or 0
-        current_frame = self.detector.get_current_frame_index()
+        frame_count = self.tracking_session.get_source_frame_count() or 0
+        current_frame = self.tracking_session.get_current_frame_index()
         self.timeline_scale.configure(to=max(0, frame_count - 1))
         if not self.timeline_dragging:
             self.timeline_var.set(min(max(0, current_frame), max(0, frame_count - 1)))
             self._update_timeline_label(current_frame)
 
     def _update_timeline_label(self, frame_index: int) -> None:
-        frame_count = self.detector.get_source_frame_count() if self.detector is not None else None
-        fps = self.detector.get_source_fps() if self.detector is not None else None
+        frame_count = self.tracking_session.get_source_frame_count()
+        fps = self.tracking_session.get_source_fps()
         if not frame_count or not fps:
             self.timeline_label_var.set(f"{frame_index}")
             return
@@ -317,7 +285,7 @@ class VideoPipelineMixin:
         )
 
     def _reset_runtime_state(self) -> None:
-        self.pipeline.reset()
+        self.tracking_session.reset_pipeline()
         self.feature_gallery.reset_runtime_cache()
         self.identity_session_links.clear()
         self.last_frame_shape = None
@@ -334,15 +302,13 @@ class VideoPipelineMixin:
     def _clear_screen_region_selection(self) -> None:
         self.input_config.screen_region = None
         self.screen_region_var.set("No screen region selected")
-        if self.detector is not None and self.detector.config.source_type == "screen_region":
+        if self.tracking_session.source_type == "screen_region":
             self._close_detector()
-            self.detector = None
-            self.active_input_signature = None
         self._reset_runtime_state()
 
     def _is_video_source_active(self) -> bool:
         return (
-            self.detector is not None
+            self.tracking_session.has_source
             and self.input_config.source_type in {"video_file", "video_url"}
         )
 
@@ -375,8 +341,7 @@ class VideoPipelineMixin:
         frame_h, frame_w = frame_shape[:2]
         self.config.output_width = frame_w
         self.config.output_height = frame_h
-        self.reframer.config.output_width = frame_w
-        self.reframer.config.output_height = frame_h
+        self.tracking_session.set_output_size(frame_w, frame_h)
         width, height = self._fit_size_to_source_aspect(
             self.preview_width_limit,
             self.preview_height_limit,
@@ -384,13 +349,7 @@ class VideoPipelineMixin:
         self._set_display_size(width, height)
 
     def _close_detector(self) -> None:
-        if self.tracking_worker is not None:
-            self.tracking_worker.close()
-            self.tracking_worker = None
-        if self.detector is None:
-            return
-        clear_temp_cache = self.detector.config.source_type in {"video_file", "video_url"}
-        self.detector.close(clear_temp_cache=clear_temp_cache)
+        self.tracking_session.close_source()
 
     def _discover_model_files(self) -> list[Path]:
         suffixes = {".pt", ".pth", ".onnx", ".engine", ".mlpackage", ".torchscript"}
