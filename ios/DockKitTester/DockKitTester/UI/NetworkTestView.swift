@@ -8,7 +8,7 @@ struct NetworkTestView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("AI Vision Director 1.0-alpha.1")
+                Text("AI Vision Director V1.0")
                     .font(.headline)
                 Spacer()
                 Text(client.status.rawValue)

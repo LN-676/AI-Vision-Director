@@ -15,7 +15,7 @@ six top-level contracts.
 
 ## Phase 1 integration rule
 
-The contracts are additive. Existing v1.0-alpha.1 YOLO, ByteTrack/BoT-SORT, GID, and
+The contracts are additive. Existing V1.0 YOLO, ByteTrack/BoT-SORT, GID, and
 ReID call sites continue using their current types and behavior. A later phase
 may introduce explicit adapters and migrate one boundary at a time, guarded by
 characterization and evaluation tests.

@@ -1,4 +1,4 @@
-"""YOLO Data module for AI_Vison_Director V1.
+"""YOLO data module for AI Vision Director V1.0.
 
 Responsibilities:
 - Store current tracked detections.

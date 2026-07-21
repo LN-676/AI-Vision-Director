@@ -1,4 +1,4 @@
-"""Tkinter UI + Recording + Debug Log module for AI_Vison_Director.
+"""Tkinter UI, recording, and debug log module for AI Vision Director.
 
 Responsibilities:
 - Create the Tkinter desktop UI.
@@ -159,5 +159,5 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
     """Tkinter integration shell for the five V1 modules."""
 
 
-# Backward-compatible import for integrations written before V1.0-alpha.1.
+# Backward-compatible import for integrations written before V1.0.
 AutoCamTrackerApp = AIVisonDirectorApp

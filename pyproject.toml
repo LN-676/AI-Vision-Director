@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "AI_Vison_Director"
-version = "1.0-alpha.1"
+name = "AI-Vision-Director"
+version = "1.0"
 description = "AI vision direction, vehicle tracking, and digital reframing tool"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-AI_Vison_Director = "autocamtracker.main:main"
+ai-vision-director = "autocamtracker.main:main"
 gid-loss-benchmark = "autocamtracker.evaluation.gid_loss:main"
 
 [tool.setuptools.packages.find]

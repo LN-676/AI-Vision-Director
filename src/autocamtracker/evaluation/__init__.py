@@ -1,4 +1,4 @@
-"""Offline evaluation API for AI_Vison_Director."""
+"""Offline evaluation API for AI Vision Director."""
 
 from autocamtracker.evaluation.control import ControlMetrics, evaluate_control
 from autocamtracker.evaluation.detection import DetectionMetrics, evaluate_detection

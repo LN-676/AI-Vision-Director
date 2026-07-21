@@ -1,191 +1,347 @@
-# AI_Vison_Director V1.0-alpha.1
+# AI Vision Director V1.0
 
-AI_Vison_Director 是一個以影片、螢幕區域、webcam 或 iPhone 作為輸入的車輛偵測、單車追蹤、數位構圖與 GID 重新辨識工具。V1.0-alpha.1 加入可實際回到相對姿態的 DockKit Home、失追 zoom 保持與緩退、12 幀自信度衰減 coasting、彎道更快的雲台前饋與動態平滑，以及完整 1.0-alpha.1 iOS / desktop 版本同步。
-
-## 功能簡述
-
-- 支援 `webcam`、`video_file`、`video_url`、`screen_region` 與 `iphone` 相機串流。
-- 預設 High FPS profile 使用 `code/model/model/yolo26n.pt` + `bytetrack`，以 30 FPS iPhone 串流為目標。
-- Balanced ID profile 可切回 `code/model/model/yolo26s.pt` + `botsort` + tracker ReID。
-- 預設 Identity ReID 模型為 `code/model/reid/yolo26s-reid.onnx`。
-- Tracking buffer 依來源 FPS 設定為約 5 秒，降低短暫遮擋或漏檢造成的掉 ID。
-- Before 畫面以紅色數字顯示 GID，選取中的紅框 GID 為 65 px、其他 GID 為 50 px，LID 為 30 px。
-- After 畫面依選定車輛做數位變焦與置中構圖。
-- `GID` 是長期車輛身份，`LID` 是 YOLO / tracker 的短期 local track id。
-- 一般點選 bbox 只會選取目前 LID；再按 `Add Selected Vehicle`，立即建立新的 GID 資料庫欄位。
-- 選取 bbox 與 Identity DB 的 GID row 後，按 `Link BBox → GID` 立即完成綁定。
-- Vehicle Database 使用固定右側欄；Tracking 主區塊可切換 High FPS / Balanced ID profile，ReID 模型、門檻與 Feature Mode 收在可展開的 Advanced ReID settings。
-- `Find GID` 會用該 GID 的 Master features 對目前畫面 detections 做 ReID matching。
-- `Auto ReID Th` 可調整 Find GID / 自動 GID reacquire 的 ReID 相似度門檻。
-- `Auto Add Feature` 可啟動目前 GID 的持續自動 Master feature 採樣。
-- `Manual Add 1 Photo` 會先停止背景自動採樣，每次按下最多只嘗試加入目前 GID 的一張 Master feature。
-- `Auto Add Feature` 僅在目前鏡頭場景內有效；偵測到切鏡後會自動停止，必須再次按下才能在新場景繼續採樣。
-- `Auto Feature Mode` 支援 `Balanced`、`Diverse`、`Strict`：
-  - `Balanced`：一般使用，品質與多樣性平衡。
-  - `Diverse`：更積極收集遠車、近車、不同位置/角度 proxy、太陽/陰影光影差異。
-  - `Strict`：高品質、少量、保守寫入。
-- 自動寫入 Master 前會做防污染檢查：
-  - 如果 GID 已有 Master feature，新增 feature 必須通過 dominant class 檢查。
-  - 新增 feature 必須與該 GID Master features 達到 ReID 分數門檻。
-  - 避免 tracker ID switch 後把錯車寫入同一個 GID。
-- Identity row hover 會顯示該 GID 的第一張 feature crop 預覽。
-- 雙擊 GID 欄位可自訂顯示名稱。
-
-## 專案結構
-
-- `src/autocamtracker/main.py`：目前 V1.0-alpha.1 桌面版 Tkinter app 啟動入口。
-- `src/autocamtracker/ui/app.py`：Tkinter integration shell、視窗標題、核心物件 wiring。
-- `src/autocamtracker/ui/mixins/`：控制列、Before / After 顯示、時間軸、Identity panel 與互動命令。
-- `src/autocamtracker/vision/detector.py`：來源讀取、YOLO 模型載入、偵測與 tracker 串接。
-- `src/autocamtracker/tracking/detection_store.py`：保存目前 detections、track history、候選排序。
-- `src/autocamtracker/tracking/identity_manager.py`：GID / LID 狀態管理、Find GID、自動 reacquire。
-- `src/autocamtracker/tracking/auto_feature_sampler.py`：自動 Master feature 採樣與防污染 gating。
-- `src/autocamtracker/tracking/feature_gallery.py`：Phase 6 相容門面，組裝 crop quality、encoder、repository、vector index、policy 與 identity matcher。
-- `src/autocamtracker/tracking/crop_quality_assessor.py`：crop 品質評估與 JPEG preview。
-- `src/autocamtracker/tracking/embedding_encoder.py`：ReID model lifecycle、batch encoding 與 runtime cache。
-- `src/autocamtracker/tracking/feature_repository.py`：SQLite feature persistence。
-- `src/autocamtracker/tracking/vector_index.py`：top-k vector similarity index。
-- `src/autocamtracker/tracking/gallery_policy.py`：duplicate threshold 與 gallery limit policy。
-- `src/autocamtracker/tracking/identity_matcher.py`：detection-to-identity ranking。
-- `src/autocamtracker/tracking/sqlite_worker.py`：Phase 7 單一 owner database worker queue，避免跨執行緒共享 SQLite connection。
-- `src/autocamtracker/tracking/reid_embedding.py`：Ultralytics ReID encoder 包裝。
-- `src/autocamtracker/vision/reframer.py`：依目標 bbox 產生數位構圖輸出。
-- `src/autocamtracker/server/websocket_server.py`：V1.0-alpha.1 桌面端與 DockKit iOS app 的 WebSocket bridge。
-- `src/autocamtracker/server/protocol.py`：Phase 8 wire schema、JSON codec 與 camera envelope。
-- `src/autocamtracker/server/transport.py`：只處理 bytes/text 與連線生命週期，不接觸 CV domain state。
-- `src/autocamtracker/server/camera_stream_receiver.py`：iPhone JPEG latest-frame receiver。
-- `src/autocamtracker/server/control_publisher.py`：控制訊息 sequencing 與 rate limiting。
-- `src/autocamtracker/server/control_policy.py`：純 frame-to-control 決策與 remote-control validation。
-- `src/autocamtracker/evaluation/offline_replay.py`：Phase 9 無 UI、無網路、無即時排程依賴的離線重播與評估入口。
-- `src/autocamtracker/evaluation/`：Detection、Tracking、ReID、System 與 Control 指標實作。
-- `docs/architecture/offline-replay.md`：replay JSONL 格式、指標口徑與架構邊界。
-- `src/autocamtracker/evaluation/gid_loss.py`：Phase 10 的 14 類 GID loss benchmark、門檻判定與 JSON report。
-- `evaluation/gid_loss_scenarios.json`：版本化的 GID loss 情境、replay 路徑與正式驗收門檻。
-- `docs/architecture/gid-loss-benchmark.md`：資料標註格式、指標口徑與 benchmark 執行方式。
-- `docs/architecture/identity-decisions.md`：Phase 11 identity reason code、子分數與輸出契約。
-- `docs/architecture/gallery-contamination-prevention.md`：Phase 12 高信心 LOCKED gate、embedding provenance 與 rollback。
-- `src/autocamtracker/vision/camera_calibration.py`：Phase 13 相機內參、鏡頭畸變校正與版本化 profile store。
-- `src/autocamtracker/vision/gmc.py`：Phase 13 前景排除、稀疏光流與 affine RANSAC Global Motion Compensation。
-- `docs/architecture/camera-calibration-gmc.md`：Camera Calibration 與 GMC 的契約、品質閘門及 pipeline 邊界。
-- `src/autocamtracker/core/timestamps.py`：Phase 14 capture-to-control timestamp timeline、latency breakdown 與有界補償。
-- `docs/architecture/timestamp-pipeline.md`：跨裝置/本機 clock domain、逐階段時間戳與 latency compensation 契約。
-- `src/autocamtracker/vision/framing_engine.py`：Phase 15 framing anchor、velocity lead room、subject scale 與動態 zoom target。
-- `docs/architecture/framing-engine.md`：FramingEngine 的構圖公式、平滑策略、輸出契約與控制邊界。
-- `src/autocamtracker/server/camera_control_policy.py`：Phase 16 dead zone、hysteresis、平滑、速度/加速度與 zoom/freeze 安全策略。
-- `docs/architecture/camera-control-policy.md`：CameraControlPolicy 狀態、限制單位、reason code 與 uncertainty freeze 契約。
-- `code/model/`：預設 YOLO / ReID 模型與 tracker 相關資源。
-- `code/V1/`：舊版 V1 目錄，目前主要程式已搬到 `src/autocamtracker/`。
-- `outputs/`：本機執行產生的資料庫、測試影片與暫存輸出。此資料夾不應上傳到 GitHub。
-
-## 安裝與執行
-
-建議使用 Python 3.13 或目前專案相容的 Python 版本。
-
-```bash
-python -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pip install -e .
-.venv/bin/AI_Vison_Director
-```
-
-如果你已經有 `.venv`，可直接執行：
-
-```bash
-.venv/bin/AI_Vison_Director
-```
-
-若尚未安裝 editable package，也可從專案根目錄用模組入口啟動：
-
-```bash
-PYTHONPATH=src .venv/bin/python -m autocamtracker.main
-```
-
-macOS webcam 若無法開啟，請到 System Settings > Privacy & Security > Camera，允許 Terminal、Visual Studio Code 或啟動 Python 的 app 使用相機，重新開啟終端機後再執行。
-
-## 基本使用流程
-
-1. 在 `Source` 區選擇輸入來源。
-2. 如果使用影片，按 `Browse Video` 選檔；如果使用網址，填入 URL。
-3. 在 `Tracking` 區選擇 Performance profile、模型、tracker 與 framing 模式；預設 High FPS 會用 `yolo26n.pt` + `bytetrack`。
-4. `Playback` 區位於 `Tracking` 下方，可控制 Start / Pause / Stop / Record 與速度。
-5. 按 `Start` 開始偵測。
-6. 在 Before 畫面點選車輛 bbox，再按 `Add Selected Vehicle` 建立 GID。
-7. 需要補綁既有 GID 時，點 bbox、選 Identity DB 的 GID row，再按 `Link BBox → GID`。
-8. 需要用 GID 找回車輛時，選 GID row 後按 `Find GID`。
-9. 需要持續收集特徵時，選 GID row 後按 `Auto Add Feature`，或直接點 bbox 啟動自動採樣；切換鏡頭後需重新啟動。
-10. 需要人工驗證單張特徵時，按 `Manual Add 1 Photo`；照片仍需通過品質與重複檢查。
-11. 使用 `Auto Feature Mode` 決定自動採樣保守程度。
-
-### iPhone / DockKit 連線
-
-1. 安裝依賴與 editable package：`.venv/bin/python -m pip install -r requirements.txt`，接著 `.venv/bin/python -m pip install -e .`。
-2. V1.0-alpha.1 預設選擇 `iphone`，會在 `8765` port 啟動 WebSocket Server 並自動啟動影像管線；畫面會顯示可連線網址與 Copy 按鈕。
-3. iOS App 會使用已保存的 URL 自動連線；需要更換 Mac 時，也可在連線頁輸入 `ws://<Mac 位址>:8765/ws/tracking` 後按 `Connect`。
-4. iOS App 會以最高約 30 FPS 傳送 JPEG 相機畫面給 V1.0-alpha.1；桌面端預設以 YOLO + ByteTrack 低延遲追蹤，GID ReID 僅在 Find GID、掉 LID 或需要重新辨識時介入，再透過相同 WebSocket 回傳 tracking command 與實體相機 `zoom_factor`。
-5. DockKit System Tracking 會由 iOS App 自動關閉，避免手機內建人物追蹤與電腦辨識同時搶控制權。
-
-無線模式要求 Mac 與 iPhone 在可互相存取的同一區域網路。有線 USB-C 模式仍使用相同 WebSocket 協議，但 macOS 與 iOS 必須先透過 Personal Hotspot USB、USB Ethernet 或其他方式建立可互通的 IP 網路介面；單純接上充電線或 Xcode USB deploy 不會自動建立 App 的資料通道。
-
-## V1.0-alpha.1 注意事項
-
-- V1.0-alpha.1 仍以單一車輛追蹤與互動式 GID 管理為主。
-- Set Home 會保存目前累積的相對 yaw / pitch / roll offset；Return Home 會以相對姿態 delta 走回該 Home。
-- target lost 時桌面端會保留最後 locked zoom 約 1 秒，再慢慢 ramp 回 wide，避免畫面瞬間跳回 x1。
-- GID 失追 coasting 延長到 12 幀；前 3 幀維持 confidence，之後逐步衰減並持續輸出 predicted target。
-- iOS 雲台控制會在 predicted target 或 error 加速度升高時降低 smoothing old weight，並用 error delta 加前饋。
-- V1.0-alpha.1 新增 High FPS profile、30 FPS iPhone frame budget、ByteTrack 預設追蹤與可選 Balanced ID BoT-SORT ReID，降低每幀追蹤延遲。
-- V1.0-alpha.1 的 GID reacquire 可暫時鎖定 `LID=None` 的 detection，並使用 NumPy 加速 Master feature gallery 比對。
-- 實體變焦已接到 iOS 相機端；若 telemetry 的 `camera_display_zoom_factor` 仍不動，優先檢查 iOS App 是否為 1.0-alpha.1、是否收到 `zoom_factor`、以及相機硬體可用倍率範圍。
-- `Auto Add Feature` 會寫入 Master gallery；如果 Master 已存在，新增 feature 會先通過 class 與 ReID 防污染檢查。
-- 如果 YOLO / tracker 產生 `LID=None`，V1.0-alpha.1 會先用 visual temporary lock 保持 GID；等 tracker 後續恢復 LID 時再重新綁定。
-- 若 GID 已被舊版本寫入錯車 feature，V1.0-alpha.1 會防止繼續污染，但不會自動清理既有髒資料。
-- Identity DB 是本機資料，預設位於 `outputs/vehicle_identity.sqlite3`，不應作為 release 檔案上傳。
-- `outputs/`、`.venv/`、cache、測試輸出都不屬於乾淨 release 內容。
+[中文](#中文) · [English](#english)
 
 ---
 
-# AI_Vison_Director V1.0-alpha.1 English
+## 中文
 
-AI_Vison_Director is a vehicle detection, single-target tracking, digital reframing, and GID re-identification tool. V1.0-alpha.1 adds physical iPhone camera zoom control, a 30 FPS iPhone stream, automatic connection and startup, cached and trajectory-gated ReID, safer DockKit control, and racetrack Fixed Cut, AI Tracking, and In/Out Auto shot modes.
+AI Vision Director 是一套由 **Mac 桌面端**與 **iPhone 相機／DockKit 端**共同組成的 AI 車輛攝影系統。桌面端執行物件偵測、單車追蹤、GID 長期身份辨識、數位構圖與控制決策；iPhone 端提供相機畫面，並把桌面端的追蹤結果轉成 Apple DockKit 雲台動作。
 
-## Highlights
+這兩端是同一個產品的兩個協同元件，因此放在同一個 repository 中：
 
-- Supports `webcam`, `video_file`, `video_url`, `screen_region`, and `iphone` inputs.
-- Defaults to `code/model/model/yolo26n.pt` + `bytetrack` in the High FPS profile.
-- Balanced ID can switch back to `code/model/model/yolo26s.pt` + `botsort` + tracker ReID.
-- Defaults to `code/model/reid/yolo26s-reid.onnx` for Identity ReID.
-- Keeps tracker lost-buffer at about 5 seconds based on source FPS.
-- `GID` is the long-lived vehicle identity; `LID` is the short-lived tracker id.
-- The Before view renders the selected red-box GID at 65 px, other GIDs at 50 px, and the LID at 30 px.
-- Clicking a bbox selects a local track without writing the database; `Add Selected Vehicle` creates a GID explicitly.
-- Select both a bbox and a GID row, then use `Link BBox → GID` to link them immediately.
-- `Find GID` matches current detections against the selected GID's Master gallery.
-- `Auto ReID Th` controls Find GID and automatic reacquire similarity threshold.
-- `Auto Feature Mode` supports `Balanced`, `Diverse`, and `Strict`.
-- `Manual Add 1 Photo` stops background automatic sampling and attempts at most one Master feature per click.
-- Automatic feature capture stops at a detected camera cut and must be started again for the new scene.
-- Automatic Master writes are guarded by dominant class and ReID checks once a GID already has Master features.
-- Hovering an Identity DB row previews that GID's first feature crop.
+| 元件 | 正式名稱 | 主要責任 |
+| --- | --- | --- |
+| Desktop | AI Vision Director Desktop V1.0 | AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
+| iOS | AI Vision Director Camera for iOS V1.0 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
 
-## Run
+目前穩定版本是 **V1.0**。舊的 V1.77 程式碼保留在 Git tag `v1.77`，不再出現在最新 `main` 的工作目錄。
+
+## 整體硬體與資料連接
+
+```mermaid
+flowchart LR
+    subgraph COMPUTER["Mac／電腦端"]
+        DESKTOP["AI Vision Director Desktop V1.0"]
+        SERVER["WebSocket Server<br/>ws://Mac.local:8765/ws/tracking"]
+        AI["YOLO Detection<br/>Tracking · GID/ReID · Framing"]
+        DB[("SQLite Identity DB<br/>本機持久化")]
+
+        DESKTOP --> SERVER
+        DESKTOP --> AI
+        AI <--> DB
+    end
+
+    subgraph MOBILE["iPhone＋手機穩定器"]
+        IOS["AI Vision Director Camera for iOS V1.0"]
+        CAMERA["iPhone Camera<br/>AVCaptureSession"]
+        DOCKKIT["Apple DockKit<br/>Custom Motor Control"]
+        GIMBAL["Insta360 Flow 2 Pro<br/>Motors · Firmware"]
+
+        CAMERA -->|"Camera frames"| IOS
+        IOS -->|"Tracking command"| DOCKKIT
+        DOCKKIT <-->|"Bluetooth／DockKit control"| GIMBAL
+        IOS -.->|"首次快速配對／喚醒：NFC"| GIMBAL
+    end
+
+    SERVER -.->|"Bonjour 廣播<br/>_autocamtracker._tcp"| IOS
+    IOS -->|"WebSocket：JPEG frames<br/>最高約 30 FPS"| SERVER
+    SERVER -->|"WebSocket：JSON tracking<br/>error · confidence · zoom"| IOS
+    AI -->|"Detection／control result"| SERVER
+```
+
+### 連線方式的重要說明
+
+- **NFC 只負責快速配對入口**：iPhone 輕觸 Flow 2 Pro 的 NFC 區域後開始 DockKit 配對；首次配對完成後，穩定器開機並開啟 iPhone Bluetooth 即可自動重連。持續的控制資料不是透過 NFC 傳送。請參考 [Insta360 官方 NFC 配對說明](https://onlinemanual.insta360.com/flow2pro/en-us/camera/firstuse/nfconetouchpairing)。
+- **iPhone 與穩定器**：iOS App 透過 Apple DockKit API 控制相容穩定器。App 會關閉 DockKit System Tracking，改用桌面 AI 的自訂目標控制。請參考 [Apple DockKit 文件](https://developer.apple.com/documentation/dockkit)。
+- **Mac 與 iPhone**：兩端在可互通的區域網路上使用 WebSocket。桌面端透過 Bonjour 廣播 `_autocamtracker._tcp`，iOS 優先使用 `.local` 位址、自動偵測 IP 變更並修正保存的舊 URL。
+- **安全握手**：每個候選端點有 4 秒握手期限。握手完成前不傳 camera frame、馬達狀態或控制訊息；斷線、無效訊息或 tracking timeout 會 STOP。
+- **硬體儲存邊界**：AI 模型、GID gallery 與身份資料不會寫入穩定器。相機 frame 主要以即時串流在記憶體中流動；需要持久化的 GID feature 與 metadata 才會寫入 Mac 的 SQLite。
+
+## iOS 軟體架構
+
+```mermaid
+flowchart TD
+    UI["SwiftUI<br/>Status · Preview · Manual Controls · Logs"]
+    PERM["PermissionService<br/>Camera · Local Network"]
+    CAMERA["CameraSessionService<br/>AVCaptureSession"]
+    ENCODE["JPEG Frame Encoder<br/>Latest-frame backpressure"]
+    BONJOUR["BonjourServerBrowser<br/>_autocamtracker._tcp"]
+    NETWORK["V13NetworkClient<br/>WebSocket · Auto-reconnect"]
+    PARSER["TrackingCommand Decoder<br/>Sequence validation"]
+    SAFETY["Safety Gates<br/>4 s handshake · 500 ms timeout · STOP"]
+    CONTROL["GimbalControlService<br/>Dead zone · smoothing · limits"]
+    MANAGER["DockKitManager<br/>Accessory session · manual mode"]
+    ACCESSORY["DockKit Accessory<br/>Yaw · Pitch · Roll · Zoom"]
+    LOGGER["AppLogger"]
+
+    UI --> PERM
+    UI --> CAMERA
+    CAMERA --> ENCODE --> NETWORK
+    BONJOUR --> NETWORK
+    NETWORK --> PARSER --> SAFETY --> CONTROL --> MANAGER --> ACCESSORY
+    NETWORK --> SAFETY
+    UI --> CONTROL
+    UI --> LOGGER
+    NETWORK --> LOGGER
+    MANAGER --> LOGGER
+```
+
+### iOS 各區責任
+
+- `CameraSessionService`：管理 iPhone 相機、preview、倍率與 JPEG frame。
+- `V13NetworkClient`：Bonjour 探索、端點驗證、WebSocket 收發、IP 自動修正、握手 timeout 與重連。
+- `TrackingCommand`：解碼版本化 JSON，驗證 sequence 與欄位。
+- `GimbalControlService`：將畫面誤差轉成安全的 yaw／pitch 速度與 zoom。
+- `DockKitManager`：取得 DockKit accessory、切換 manual mode、執行姿態與 Home 控制。
+- Safety gates：握手前禁止送 frame；斷線、逾時、target lost 或無效命令時立即停止。
+
+iOS 安裝、簽名與實機操作請參考 [iOS README](ios/DockKitTester/README.md)。
+
+## Desktop 軟體架構
+
+```mermaid
+flowchart TD
+    UI["Tkinter UI<br/>Source · Tracking · Identity · Playback"]
+    BOOT["Composition Root<br/>bootstrap.py"]
+    SOURCE["Frame Sources<br/>Video · URL · Screen · Webcam · iPhone"]
+    RECEIVER["CameraStreamReceiver<br/>Latest JPEG frame"]
+    DETECTOR["Detector Backend<br/>YOLO26n／YOLO26s"]
+    TRACKER["Tracker Adapter<br/>ByteTrack／BoT-SORT"]
+    IDENTITY["Identity Pipeline<br/>GID · ReID · Reacquire"]
+    GALLERY["Feature Gallery<br/>Quality · Encoder · Policy · Index"]
+    DB[("SQLite Worker<br/>Identity persistence")]
+    FRAMING["Framing Engine<br/>Anchor · lead room · zoom"]
+    POLICY["Camera Control Policy<br/>Dead zone · hysteresis · limits"]
+    WS["TrackingWebSocketServer<br/>Bonjour · WebSocket transport"]
+    EVAL["Offline Evaluation<br/>Detection · Tracking · ReID · Control"]
+    OUTPUT["Preview · Recording · Telemetry"]
+
+    UI --> BOOT
+    BOOT --> SOURCE
+    SOURCE --> DETECTOR
+    WS --> RECEIVER --> DETECTOR
+    DETECTOR --> TRACKER --> IDENTITY
+    IDENTITY <--> GALLERY <--> DB
+    IDENTITY --> FRAMING --> POLICY --> WS
+    DETECTOR --> OUTPUT
+    IDENTITY --> OUTPUT
+    UI --> OUTPUT
+    DETECTOR -.-> EVAL
+    IDENTITY -.-> EVAL
+    POLICY -.-> EVAL
+```
+
+### Desktop 各區責任
+
+- `vision/`：來源讀取、YOLO inference、tracker adapter、相機校正、GMC 與構圖。
+- `tracking/`：detections、GID/LID、ReID、feature gallery、污染防護與 SQLite persistence。
+- `server/`：WebSocket wire protocol、Bonjour、iPhone frame receiver、control publisher 與安全 policy。
+- `ui/`：Tkinter integration shell、影像預覽、選取互動、Identity panel 與播放控制。
+- `evaluation/`：無 UI 的離線 replay、Detection／Tracking／ReID／System／Control 指標。
+- `domain/` 與 `core/`：跨模組資料契約、timestamp、frame pipeline 與 application boundary。
+
+## 主要功能
+
+- 支援 `webcam`、`video_file`、`video_url`、`screen_region` 與 `iphone`。
+- High FPS profile：YOLO26n＋ByteTrack，針對約 30 FPS iPhone 串流。
+- Balanced ID profile：YOLO26s＋BoT-SORT／ReID。
+- GID 長期身份與 LID 短期 tracker identity 分離。
+- 手動建立 GID、bbox 綁定、Find GID、自動 reacquire 與 feature gallery。
+- Master feature 寫入前的 class、ReID、品質與重複檢查，降低 gallery 污染。
+- Fixed Cut、AI Tracking、In/Out Auto 等構圖模式。
+- DockKit 實體 yaw／pitch／roll、Home 與 iPhone camera zoom 控制。
+- 失追 coasting、zoom hold／ramp、速度與加速度限制、timeout STOP。
+- 可版本化的相機 calibration、GMC、timestamp pipeline 與離線 benchmark。
+
+## Repository 結構
+
+```text
+AI-Vision-Director/
+├── src/autocamtracker/       # Desktop V1.0 Python application
+├── tests/                    # Desktop unit and integration tests
+├── ios/DockKitTester/        # iOS V1.0 Xcode project and Swift tests
+├── docs/architecture/        # Architecture contracts and design notes
+├── evaluation/               # Versioned evaluation scenarios
+├── code/model/               # YOLO, tracker and ReID model assets
+├── tools/                    # Launch and maintenance utilities
+└── outputs/                  # Local runtime data; excluded from releases
+```
+
+`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V1.0**。
+
+## Desktop 安裝與執行
+
+建議使用 Python 3.13 或目前相容版本。
 
 ```bash
+git clone https://github.com/LN-676/AI-Vision-Director.git
+cd AI-Vision-Director
 python -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m pip install -e .
-.venv/bin/AI_Vison_Director
+.venv/bin/ai-vision-director
 ```
 
-If dependencies are already installed:
-
-```bash
-.venv/bin/AI_Vison_Director
-```
-
-Without an editable install, run the module entry point from the project root:
+也可以直接使用 module entry point：
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m autocamtracker.main
 ```
 
-Runtime files such as `outputs/vehicle_identity.sqlite3` are local user data and are intentionally excluded from releases.
+## 基本使用流程
+
+1. 啟動 Desktop，從 `Source` 選擇影片、網址、螢幕、webcam 或 iPhone。
+2. 選擇 High FPS 或 Balanced ID profile，設定 detector、tracker 與 framing mode。
+3. 按 `Start` 開始偵測。
+4. 在 Before 畫面選取車輛 bbox；需要持久身份時按 `Add Selected Vehicle` 建立 GID。
+5. 使用 `Link BBox → GID`、`Find GID`、`Auto Add Feature` 管理身份。
+6. iPhone 模式下，同時開啟 iOS App；Bonjour 會自動尋找 Desktop 並完成 WebSocket 握手。
+7. iOS App 收到 tracking command 後，透過 DockKit 控制穩定器與實體相機倍率。
+
+Mac 與 iPhone 必須位於可互相存取的同一區域網路。單純 USB 充電線或 Xcode deploy 不會自動成為 App 資料通道；USB 模式需要 Personal Hotspot USB、USB Ethernet 或其他可互通 IP 介面。
+
+## V1.0 資料與安全注意事項
+
+- `outputs/vehicle_identity.sqlite3` 是本機身份資料，不應放入 release。
+- `outputs/`、`.venv/`、cache、log、測試影片與暫存輸出不屬於乾淨版本內容。
+- 握手前不傳 frame；WebSocket 失聯、tracking timeout 或資料驗證失敗時會執行 STOP。
+- DockKit System Tracking 會在自訂 AI 控制啟用時關閉，避免兩套追蹤同時控制馬達。
+- 模型權重可能由 Git LFS 管理；clone 後若缺少模型，請確認 Git LFS objects 已完整下載。
+
+## 下一版本方向
+
+1. **介面大更新**
+   - 採用類似 Adobe Premiere Pro 的可停駐／浮動工作區。
+   - 視窗可依使用習慣新增、排列、縮放、隱藏與保存 layout。
+   - 功能入口 icon 化，降低控制區密度。
+2. **真正的模型比較與效能檢測區塊**
+   - 對相同資料集執行不同 detector、tracker 與 ReID 模型。
+   - 比較 precision、recall、mAP、ID switches、GID reacquire、latency、FPS 與資源使用量。
+   - 保存可重現的設定、結果與視覺化報告，讓模型選擇有一致依據。
+
+## 版本與歷史
+
+- 最新程式碼：`main`
+- 目前發布：`v1.0`
+- 舊版封存：`v1.77` 與其他歷史 tags
+- Desktop 與 iOS 目前使用同一產品版本，以避免 WebSocket schema 不相容。
+- 版本變更內容：[CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## English
+
+AI Vision Director is an AI vehicle-filming system composed of a **Mac desktop component** and an **iPhone camera/DockKit component**. The desktop performs object detection, single-vehicle tracking, persistent GID identity matching, digital reframing, and control decisions. The iPhone provides camera frames and translates desktop tracking results into Apple DockKit gimbal movement.
+
+Both components are maintained in this monorepo because they share one versioned WebSocket contract:
+
+| Component | Product name | Responsibility |
+| --- | --- | --- |
+| Desktop | AI Vision Director Desktop V1.0 | Detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
+| iOS | AI Vision Director Camera for iOS V1.0 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
+
+The current stable release is **V1.0**. The previous V1.77 source remains available through the `v1.77` Git tag and is no longer the working tree shown on `main`.
+
+## End-to-end hardware and data flow
+
+The first Mermaid diagram above is the canonical hardware map:
+
+- NFC starts the initial one-tap Flow 2 Pro pairing flow; it is not the continuous motor-control transport.
+- After pairing, the iPhone reconnects to the gimbal with Bluetooth enabled and controls it through Apple DockKit.
+- The Mac and iPhone exchange data over WebSocket. Bonjour advertises `_autocamtracker._tcp` and lets iOS prefer a stable `.local` endpoint.
+- iOS sends JPEG camera frames to the Mac. The Mac returns JSON tracking commands containing target error, confidence, predicted state, and zoom.
+- Frames normally remain transient in memory. Persistent GID metadata and selected feature embeddings are stored in the Mac-side SQLite database; AI models and identity data are never written to the gimbal.
+
+See the [official Insta360 NFC pairing guide](https://onlinemanual.insta360.com/flow2pro/en-us/camera/firstuse/nfconetouchpairing) and [Apple DockKit documentation](https://developer.apple.com/documentation/dockkit) for the accessory boundary.
+
+## iOS architecture
+
+The iOS diagram above maps these responsibilities:
+
+- `CameraSessionService`: AVCaptureSession, preview, physical zoom, and JPEG frames.
+- `V13NetworkClient`: Bonjour discovery, endpoint verification, WebSocket I/O, saved-IP repair, handshake timeout, and reconnect.
+- `TrackingCommand`: versioned JSON decoding and sequence validation.
+- `GimbalControlService`: safe yaw/pitch velocity and zoom derived from screen-space error.
+- `DockKitManager`: DockKit accessory lifecycle, manual mode, pose, and Home commands.
+- Safety gates: no frames before the handshake; STOP on disconnect, timeout, target loss, or invalid commands.
+
+For signing and physical-device setup, see the [iOS README](ios/DockKitTester/README.md).
+
+## Desktop architecture
+
+The desktop diagram above maps these responsibilities:
+
+- `vision/`: source adapters, YOLO inference, tracker adapters, calibration, GMC, and framing.
+- `tracking/`: detections, GID/LID state, ReID, feature gallery, contamination prevention, and SQLite persistence.
+- `server/`: wire protocol, Bonjour, WebSocket transport, iPhone frame receiver, control publisher, and safety policy.
+- `ui/`: Tkinter integration shell, previews, selection tools, identity panel, and playback.
+- `evaluation/`: UI-free replay and Detection, Tracking, ReID, System, and Control metrics.
+- `domain/` and `core/`: shared contracts, timestamps, frame pipeline, and application boundaries.
+
+## Key features
+
+- Video file, URL, screen region, webcam, and iPhone inputs.
+- YOLO26n + ByteTrack High FPS profile and YOLO26s + BoT-SORT/ReID Balanced ID profile.
+- Separate long-lived GID identity and short-lived tracker LID.
+- Manual GID creation, bbox linking, Find GID, automatic reacquisition, and feature galleries.
+- Class, ReID, quality, and duplicate gates before Master feature writes.
+- Fixed Cut, AI Tracking, and In/Out Auto framing modes.
+- DockKit yaw/pitch/roll, Home, and physical iPhone camera zoom control.
+- Lost-target coasting, zoom hold/ramp, rate limits, acceleration limits, and timeout STOP.
+- Versioned calibration, GMC, timestamp pipeline, offline replay, and benchmark infrastructure.
+
+## Install and run the desktop app
+
+```bash
+git clone https://github.com/LN-676/AI-Vision-Director.git
+cd AI-Vision-Director
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -e .
+.venv/bin/ai-vision-director
+```
+
+Module entry point:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m autocamtracker.main
+```
+
+## Basic workflow
+
+1. Start the desktop app and select video, URL, screen, webcam, or iPhone as the source.
+2. Select a performance profile, detector, tracker, and framing mode.
+3. Start detection and select a vehicle bbox in the Before view.
+4. Create a persistent GID when needed, then use bbox linking, Find GID, and feature capture.
+5. For iPhone mode, launch the iOS app; Bonjour discovers the desktop and verifies the WebSocket endpoint.
+6. The iPhone streams camera frames, receives tracking commands, and controls the gimbal through DockKit.
+
+The Mac and iPhone must have mutually reachable IP connectivity. A charging cable or Xcode deployment alone does not create the app data channel.
+
+## Safety and local data
+
+- `outputs/vehicle_identity.sqlite3` contains local identity data and must not be shipped in a release.
+- Runtime outputs, virtual environments, caches, logs, and test media are excluded from clean releases.
+- No camera frame is sent before handshake completion.
+- Disconnects, invalid data, or tracking timeout trigger STOP.
+- DockKit System Tracking is disabled while custom AI motor control is active.
+
+## Next-version roadmap
+
+1. **Major workspace UI update**
+   - A dockable and floating workspace inspired by Adobe Premiere Pro.
+   - User-created, rearrangeable, resizable, hideable, and persisted panels.
+   - Icon-based actions to reduce control-panel density.
+2. **Real model comparison and performance workspace**
+   - Run detectors, trackers, and ReID models against the same datasets.
+   - Compare precision, recall, mAP, ID switches, GID reacquisition, latency, FPS, and resource use.
+   - Save reproducible configurations, results, and visual reports for evidence-based model selection.
+
+## Version history
+
+- Latest code: `main`
+- Current release: `v1.0`
+- Archived releases: `v1.77` and earlier tags
+- Desktop and iOS currently share one product version to keep the WebSocket schema compatible.
+- Release notes: [CHANGELOG.md](CHANGELOG.md)

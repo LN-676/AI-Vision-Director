@@ -1,7 +1,7 @@
 """Implementation-neutral data contracts for vision pipeline boundaries.
 
 These contracts deliberately do not import YOLO, tracker, GID, ReID, UI, or
-transport modules. Phase 1 introduces them alongside the V1.0-alpha.1 pipeline; later
+transport modules. Phase 1 introduced them alongside the legacy pipeline; later
 adapters can translate to and from existing implementation-specific objects
 without changing current algorithm results.
 """
@@ -123,7 +123,7 @@ class DetectionBatch:
 
 @dataclass(frozen=True, slots=True)
 class Track:
-    """One tracker observation, including V1.0-alpha.1's possible missing LID."""
+    """One tracker observation, including the pipeline's possible missing LID."""
 
     local_track_id: int | None
     bbox: BoundingBox

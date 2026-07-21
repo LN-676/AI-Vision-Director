@@ -1,4 +1,4 @@
-"""Structured per-frame pipeline data for AI_Vison_Director V1.
+"""Structured per-frame pipeline data for AI Vision Director V1.0.
 
 The UI can still render the familiar Before / After view, but status, logging,
 recording, and later worker-thread handoff should consume this typed snapshot

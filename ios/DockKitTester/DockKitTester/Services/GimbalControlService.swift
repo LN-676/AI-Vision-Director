@@ -17,11 +17,17 @@ final class GimbalControlService: ObservableObject {
     private var lostStartedAt: Date?
     private var stableLockCount = 0
     private var autoReturnInFlight = false
-    private let calibrationKey = "AI_Vison_DirectorGimbalCalibrationV177"
+    private let calibrationKey = "AIVisionDirectorGimbalCalibrationV1"
+    private let legacyCalibrationKey = "AI_Vison_DirectorGimbalCalibrationV177"
 
     init(dockKitManager: DockKitMotorControlling, logger: AppLogger) {
         self.dockKitManager = dockKitManager
         self.logger = logger
+        let defaults = UserDefaults.standard
+        if defaults.data(forKey: calibrationKey) == nil,
+           let legacyCalibration = defaults.data(forKey: legacyCalibrationKey) {
+            defaults.set(legacyCalibration, forKey: calibrationKey)
+        }
         calibration = Self.loadCalibration(key: calibrationKey)
         calculator.applyCalibration(calibration)
     }
@@ -134,8 +140,8 @@ final class GimbalControlService: ObservableObject {
 
     func apply(_ trackingCommand: TrackingCommand) async {
         guard trackingCommand.type == "tracking" else {
-            logger.log(.error, "Ignored V1.0-alpha.1 message with unsupported type: \(trackingCommand.type).")
-            await emergencyStop(reason: "invalid V1.0-alpha.1 message")
+            logger.log(.error, "Ignored V1.0 message with unsupported type: \(trackingCommand.type).")
+            await emergencyStop(reason: "invalid V1.0 message")
             return
         }
 

@@ -1,4 +1,4 @@
-"""Global vehicle identity and manual ReID reacquire logic for AI_Vison_Director V1."""
+"""Global vehicle identity and manual ReID reacquire logic for AI Vision Director V1.0."""
 
 from __future__ import annotations
 

@@ -14,7 +14,7 @@ use cases instead of constructing CV runtime objects itself.
 The UI package no longer imports `VideoDetector`, `PipelineProcessor`, or
 `TrackingWorker`. Existing identity-panel interactions use transitional service
 aliases supplied by `TrackingApplication`; moving those commands into dedicated
-identity use cases can therefore happen incrementally without changing v1.0-alpha.1 CV
+identity use cases can therefore happen incrementally without changing V1.0 CV
 results.
 
 ## Compatibility

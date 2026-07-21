@@ -1,4 +1,4 @@
-"""Vehicle ReID embedding extraction for AI_Vison_Director V1."""
+"""Vehicle ReID embedding extraction for AI Vision Director V1.0."""
 
 from __future__ import annotations
 

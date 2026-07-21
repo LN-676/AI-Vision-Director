@@ -1,4 +1,4 @@
-"""The single composition root for the AI_Vison_Director desktop process."""
+"""The single composition root for the AI Vision Director desktop process."""
 
 from __future__ import annotations
 

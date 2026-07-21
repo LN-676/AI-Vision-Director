@@ -1,4 +1,4 @@
-"""Object-detection backend boundary and the v1.0-alpha.1 Ultralytics implementation."""
+"""Object-detection backend boundary and the V1.0 Ultralytics implementation."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class DetectorBackend(Protocol):
 
 
 class UltralyticsDetectorBackend:
-    """Preserves the exact v1.0-alpha.1 YOLO predict/track invocation parameters."""
+    """Preserves the established YOLO predict/track invocation parameters."""
 
     def __init__(self, config: InputConfig) -> None:
         self.config = config

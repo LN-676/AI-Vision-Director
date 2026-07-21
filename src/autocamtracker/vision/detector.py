@@ -1,4 +1,4 @@
-"""Compatibility façade for the split v1.0-alpha.1 vision pipeline.
+"""Compatibility façade for the split V1.0 vision pipeline.
 
 ``VideoDetector`` keeps its established API while delegating frame acquisition,
 object detection, and local tracking to independent backend boundaries.

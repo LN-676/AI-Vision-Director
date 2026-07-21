@@ -1,4 +1,4 @@
-"""Stable domain data contracts for the AI_Vison_Director pipeline."""
+"""Stable domain data contracts for the AI Vision Director pipeline."""
 
 from autocamtracker.domain.contracts import (
     BoundingBox,

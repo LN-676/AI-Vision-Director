@@ -39,7 +39,8 @@ final class V13NetworkClient: ObservableObject {
     private var timeout: Duration = .milliseconds(500)
     private var timeoutLabel = "500 ms"
     private let handshakeTimeout: Duration = .seconds(4)
-    private static let serverURLKey = "AI_Vison_DirectorServerURL"
+    private static let serverURLKey = "AIVisionDirectorServerURL"
+    private static let legacyServerURLKey = "AI_Vison_DirectorServerURL"
     private static let fallbackServerURL = "ws://192.168.1.100:8765/ws/tracking"
     private lazy var bonjourBrowser = BonjourServerBrowser { [weak self] urls in
         Task { @MainActor [weak self] in
@@ -50,6 +51,7 @@ final class V13NetworkClient: ObservableObject {
     init(logger: AppLogger) {
         self.logger = logger
         serverURL = UserDefaults.standard.string(forKey: Self.serverURLKey)
+            ?? UserDefaults.standard.string(forKey: Self.legacyServerURLKey)
             ?? Self.fallbackServerURL
         bonjourBrowser.start()
     }
@@ -143,14 +145,14 @@ final class V13NetworkClient: ObservableObject {
         switch JSONDecoder().decodeSafely(TrackingCommand.self, from: data) {
         case .success(let command):
             guard sequenceValidator.accept(command) else {
-                logger.log(.error, "V1.0-alpha.1 JSON rejected: duplicate or out-of-order sequence.")
+                logger.log(.error, "V1.0 JSON rejected: duplicate or out-of-order sequence.")
                 await triggerTimeout(reason: "stale tracking command")
                 return
             }
             lastCommand = command
             logger.log(
                 .success,
-                String(format: "V1.0-alpha.1 JSON decoded: locked=%@ error=(%.3f, %.3f) confidence=%.2f zoom=%@ predicted=%@.", String(command.targetLocked), command.errorX, command.errorY, command.confidence, command.zoomFactor.map { String(format: "%.2f", $0) } ?? "nil", String(command.predictedTarget ?? false))
+                String(format: "V1.0 JSON decoded: locked=%@ error=(%.3f, %.3f) confidence=%.2f zoom=%@ predicted=%@.", String(command.targetLocked), command.errorX, command.errorY, command.confidence, command.zoomFactor.map { String(format: "%.2f", $0) } ?? "nil", String(command.predictedTarget ?? false))
             )
             await onCommand?(command)
             if command.targetLocked {
@@ -161,7 +163,7 @@ final class V13NetworkClient: ObservableObject {
                 status = .connected
             }
         case .failure(let error):
-            logger.log(.error, "V1.0-alpha.1 JSON decode failed: \(error.localizedDescription)")
+            logger.log(.error, "V1.0 JSON decode failed: \(error.localizedDescription)")
             await triggerTimeout(reason: "JSON decode failure")
         }
     }
@@ -267,8 +269,8 @@ final class V13NetworkClient: ObservableObject {
     }
 
     func sendFakeCommand() async {
-        let json = #"{"type":"tracking","version":"1.0","source_version":"1.0-alpha.1","target_locked":true,"target_id":7,"error_x":0.18,"error_y":-0.04,"confidence":0.91,"timestamp_ms":1781770000000,"zoom_factor":2.0}"#
-        logger.log(.info, "Injecting a fake V1.0-alpha.1 JSON command.")
+        let json = #"{"type":"tracking","version":"1.0","source_version":"1.0","target_locked":true,"target_id":7,"error_x":0.18,"error_y":-0.04,"confidence":0.91,"timestamp_ms":1781770000000,"zoom_factor":2.0}"#
+        logger.log(.info, "Injecting a fake V1.0 JSON command.")
         await receive(data: Data(json.utf8))
     }
 
@@ -416,7 +418,7 @@ final class V13NetworkClient: ObservableObject {
             guard let self else { return }
             do {
                 try await Task.sleep(for: self.timeout)
-                await triggerTimeout(reason: "no V1.0-alpha.1 data for \(self.timeoutLabel)")
+                await triggerTimeout(reason: "no V1.0 data for \(self.timeoutLabel)")
             } catch {
                 return
             }
@@ -426,7 +428,7 @@ final class V13NetworkClient: ObservableObject {
     private func triggerTimeout(reason: String) async {
         timeoutTask?.cancel()
         status = .timedOut
-        logger.log(.warning, "V1.0-alpha.1 safety timeout: \(reason).")
+        logger.log(.warning, "V1.0 safety timeout: \(reason).")
         await onTimeout?()
     }
 }

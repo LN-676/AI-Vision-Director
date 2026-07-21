@@ -1,4 +1,4 @@
-"""Target Tracking module for AI_Vison_Director V1.
+"""Target tracking module for AI Vision Director V1.0.
 
 Responsibilities:
 - Manage selected track IDs.

@@ -1,4 +1,4 @@
-"""AI_Vison_Director package."""
+"""AI Vision Director package."""
 
 from autocamtracker.product import APP_NAME, VERSION
 

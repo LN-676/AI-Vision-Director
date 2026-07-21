@@ -1,6 +1,6 @@
-"""Self-test for the AI_Vison_Director V1 runtime.
+"""Self-test for the AI Vision Director V1.0 runtime.
 
-Run from VSCode with the "AI_Vison_Director V1 Self Test" launch config, or:
+Run from VSCode with the "AI Vision Director V1.0 Self Test" launch config, or:
 
     .venv/bin/python code/V1/self_test.py
 """
@@ -31,7 +31,7 @@ def main() -> int:
     results.append(run_check("video_input_pipeline", check_video_input_pipeline))
     results.append(run_check("webcam_probe", check_webcam_probe, warning_ok=True))
 
-    print("\nAI_Vison_Director V1 self-test summary")
+    print("\nAI Vision Director V1.0 self-test summary")
     print("=" * 40)
     failed = False
     for name, status, detail in results:
@@ -307,7 +307,7 @@ def check_video_input_pipeline() -> str:
         frame = np.zeros((240, 320, 3), dtype=np.uint8)
         x = 30 + index * 8
         cv2.rectangle(frame, (x, 80), (x + 70, 150), (0, 255, 0), -1)
-        cv2.putText(frame, "AI_Vison_Director", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
+        cv2.putText(frame, "AI Vision Director", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
         writer.write(frame)
     writer.release()
 
