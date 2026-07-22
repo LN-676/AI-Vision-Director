@@ -177,6 +177,8 @@ class QtRuntimeController(QObject):
 
     @Slot()
     def start(self) -> None:
+        if self.running and self.session.has_worker:
+            return
         try:
             if self.input_config.source_type == "iphone":
                 self.dependencies.tracking_server.start()
@@ -201,11 +203,25 @@ class QtRuntimeController(QObject):
             self._reset_playback_clock()
             self.runningChanged.emit(True)
             self.statusChanged.emit("Tracking started")
+            self.dependencies.telemetry_logger.log(
+                "qt_tracking_started",
+                component="desktop",
+                source=self.input_config.source_type,
+                model=self.input_config.model_path,
+            )
             self.session.request_frame()
         except Exception as exc:
             self.running = False
             self.runningChanged.emit(False)
             self.statusChanged.emit(f"Start failed: {exc}")
+            self.dependencies.telemetry_logger.log(
+                "qt_tracking_start_failed",
+                severity="error",
+                component="desktop",
+                source=self.input_config.source_type,
+                model=self.input_config.model_path,
+                error=str(exc),
+            )
 
     @Slot()
     def pause(self) -> None:
@@ -462,6 +478,13 @@ class QtRuntimeController(QObject):
                 self.running = False
                 self.runningChanged.emit(False)
                 self.statusChanged.emit(f"Tracking error: {result.error}")
+                self.dependencies.telemetry_logger.log(
+                    "qt_tracking_error",
+                    severity="error",
+                    component="pipeline",
+                    source=self.input_config.source_type,
+                    error=str(result.error),
+                )
                 return
             if result.raw_frame is None or result.frame_data is None:
                 if self.input_config.source_type == "iphone" and self.running:

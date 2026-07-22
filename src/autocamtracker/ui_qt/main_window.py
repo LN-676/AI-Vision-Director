@@ -22,10 +22,15 @@ from autocamtracker.ui_qt.panels import (
 from autocamtracker.ui_qt.panels.feature_manager_dialog import FeatureManagerDialog
 from autocamtracker.ui_qt.state import (
     APPLICATION_NAME,
+    CUSTOM_GEOMETRY_KEY,
+    CUSTOM_SPLITTER_KEY,
+    CUSTOM_STATE_KEY,
     GEOMETRY_KEY,
     LAYOUT_VERSION,
     ORGANIZATION_NAME,
     PRESET_KEY,
+    SOURCE_KEY,
+    SPLITTER_KEY,
     STATE_KEY,
     VERSION_KEY,
     Workspace,
@@ -45,6 +50,11 @@ class AIVisionDirectorMainWindow(QMainWindow):
         self.setWindowTitle(DISPLAY_NAME)
         self.setMinimumSize(1120, 720)
         self.resize(1440, 900)
+        self.setStyleSheet(
+            "QMainWindow::separator { width: 12px; height: 12px; "
+            "background: transparent; } "
+            "QMainWindow::separator:hover { background: #4f7cac; }"
+        )
         self.setDockOptions(
             QMainWindow.DockOption.AllowNestedDocks
             | QMainWindow.DockOption.AllowTabbedDocks
@@ -57,6 +67,17 @@ class AIVisionDirectorMainWindow(QMainWindow):
         self.monitors = DualMonitorWidget(self)
         self.setCentralWidget(self.monitors)
         self.controller = QtRuntimeController(config, dependencies, self)
+        saved_source = str(
+            self.settings.value(SOURCE_KEY, self.controller.input_config.source_type)
+        )
+        if saved_source in {
+            "iphone",
+            "webcam",
+            "video_file",
+            "video_url",
+            "screen_region",
+        }:
+            self.controller.input_config.source_type = saved_source
         self.panels = self._create_panels()
         self.docks = self._create_docks()
         self._monitor_maximized = False
@@ -143,6 +164,14 @@ class AIVisionDirectorMainWindow(QMainWindow):
         for workspace in Workspace:
             workspace_menu.addAction(self.workspace_actions[workspace])
         workspace_menu.addSeparator()
+        save_custom_action = QAction("Custom Layout — Save Current", self)
+        save_custom_action.setShortcut("Ctrl+4")
+        save_custom_action.triggered.connect(self.save_custom_workspace)
+        workspace_menu.addAction(save_custom_action)
+        restore_custom_action = QAction("Restore Custom Layout", self)
+        restore_custom_action.triggered.connect(self.restore_custom_workspace)
+        workspace_menu.addAction(restore_custom_action)
+        workspace_menu.addSeparator()
         reset_action = QAction("Reset Workspace", self)
         reset_action.setShortcut("Ctrl+Shift+0")
         reset_action.triggered.connect(self.reset_workspace)
@@ -166,7 +195,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
         playback = source.playback
         database: VehicleDatabasePanel = self.panels["vehicle_database"]
 
-        source.sourceChanged.connect(self.controller.configure_source)
+        source.sourceChanged.connect(self._source_changed)
         source.videoFileChanged.connect(self.controller.set_video_file)
         source.videoUrlChanged.connect(self.controller.set_video_url)
         source.cameraIndexChanged.connect(self.controller.set_camera_index)
@@ -313,7 +342,37 @@ class AIVisionDirectorMainWindow(QMainWindow):
         self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)
         self.settings.setValue(GEOMETRY_KEY, self.saveGeometry())
         self.settings.setValue(STATE_KEY, self.saveState(LAYOUT_VERSION))
+        self.settings.setValue(SPLITTER_KEY, self.monitors.splitter.saveState())
         self.settings.sync()
+
+    def save_custom_workspace(self) -> None:
+        if self._monitor_maximized:
+            self.toggle_monitor_maximize(False)
+        self.settings.setValue(CUSTOM_GEOMETRY_KEY, self.saveGeometry())
+        self.settings.setValue(CUSTOM_STATE_KEY, self.saveState(LAYOUT_VERSION))
+        self.settings.setValue(
+            CUSTOM_SPLITTER_KEY, self.monitors.splitter.saveState()
+        )
+        self.save_workspace()
+        self.status_label.setText("Status: custom layout saved")
+
+    def restore_custom_workspace(self) -> bool:
+        geometry = self.settings.value(CUSTOM_GEOMETRY_KEY, QByteArray())
+        state = self.settings.value(CUSTOM_STATE_KEY, QByteArray())
+        splitter = self.settings.value(CUSTOM_SPLITTER_KEY, QByteArray())
+        if not geometry or not state:
+            self.status_label.setText("Status: no custom layout has been saved")
+            return False
+        geometry_ok = self.restoreGeometry(geometry)
+        state_ok = self.restoreState(state, LAYOUT_VERSION)
+        splitter_ok = bool(splitter) and self.monitors.splitter.restoreState(splitter)
+        restored = bool(geometry_ok and state_ok and splitter_ok)
+        self.status_label.setText(
+            "Status: custom layout restored"
+            if restored
+            else "Status: custom layout could not be restored"
+        )
+        return restored
 
     def restore_workspace(self) -> bool:
         version = int(self.settings.value(VERSION_KEY, 0))
@@ -322,8 +381,10 @@ class AIVisionDirectorMainWindow(QMainWindow):
             return False
         geometry = self.settings.value(GEOMETRY_KEY, QByteArray())
         state = self.settings.value(STATE_KEY, QByteArray())
+        splitter = self.settings.value(SPLITTER_KEY, QByteArray())
         geometry_ok = bool(geometry) and self.restoreGeometry(geometry)
         state_ok = bool(state) and self.restoreState(state, LAYOUT_VERSION)
+        splitter_ok = bool(splitter) and self.monitors.splitter.restoreState(splitter)
         try:
             workspace = Workspace(str(self.settings.value(PRESET_KEY, Workspace.TRACKING.value)))
         except ValueError:
@@ -331,21 +392,28 @@ class AIVisionDirectorMainWindow(QMainWindow):
         self.workspace_actions[workspace].setChecked(True)
         if not state_ok:
             self.apply_workspace(workspace)
-        return bool(geometry_ok and state_ok)
+        return bool(geometry_ok and state_ok and splitter_ok)
 
     def reset_workspace(self) -> None:
         self.settings.remove(GEOMETRY_KEY)
         self.settings.remove(STATE_KEY)
+        self.settings.remove(SPLITTER_KEY)
         self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)
         self.resize(1440, 900)
         self.apply_workspace(Workspace.TRACKING)
 
     def _test_connection(self) -> None:
-        self.dependencies.tracking_server.start()
+        self._source_changed("iphone")
         self.panels["source"].set_iphone_url(
             self.dependencies.tracking_server.preferred_url
         )
         self.status_label.setText("Status: iPhone connection service started")
+
+    def _source_changed(self, source: str) -> None:
+        self.settings.setValue(SOURCE_KEY, source)
+        self.controller.configure_source(source)
+        if source == "iphone":
+            self.controller.start()
 
     def _show_feature_preview(self, gid: int) -> None:
         self.panels["vehicle_database"].show_feature_preview(

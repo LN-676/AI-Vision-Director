@@ -10,6 +10,7 @@ class DualMonitorWidget(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        self.splitter.setHandleWidth(12)
         self.before_view = VideoView()
         self.after_view = VideoView()
         self.splitter.addWidget(self._monitor("Before · Detection", self.before_view))

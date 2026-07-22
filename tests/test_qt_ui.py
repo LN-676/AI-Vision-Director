@@ -123,6 +123,42 @@ class QtUITests(unittest.TestCase):
         finally:
             second.close()
 
+    def test_workspace_restores_monitor_splitter_and_custom_layout(self) -> None:
+        settings_path = self.root / "custom-workspace.ini"
+        first = self._window(settings_path)
+        first.show()
+        self.qt_app.processEvents()
+        first.docks["source"].hide()
+        first.monitors.splitter.setSizes([440, 320])
+        self.qt_app.processEvents()
+        first.save_custom_workspace()
+        saved_sizes = first.monitors.splitter.sizes()
+        saved_ratio = saved_sizes[0] / sum(saved_sizes)
+        first.docks["source"].show()
+        first.monitors.splitter.setSizes([320, 440])
+        self.qt_app.processEvents()
+
+        self.assertTrue(first.restore_custom_workspace())
+        self.qt_app.processEvents()
+        self.assertFalse(first.docks["source"].isVisible())
+        restored_sizes = first.monitors.splitter.sizes()
+        self.assertAlmostEqual(restored_sizes[0] / sum(restored_sizes), saved_ratio, places=2)
+        first.close()
+        self.qt_app.processEvents()
+
+        second = self._window(settings_path)
+        try:
+            second.show()
+            self.qt_app.processEvents()
+            reopened_sizes = second.monitors.splitter.sizes()
+            self.assertAlmostEqual(
+                reopened_sizes[0] / sum(reopened_sizes), saved_ratio, places=2
+            )
+            self.assertEqual(second.monitors.splitter.handleWidth(), 12)
+            self.assertIn("width: 12px", second.styleSheet())
+        finally:
+            second.close()
+
     def test_monitor_maximize_hides_and_restores_docks(self) -> None:
         window = self._window()
         try:
@@ -310,28 +346,31 @@ class QtUITests(unittest.TestCase):
         self.assertEqual(dialog.gallery.count(), 5)
 
     def test_qt_run_starts_iphone_server_automatically(self) -> None:
-        class FakeServer:
+        class FakeController:
             def __init__(self) -> None:
                 self.started = 0
+                self.input_config = SimpleNamespace(source_type="iphone")
 
             def start(self) -> None:
                 self.started += 1
 
         class FakeApplication:
+            def processEvents(self) -> None:
+                pass
+
             def exec(self) -> int:
                 return 0
 
-        server = FakeServer()
+        controller = FakeController()
         window = SimpleNamespace(
-            controller=SimpleNamespace(input_config=SimpleNamespace(source_type="iphone")),
-            dependencies=SimpleNamespace(tracking_server=server),
+            controller=controller,
             show=lambda: None,
         )
 
         result = BootstrappedQtDesktop(FakeApplication(), window).run()
 
         self.assertEqual(result, 0)
-        self.assertEqual(server.started, 1)
+        self.assertEqual(controller.started, 1)
 
 
 if __name__ == "__main__":
