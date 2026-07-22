@@ -99,6 +99,36 @@ struct MotorStatusMessage: Codable, Equatable, Sendable {
     let lastStopReason: String?
     let cameraZoomFactor: Double?
     let cameraDisplayZoomFactor: Double?
+    let cameraFramesSent: Int
+    let cameraFramesDropped: Int
+
+    init(
+        docked: Bool,
+        manualReady: Bool,
+        systemTrackingEnabled: Bool?,
+        lastError: String?,
+        timestampMs: Int64,
+        currentVelocity: GimbalVelocity?,
+        lastCommand: TrackingCommand?,
+        lastStopReason: String?,
+        cameraZoomFactor: Double?,
+        cameraDisplayZoomFactor: Double?,
+        cameraFramesSent: Int = 0,
+        cameraFramesDropped: Int = 0
+    ) {
+        self.docked = docked
+        self.manualReady = manualReady
+        self.systemTrackingEnabled = systemTrackingEnabled
+        self.lastError = lastError
+        self.timestampMs = timestampMs
+        self.currentVelocity = currentVelocity
+        self.lastCommand = lastCommand
+        self.lastStopReason = lastStopReason
+        self.cameraZoomFactor = cameraZoomFactor
+        self.cameraDisplayZoomFactor = cameraDisplayZoomFactor
+        self.cameraFramesSent = max(0, cameraFramesSent)
+        self.cameraFramesDropped = max(0, cameraFramesDropped)
+    }
 
     enum CodingKeys: String, CodingKey {
         case type, docked
@@ -111,6 +141,8 @@ struct MotorStatusMessage: Codable, Equatable, Sendable {
         case lastStopReason = "last_stop_reason"
         case cameraZoomFactor = "camera_zoom_factor"
         case cameraDisplayZoomFactor = "camera_display_zoom_factor"
+        case cameraFramesSent = "camera_frames_sent"
+        case cameraFramesDropped = "camera_frames_dropped"
     }
 }
 

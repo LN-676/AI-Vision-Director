@@ -205,7 +205,13 @@ class TrackingWebSocketServer:
             return
         with self._motor_status_lock:
             self._latest_motor_status = status
-        self._log("motor_status", status=status)
+        self._log(
+            "motor_status",
+            status=status,
+            severity="error" if status.last_error else "info",
+            component="dockkit",
+            reason_code="MOTOR_STATUS_ERROR" if status.last_error else None,
+        )
         state = "motor ready" if status.ready else "motor not ready"
         if status.last_error:
             state = f"motor error: {status.last_error}"
@@ -233,7 +239,25 @@ class TrackingWebSocketServer:
         return WebSocketTransport._active_interface_addresses()
 
     def _component_event(self, event: str, fields: dict[str, Any]) -> None:
-        self._log(event, **fields)
+        lowered = event.lower()
+        severity = (
+            "error"
+            if any(token in lowered for token in ("error", "failed", "invalid"))
+            else "warning"
+            if any(token in lowered for token in ("disconnect", "drop", "reject", "timeout"))
+            else "info"
+        )
+        details = dict(fields)
+        details.setdefault("severity", severity)
+        details.setdefault(
+            "component",
+            "websocket" if not event.startswith("camera_") else "camera_stream",
+        )
+        details.setdefault("reason_code", event.upper() if severity != "info" else None)
+        self._log(
+            event,
+            **details,
+        )
 
     def _notify(self, message: str) -> None:
         if self.on_status is not None:

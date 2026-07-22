@@ -4,6 +4,22 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## Unreleased
+
+### 中文
+
+- 新增 `ACTF2` camera frame envelope，以 iPhone 來源 frame ID 關聯擷取、傳送、接收、解碼與推論階段；Desktop 仍相容 `ACTF1`。
+- 即時效能頁新增 session／rolling throughput、P50／P95／P99、分階段掉幀率、無畫面停頓與失追區間／frame 範圍。
+- 診斷頁改為模組健康總覽與結構化事件列表，提供 Healthy／Degraded／Fault／Idle、原因代碼及建議。
+- JSONL telemetry schema 加入 session、severity、component 與 reason code，並保留最近事件供 UI 增量讀取。
+
+### English
+
+- Added the backward-compatible `ACTF2` camera envelope with an iPhone source frame ID across capture, send, receive, decode, and inference stages.
+- Added session/rolling throughput, latency percentiles, stage-specific frame loss, frame stalls, and loss episodes to live performance evaluation.
+- Reworked diagnostics into module health and structured event views with state, reason codes, and recommendations.
+- Versioned JSONL telemetry with session, severity, component, and reason-code context plus a bounded recent-event cache.
+
 ## V1.0 — 2026-07-21
 
 ### 中文

@@ -9,6 +9,7 @@ from autocamtracker.core.performance_evaluation import (
     PerformanceEvaluationTracker,
     mean_average_precision,
 )
+from autocamtracker.core.timestamps import FrameTimeline, TimestampMark, TimestampStage
 
 
 class PerformanceEvaluationTests(unittest.TestCase):
@@ -44,6 +45,46 @@ class PerformanceEvaluationTests(unittest.TestCase):
         self.assertEqual(snapshot.detection_count, 2)
         self.assertEqual(snapshot.candidate_count, 1)
 
+    def test_tracker_reports_stage_drops_and_loss_episode_frames(self) -> None:
+        tracker = PerformanceEvaluationTracker(window_size=10)
+        tracker.record_frame(self._frame(30.0, selected_lid=7, confidence=0.9, timestamp_ms=1_000))
+        tracker.record_frame(
+            self._frame(
+                30.0,
+                selected_lid=7,
+                confidence=0.2,
+                locked=False,
+                timestamp_ms=2_000,
+                source_frame_id=10,
+                stream_counters={
+                    "source_sequence_gaps": 2,
+                    "receive_overwritten": 3,
+                    "decode_failed": 1,
+                },
+            )
+        )
+        snapshot = tracker.record_frame(
+            self._frame(
+                30.0,
+                selected_lid=7,
+                confidence=0.8,
+                timestamp_ms=3_000,
+                source_frame_id=11,
+                stream_counters={
+                    "source_sequence_gaps": 2,
+                    "receive_overwritten": 3,
+                    "decode_failed": 1,
+                },
+            )
+        )
+
+        self.assertEqual(snapshot.total_dropped_frames, 7)
+        self.assertEqual(snapshot.completed_loss_episodes, 1)
+        self.assertAlmostEqual(snapshot.longest_loss_seconds, 1.0)
+        episode = tracker.loss_episodes()[0]
+        self.assertEqual((episode.start_frame_id, episode.end_frame_id), (10, 11))
+        self.assertEqual(episode.reason_code, "TRACK_NOT_LOCKED")
+
     @staticmethod
     def _frame(
         fps: float,
@@ -51,12 +92,20 @@ class PerformanceEvaluationTests(unittest.TestCase):
         selected_lid: int,
         confidence: float,
         locked: bool = True,
+        timestamp_ms: float | None = None,
+        source_frame_id: int | None = None,
+        stream_counters: dict[str, int] | None = None,
     ) -> FrameData:
         target = SimpleNamespace(
             confidence=confidence,
             lost_frame_count=0 if locked else 2,
             status="tracking" if locked else "lost",
         )
+        timeline = None
+        if timestamp_ms is not None:
+            mark = TimestampMark(timestamp_ms, timestamp_ms)
+            timeline = FrameTimeline.local(source_frame_id or 0, "test", mark)
+            timeline.mark(TimestampStage.PIPELINE_COMPLETED, mark)
         return FrameData(
             raw_frame=None,
             before_frame=None,
@@ -72,6 +121,9 @@ class PerformanceEvaluationTests(unittest.TestCase):
             inference_time_ms=12.0,
             pipeline_time_ms=16.0,
             skipped_frames=1,
+            timestamps=timeline,
+            source_frame_id=source_frame_id,
+            stream_counters=stream_counters or {},
         )
 
 

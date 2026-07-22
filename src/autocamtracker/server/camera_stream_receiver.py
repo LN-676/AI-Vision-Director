@@ -28,20 +28,36 @@ class CameraStreamReceiver:
         self._latest_frame_info: dict[str, Any] = {}
         self._latest_decoded_frame_info: dict[str, Any] = {}
         self._received_frame_count = 0
+        self._decoded_frame_count = 0
+        self._receive_sequence_gaps = 0
+        self._receive_overwritten_frames = 0
+        self._decode_failures = 0
+        self._last_source_frame_id: int | None = None
 
     def accept(self, data: bytes) -> bool:
         unpacked = unpack_camera_frame(data)
         if unpacked is None:
             return False
-        jpeg, capture_timestamp_ms = unpacked
+        jpeg, capture_timestamp_ms, source_frame_id = unpacked
         received_at = monotonic()
         received_wall_time_ms = time() * 1000.0
         with self._lock:
             self._received_frame_count += 1
             frame_count = self._received_frame_count
+            if (
+                source_frame_id is not None
+                and self._last_source_frame_id is not None
+                and source_frame_id > self._last_source_frame_id + 1
+            ):
+                self._receive_sequence_gaps += source_frame_id - self._last_source_frame_id - 1
+            if source_frame_id is not None:
+                self._last_source_frame_id = source_frame_id
+            if self._latest_frame_bytes is not None:
+                self._receive_overwritten_frames += 1
             self._latest_frame_bytes = jpeg
             self._latest_frame_info = {
                 "frame_count": frame_count,
+                "source_frame_id": source_frame_id,
                 "frame_bytes": len(jpeg),
                 "capture_timestamp_ms": capture_timestamp_ms,
                 "received_timestamp_ms": received_wall_time_ms,
@@ -74,8 +90,15 @@ class CameraStreamReceiver:
         decoded_at = monotonic()
         decoded_wall_time_ms = time() * 1000.0
         capture_timestamp_ms = info.get("capture_timestamp_ms")
+        if frame is None:
+            with self._lock:
+                self._decode_failures += 1
+            self._emit("camera_frame_decode_failed", source_frame_id=info.get("source_frame_id"))
+            return None
+        with self._lock:
+            self._decoded_frame_count += 1
         timeline = FrameTimeline(
-            frame_id=int(info.get("frame_count") or 0),
+            frame_id=int(info.get("source_frame_id") or info.get("frame_count") or 0),
             source_id="iphone",
             capture_timestamp_ms=(
                 float(capture_timestamp_ms) if capture_timestamp_ms is not None else None
@@ -105,6 +128,7 @@ class CameraStreamReceiver:
                 receive_latency_ms = transport_ms
         timing = {
             **info,
+            "stream_counters": self.stream_counters(),
             "decode_time_ms": (decoded_at - decoded_started_at) * 1000.0,
             "receive_latency_ms": receive_latency_ms,
             "decoded_monotonic_s": decoded_at,
@@ -118,6 +142,16 @@ class CameraStreamReceiver:
     def latest_frame_timing(self) -> dict[str, Any]:
         with self._lock:
             return dict(self._latest_decoded_frame_info)
+
+    def stream_counters(self) -> dict[str, int]:
+        with self._lock:
+            return {
+                "received": self._received_frame_count,
+                "decoded": self._decoded_frame_count,
+                "source_sequence_gaps": self._receive_sequence_gaps,
+                "receive_overwritten": self._receive_overwritten_frames,
+                "decode_failed": self._decode_failures,
+            }
 
     def _emit(self, event: str, **fields: Any) -> None:
         if self.on_event is not None:

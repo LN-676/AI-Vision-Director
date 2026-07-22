@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from datetime import datetime
 
 from autocamtracker.core.performance_evaluation import (
     ConfusionMatrixStats,
@@ -19,44 +20,64 @@ class PerformancePanelMixin:
         window = tk.Toplevel(self.root)
         self.diagnostics_window = window
         window.title("一鍵診斷")
-        window.minsize(560, 420)
+        window.minsize(920, 600)
         window.protocol("WM_DELETE_WINDOW", self.close_diagnostics_page)
 
         outer = ttk.Frame(window, padding=12)
         outer.grid(row=0, column=0, sticky="nsew")
         window.columnconfigure(0, weight=1)
         window.rowconfigure(0, weight=1)
-        outer.columnconfigure(1, weight=1)
+        outer.columnconfigure(0, weight=1)
+        outer.rowconfigure(1, weight=3)
+        outer.rowconfigure(3, weight=2)
 
         ttk.Label(outer, text="一鍵診斷", font=("TkDefaultFont", 16, "bold")).grid(
             row=0,
             column=0,
-            columnspan=2,
             sticky="w",
             pady=(0, 10),
         )
-        self.diagnostics_labels = {}
-        for row, key in enumerate(
-            (
-                "fps",
-                "latency",
-                "websocket",
-                "dockkit",
-                "motor",
-                "tracking",
-                "reid",
-                "last_stop",
-            ),
-            start=1,
+        self.diagnostics_tree = ttk.Treeview(
+            outer,
+            columns=("state", "summary", "age", "reason", "recommendation"),
+            show="tree headings",
+        )
+        self.diagnostics_tree.heading("#0", text="模組")
+        for key, label, width in (
+            ("state", "狀態", 90),
+            ("summary", "目前工作情況", 260),
+            ("age", "最後活動", 90),
+            ("reason", "原因代碼", 150),
+            ("recommendation", "建議", 260),
         ):
-            ttk.Label(outer, text=key.replace("_", " ").title()).grid(row=row, column=0, sticky="w", pady=4)
-            label = ttk.Label(outer, text="--", anchor="e")
-            label.grid(row=row, column=1, sticky="ew", pady=4)
-            self.diagnostics_labels[key] = label
+            self.diagnostics_tree.heading(key, text=label)
+            self.diagnostics_tree.column(key, width=width, anchor="w")
+        self.diagnostics_tree.column("#0", width=140, anchor="w")
+        self.diagnostics_tree.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
+
+        ttk.Label(outer, text="最近結構化事件", font=("TkDefaultFont", 11, "bold")).grid(
+            row=2, column=0, sticky="w", pady=(4, 4)
+        )
+        self.diagnostics_log_tree = ttk.Treeview(
+            outer,
+            columns=("time", "severity", "component", "event", "reason"),
+            show="headings",
+            height=8,
+        )
+        for key, label, width in (
+            ("time", "時間", 110),
+            ("severity", "等級", 75),
+            ("component", "模組", 120),
+            ("event", "事件", 260),
+            ("reason", "原因代碼", 180),
+        ):
+            self.diagnostics_log_tree.heading(key, text=label)
+            self.diagnostics_log_tree.column(key, width=width, anchor="w")
+        self.diagnostics_log_tree.grid(row=3, column=0, sticky="nsew")
 
         ttk.Button(outer, text="Close", command=self.close_diagnostics_page).grid(
-            row=9,
-            column=1,
+            row=4,
+            column=0,
             sticky="e",
             pady=(12, 0),
         )
@@ -72,56 +93,45 @@ class PerformancePanelMixin:
         window = getattr(self, "diagnostics_window", None)
         if window is None or not window.winfo_exists():
             return
-        labels = self.diagnostics_labels
-        frame_data = self.current_frame_data
-        motor_status = self.tracking_server.motor_status
-        labels["fps"].configure(
-            text=(
-                f"display {frame_data.display_fps:.1f} / source {frame_data.source_fps:.1f}"
-                if frame_data is not None and frame_data.source_fps is not None
-                else f"display {self.fps:.1f}"
+        self.diagnostics_service.observe_server(
+            self.tracking_server,
+            self.iphone_motor_tracking_enabled,
+        )
+        tree = self.diagnostics_tree
+        tree.delete(*tree.get_children())
+        for health in self.diagnostics_service.snapshot():
+            tree.insert(
+                "",
+                "end",
+                text=health.component,
+                values=(
+                    health.state.value.upper(),
+                    health.summary,
+                    f"{health.age_seconds():.1f}s",
+                    health.reason_code or "--",
+                    health.recommendation or "--",
+                ),
+                tags=(health.state.value,),
             )
-        )
-        labels["latency"].configure(
-            text=(
-                f"receive {self._format_number(frame_data.receive_latency_ms, suffix=' ms')} / "
-                f"pipeline {self._format_number(frame_data.pipeline_time_ms, suffix=' ms')} / "
-                f"comp {self._format_number(frame_data.latency_compensation_ms, suffix=' ms')}"
-                if frame_data is not None
-                else "--"
+        tree.tag_configure("healthy", foreground="#167a32")
+        tree.tag_configure("degraded", foreground="#a86400")
+        tree.tag_configure("fault", foreground="#b00020")
+
+        log_tree = self.diagnostics_log_tree
+        log_tree.delete(*log_tree.get_children())
+        for event in reversed(self.telemetry_logger.recent_events(80)):
+            timestamp = datetime.fromtimestamp(float(event.get("timestamp_ms", 0)) / 1000.0)
+            log_tree.insert(
+                "",
+                "end",
+                values=(
+                    timestamp.strftime("%H:%M:%S.%f")[:-3],
+                    str(event.get("severity", "info")).upper(),
+                    event.get("component", "--"),
+                    event.get("event", "--"),
+                    event.get("reason_code") or "--",
+                ),
             )
-        )
-        labels["websocket"].configure(
-            text=f"{'running' if self.tracking_server.is_running else 'off'} · clients {self.tracking_server.client_count}"
-        )
-        labels["dockkit"].configure(
-            text=(
-                f"ready={self.tracking_server.motor_ready} docked={motor_status.docked} manual={motor_status.manual_ready}"
-                if motor_status is not None
-                else "no motor status"
-            )
-        )
-        labels["motor"].configure(
-            text=f"armed={self.iphone_motor_tracking_enabled} velocity={motor_status.current_velocity if motor_status else None}"
-        )
-        labels["tracking"].configure(
-            text=(
-                f"{frame_data.tracking_status} gid={frame_data.selected_global_vehicle_id} "
-                f"lid={frame_data.selected_local_track_id} lost={frame_data.lost_frames}"
-                if frame_data is not None
-                else "idle"
-            )
-        )
-        labels["reid"].configure(
-            text=(
-                f"{frame_data.reid_confidence_level} score={frame_data.reacquire_score:.2f} "
-                f"motor_safe={frame_data.motor_safe_to_track} reason="
-                f"{frame_data.identity_decision.reason_code.value if frame_data.identity_decision else '--'}"
-                if frame_data is not None
-                else "--"
-            )
-        )
-        labels["last_stop"].configure(text=motor_status.last_stop_reason if motor_status else "--")
         window.after(500, self._refresh_diagnostics_page)
 
     def open_performance_evaluation_page(self) -> None:
@@ -213,6 +223,7 @@ class PerformancePanelMixin:
         right.grid(row=0, column=1, sticky="nsew")
         right.columnconfigure(0, weight=1)
         right.rowconfigure(1, weight=1)
+        right.rowconfigure(2, weight=1)
         confusion = ttk.LabelFrame(right, text="Confusion Matrix", padding=8)
         confusion.grid(row=0, column=0, sticky="ew")
         self.performance_confusion_labels = {}
@@ -246,12 +257,35 @@ class PerformancePanelMixin:
                 "selected",
                 "latency",
                 "confidence",
+                "throughput",
+                "drops",
+                "loss",
             )
         ):
             ttk.Label(live, text=key.title()).grid(row=row, column=0, sticky="w", pady=2)
             value_label = ttk.Label(live, text="--", anchor="e")
             value_label.grid(row=row, column=1, sticky="ew", pady=2)
             self.performance_live_labels[key] = value_label
+
+        episodes = ttk.LabelFrame(right, text="失效區間 / Miss Episodes", padding=8)
+        episodes.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        episodes.columnconfigure(0, weight=1)
+        episodes.rowconfigure(0, weight=1)
+        self.performance_loss_tree = ttk.Treeview(
+            episodes,
+            columns=("time", "duration", "frames", "reason"),
+            show="headings",
+            height=5,
+        )
+        for key, label, width in (
+            ("time", "開始時間", 90),
+            ("duration", "秒數", 65),
+            ("frames", "畫面", 100),
+            ("reason", "原因", 120),
+        ):
+            self.performance_loss_tree.heading(key, text=label)
+            self.performance_loss_tree.column(key, width=width, anchor="center")
+        self.performance_loss_tree.grid(row=0, column=0, sticky="nsew")
 
         self._position_performance_window_bottom_right()
         self._refresh_performance_panel()
@@ -344,6 +378,22 @@ class PerformancePanelMixin:
                 self._format_ratio(snapshot.tracking_stability),
                 f"ID switches: {snapshot.id_switches}",
             ),
+            (
+                "Dropped Frames (掉幀率)",
+                "來源序號缺口、接收覆蓋、解碼失敗與影片跳幀",
+                "drops / (processed + drops)",
+                "否",
+                self._format_ratio(snapshot.dropped_frame_rate),
+                f"total: {snapshot.total_dropped_frames}",
+            ),
+            (
+                "P95 End-to-End Latency",
+                "95% 已處理畫面的端到端延遲不超過此數值",
+                "95th percentile",
+                "否",
+                self._format_number(snapshot.end_to_end_p95_ms, suffix=" ms"),
+                "避免平均值掩蓋卡頓",
+            ),
         )
         tree = self.performance_metric_tree
         tree.delete(*tree.get_children())
@@ -376,6 +426,33 @@ class PerformancePanelMixin:
             )
         )
         live["confidence"].configure(text=self._format_ratio(snapshot.latest_confidence))
+        live["throughput"].configure(
+            text=f"processed {self._format_number(snapshot.processed_fps, suffix=' FPS')} / session {snapshot.session_frame_count}"
+        )
+        counters = snapshot.stream_counters or {}
+        live["drops"].configure(
+            text=(
+                f"total {snapshot.total_dropped_frames} · gap {counters.get('source_sequence_gaps', 0)} · "
+                f"iPhone {counters.get('iphone_send_dropped', 0)} · overwrite "
+                f"{counters.get('receive_overwritten', 0)} · decode {counters.get('decode_failed', 0)}"
+            )
+        )
+        live["loss"].configure(
+            text=(
+                f"current {snapshot.current_loss_seconds:.2f}s · episodes {snapshot.completed_loss_episodes} · "
+                f"longest {snapshot.longest_loss_seconds:.2f}s · no frame {snapshot.frame_stall_seconds:.2f}s"
+            )
+        )
+        loss_tree = self.performance_loss_tree
+        loss_tree.delete(*loss_tree.get_children())
+        for episode in reversed(self.performance_evaluator.loss_episodes()[-30:]):
+            started = datetime.fromtimestamp(episode.start_timestamp_ms / 1000.0).strftime("%H:%M:%S")
+            frame_range = f"{episode.start_frame_id or '--'}–{episode.end_frame_id or '--'}"
+            loss_tree.insert(
+                "",
+                "end",
+                values=(started, f"{episode.duration_ms / 1000.0:.2f}", frame_range, episode.reason_code),
+            )
         window.after(500, self._refresh_performance_panel)
 
     @staticmethod

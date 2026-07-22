@@ -153,6 +153,8 @@ flowchart TD
 - DockKit 實體 yaw／pitch／roll、Home 與 iPhone camera zoom 控制。
 - 失追 coasting、zoom hold／ramp、速度與加速度限制、timeout STOP。
 - 可版本化的相機 calibration、GMC、timestamp pipeline 與離線 benchmark。
+- 即時效能評估會分開統計來源序號缺口、iPhone send drop、Desktop latest-frame overwrite、decode failure 與影片主動跳幀，並顯示 latency percentile 與失追 frame 區間。
+- 一鍵診斷會彙整 source、decoder、detector、tracker、ReID、GMC、framing、SQLite、WebSocket、DockKit 與 motor control 的健康狀態及結構化事件。
 
 ## Repository 結構
 

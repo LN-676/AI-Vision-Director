@@ -6,7 +6,13 @@ import unittest
 from autocamtracker.server.camera_stream_receiver import CameraStreamReceiver
 from autocamtracker.server.control_policy import ControlPolicy
 from autocamtracker.server.control_publisher import ControlPublisher
-from autocamtracker.server.protocol import decode_message, encode_message, tracking_message
+from autocamtracker.server.protocol import (
+    CAMERA_FRAME_ENVELOPE_V2_MAGIC,
+    decode_message,
+    encode_message,
+    tracking_message,
+    unpack_camera_frame,
+)
 from autocamtracker.server.transport import WebSocketTransport
 from autocamtracker.server.transport import TrackingServerConfig
 from autocamtracker.server.websocket_server import TrackingWebSocketServer
@@ -36,6 +42,33 @@ class WebSocketComponentTests(unittest.TestCase):
     def test_protocol_round_trip_is_domain_independent(self) -> None:
         payload = tracking_message(target_locked=True, error_x=0.25, sequence=7)
         self.assertEqual(decode_message(encode_message(payload)), payload)
+
+    def test_v2_camera_envelope_carries_source_sequence(self) -> None:
+        jpeg = b"\xff\xd8jpeg\xff\xd9"
+        envelope = (
+            CAMERA_FRAME_ENVELOPE_V2_MAGIC
+            + (1234).to_bytes(8, "big")
+            + (77).to_bytes(8, "big")
+            + jpeg
+        )
+
+        self.assertEqual(unpack_camera_frame(envelope), (jpeg, 1234, 77))
+
+    def test_receiver_counts_sequence_gaps_and_latest_frame_overwrites(self) -> None:
+        receiver = CameraStreamReceiver()
+        jpeg = b"\xff\xd8jpeg\xff\xd9"
+        for frame_id in (1, 3):
+            receiver.accept(
+                CAMERA_FRAME_ENVELOPE_V2_MAGIC
+                + (1000 + frame_id).to_bytes(8, "big")
+                + frame_id.to_bytes(8, "big")
+                + jpeg
+            )
+
+        counters = receiver.stream_counters()
+        self.assertEqual(counters["received"], 2)
+        self.assertEqual(counters["source_sequence_gaps"], 1)
+        self.assertEqual(counters["receive_overwritten"], 1)
 
     def test_control_policy_does_not_mutate_cv_frame_state(self) -> None:
         original_projection = (11.0, 22.0)

@@ -257,7 +257,9 @@ final class V13NetworkClient: ObservableObject {
             lastCommand: lastCommand,
             lastStopReason: lastStopReason,
             cameraZoomFactor: cameraZoomFactor,
-            cameraDisplayZoomFactor: cameraDisplayZoomFactor
+            cameraDisplayZoomFactor: cameraDisplayZoomFactor,
+            cameraFramesSent: cameraFramesSent,
+            cameraFramesDropped: cameraFramesDropped
         )
         do {
             let data = try JSONEncoder().encode(message)

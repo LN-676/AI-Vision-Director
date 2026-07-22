@@ -64,7 +64,14 @@ class VideoPipelineMixin:
         frame_data.display_fps = self.fps
         frame_data.source_fps = self.tracking_session.get_source_fps()
         frame_data.skipped_frames = self.skipped_frames
+        motor_status = self.tracking_server.motor_status
+        if motor_status is not None:
+            frame_data.stream_counters.update(
+                iphone_sent=motor_status.camera_frames_sent,
+                iphone_send_dropped=motor_status.camera_frames_dropped,
+            )
         self.performance_evaluator.record_frame(frame_data)
+        self.diagnostics_service.observe_frame(frame_data)
 
         auto_feature_note = (
             f" | AutoFeat: {self.auto_feature_status_message}"
@@ -150,6 +157,13 @@ class VideoPipelineMixin:
         camera_control = self.tracking_server.last_camera_control_decision
         self.telemetry_logger.log(
             "frame_state",
+            component="pipeline",
+            source_frame_id=frame_data.source_frame_id,
+            source_fps=frame_data.source_fps,
+            display_fps=frame_data.display_fps,
+            detection_count=len(frame_data.detections),
+            skipped_frames=frame_data.skipped_frames,
+            stream_counters=frame_data.stream_counters,
             tracking_status=frame_data.tracking_status,
             target_locked=target_locked,
             predicted_target=bool(fresh_target is not None and fresh_target.status == "coasting"),

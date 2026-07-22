@@ -119,6 +119,10 @@ class TrackingWorker:
                         receive_latency_ms=frame_timing.get("receive_latency_ms"),
                         timestamps=timeline,
                     )
+                    if hasattr(frame_data, "source_frame_id"):
+                        frame_data.source_frame_id = frame_timing.get("source_frame_id")
+                    if hasattr(frame_data, "stream_counters"):
+                        frame_data.stream_counters = dict(frame_timing.get("stream_counters") or {})
                 else:
                     frame_data = None
 

@@ -373,7 +373,7 @@ private final class CaptureSessionBox: @unchecked Sendable {
 }
 
 private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
-    private static let envelopeMagic = Data([0x41, 0x43, 0x54, 0x46, 0x31]) // ACTF1
+    private static let envelopeMagic = Data([0x41, 0x43, 0x54, 0x46, 0x32]) // ACTF2
 
     var onFrame: (@Sendable (Data) -> Void)?
 
@@ -384,6 +384,7 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
     private var orientation: CameraStreamOrientation = .portrait
     private let presetLock = NSLock()
     private var preset: CameraStreamPreset = .lowLatency
+    private var sourceFrameID: UInt64 = 0
 
     func setOrientation(_ newOrientation: CameraStreamOrientation) {
         orientationLock.lock()
@@ -427,14 +428,27 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
             format: .RGBA8,
             colorSpace: colorSpace
         ), let jpeg = UIImage(cgImage: cgImage).jpegData(compressionQuality: currentPreset.jpegQuality) else { return }
-        onFrame?(Self.envelopedFrame(jpeg, captureTimestampMs: UInt64(Date().timeIntervalSince1970 * 1_000)))
+        sourceFrameID &+= 1
+        onFrame?(
+            Self.envelopedFrame(
+                jpeg,
+                captureTimestampMs: UInt64(Date().timeIntervalSince1970 * 1_000),
+                sourceFrameID: sourceFrameID
+            )
+        )
     }
 
-    private static func envelopedFrame(_ jpeg: Data, captureTimestampMs: UInt64) -> Data {
+    private static func envelopedFrame(
+        _ jpeg: Data,
+        captureTimestampMs: UInt64,
+        sourceFrameID: UInt64
+    ) -> Data {
         var payload = Data()
         payload.append(envelopeMagic)
         var timestamp = captureTimestampMs.bigEndian
         withUnsafeBytes(of: &timestamp) { payload.append(contentsOf: $0) }
+        var frameID = sourceFrameID.bigEndian
+        withUnsafeBytes(of: &frameID) { payload.append(contentsOf: $0) }
         payload.append(jpeg)
         return payload
     }

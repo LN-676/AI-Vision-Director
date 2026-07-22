@@ -54,6 +54,7 @@ class AppDependencies:
     application: object
     telemetry_logger: object
     performance_evaluator: object
+    diagnostics_service: object
     tracking_server: object
     track_shot_controller: object
     identity_session_links: object
@@ -94,6 +95,7 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
         self.camera_control_policy = self.application.camera_control_policy
         self.telemetry_logger = dependencies.telemetry_logger
         self.performance_evaluator = dependencies.performance_evaluator
+        self.diagnostics_service = dependencies.diagnostics_service
         self.iphone_status_queue = dependencies.iphone_status_queue
         self.iphone_control_queue = dependencies.iphone_control_queue
         self.tracking_server = dependencies.tracking_server

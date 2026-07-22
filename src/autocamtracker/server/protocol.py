@@ -13,6 +13,8 @@ from autocamtracker.product import VERSION
 SOURCE_VERSION = VERSION
 CAMERA_FRAME_ENVELOPE_MAGIC = b"ACTF1"
 CAMERA_FRAME_ENVELOPE_HEADER_BYTES = len(CAMERA_FRAME_ENVELOPE_MAGIC) + 8
+CAMERA_FRAME_ENVELOPE_V2_MAGIC = b"ACTF2"
+CAMERA_FRAME_ENVELOPE_V2_HEADER_BYTES = len(CAMERA_FRAME_ENVELOPE_V2_MAGIC) + 16
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,8 @@ class MotorStatus:
     last_stop_reason: str | None = None
     camera_zoom_factor: float | None = None
     camera_display_zoom_factor: float | None = None
+    camera_frames_sent: int = 0
+    camera_frames_dropped: int = 0
 
     @property
     def ready(self) -> bool:
@@ -124,12 +128,29 @@ def parse_motor_status(payload: dict[str, Any] | str) -> MotorStatus | None:
         last_stop_reason=str(payload["last_stop_reason"]) if payload.get("last_stop_reason") else None,
         camera_zoom_factor=_float_or_none(payload.get("camera_zoom_factor")),
         camera_display_zoom_factor=_float_or_none(payload.get("camera_display_zoom_factor")),
+        camera_frames_sent=max(0, int(payload.get("camera_frames_sent", 0))),
+        camera_frames_dropped=max(0, int(payload.get("camera_frames_dropped", 0))),
     )
 
 
-def unpack_camera_frame(data: bytes) -> tuple[bytes, int | None] | None:
+def unpack_camera_frame(data: bytes) -> tuple[bytes, int | None, int | None] | None:
     capture_timestamp_ms = None
-    if data.startswith(CAMERA_FRAME_ENVELOPE_MAGIC):
+    source_frame_id = None
+    if data.startswith(CAMERA_FRAME_ENVELOPE_V2_MAGIC):
+        if len(data) < CAMERA_FRAME_ENVELOPE_V2_HEADER_BYTES + 4:
+            return None
+        capture_timestamp_ms = int.from_bytes(
+            data[len(CAMERA_FRAME_ENVELOPE_V2_MAGIC):len(CAMERA_FRAME_ENVELOPE_V2_MAGIC) + 8],
+            byteorder="big",
+            signed=False,
+        )
+        source_frame_id = int.from_bytes(
+            data[len(CAMERA_FRAME_ENVELOPE_V2_MAGIC) + 8:CAMERA_FRAME_ENVELOPE_V2_HEADER_BYTES],
+            byteorder="big",
+            signed=False,
+        )
+        data = data[CAMERA_FRAME_ENVELOPE_V2_HEADER_BYTES:]
+    elif data.startswith(CAMERA_FRAME_ENVELOPE_MAGIC):
         if len(data) < CAMERA_FRAME_ENVELOPE_HEADER_BYTES + 4:
             return None
         capture_timestamp_ms = int.from_bytes(
@@ -140,7 +161,7 @@ def unpack_camera_frame(data: bytes) -> tuple[bytes, int | None] | None:
         data = data[CAMERA_FRAME_ENVELOPE_HEADER_BYTES:]
     if len(data) < 4 or len(data) > 2_000_000 or not data.startswith(b"\xff\xd8"):
         return None
-    return data, capture_timestamp_ms
+    return data, capture_timestamp_ms, source_frame_id
 
 
 def _dict_or_none(value: Any) -> dict[str, Any] | None:

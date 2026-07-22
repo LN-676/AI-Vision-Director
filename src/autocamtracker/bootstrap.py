@@ -14,6 +14,7 @@ from autocamtracker.core.desktop_state import IdentitySessionLinks
 from autocamtracker.core.pipeline_processor import PipelineProcessor
 from autocamtracker.core.performance_evaluation import PerformanceEvaluationTracker
 from autocamtracker.core.telemetry_logger import TelemetryLogger
+from autocamtracker.core.diagnostics import DiagnosticsService, HealthState
 from autocamtracker.core.track_shot_plan import TrackShotController
 from autocamtracker.server.websocket_server import TrackingWebSocketServer
 from autocamtracker.server.camera_control_policy import CameraControlPolicy
@@ -66,12 +67,25 @@ def bootstrap(
     status_queue: SimpleQueue[str] = SimpleQueue()
     control_queue: SimpleQueue[dict] = SimpleQueue()
     telemetry_logger = TelemetryLogger(app_config.telemetry_dir)
+    diagnostics_service = DiagnosticsService()
     input_config = InputConfig()
     store = DetectionStore()
     identity_store = VehicleIdentityStore(app_config.identity_db_path)
     feature_gallery = FeatureGallery(
         app_config.identity_db_path,
         reid_model_path=str(app_config.model_dir / app_config.default_reid_model),
+    )
+    diagnostics_service.update(
+        "database",
+        HealthState.HEALTHY,
+        "SQLite identity store initialized",
+        metrics={"path": str(app_config.identity_db_path)},
+    )
+    diagnostics_service.update(
+        "feature_gallery",
+        HealthState.HEALTHY,
+        "feature repository initialized",
+        metrics={"model": app_config.default_reid_model},
     )
     identity_manager = GlobalIdentityManager(
         identity_store=identity_store,
@@ -140,6 +154,7 @@ def bootstrap(
         application=application,
         telemetry_logger=telemetry_logger,
         performance_evaluator=PerformanceEvaluationTracker(),
+        diagnostics_service=diagnostics_service,
         tracking_server=tracking_server,
         track_shot_controller=TrackShotController(),
         identity_session_links=IdentitySessionLinks(),

@@ -61,4 +61,6 @@ class FrameData:
     reframe_time_ms: float = 0.0
     preview_time_ms: float = 0.0
     skipped_frames: int = 0
+    source_frame_id: int | None = None
+    stream_counters: dict[str, int] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)

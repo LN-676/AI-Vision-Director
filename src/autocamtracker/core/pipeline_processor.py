@@ -64,6 +64,8 @@ class PipelineProcessor:
         decode_time_ms: float = 0.0,
         receive_latency_ms: float | None = None,
         timestamps: FrameTimeline | None = None,
+        source_frame_id: int | None = None,
+        stream_counters: dict[str, int] | None = None,
     ) -> FrameData:
         pipeline_started_at = time()
         pipeline_started_mark = timestamp_now()
@@ -175,4 +177,6 @@ class PipelineProcessor:
             reframe_time_ms=reframe_time_ms,
             preview_time_ms=preview_time_ms,
             skipped_frames=skipped_frames,
+            source_frame_id=source_frame_id,
+            stream_counters=dict(stream_counters or {}),
         )
