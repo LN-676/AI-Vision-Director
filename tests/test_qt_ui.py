@@ -1,9 +1,10 @@
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 
 import numpy as np
-from PySide6.QtCore import QPointF, QSettings
+from PySide6.QtCore import QPointF, QSettings, Qt
 from PySide6.QtWidgets import QApplication
 
 from autocamtracker.bootstrap import build_dependencies
@@ -17,6 +18,8 @@ from autocamtracker.ui.app import (
 from autocamtracker.ui_qt.controller import video_sync_plan
 from autocamtracker.ui_qt.main_window import AIVisionDirectorMainWindow
 from autocamtracker.ui_qt.panels.playback_panel import format_timecode
+from autocamtracker.ui_qt.panels.source_panel import SourcePanel
+from autocamtracker.ui_qt.panels.vehicle_database_panel import VehicleDatabasePanel
 from autocamtracker.ui_qt.state import LAYOUT_VERSION, VERSION_KEY, Workspace
 from autocamtracker.ui_qt.widgets.video_view import VideoView, qimage_from_bgr
 
@@ -66,6 +69,9 @@ class QtUITests(unittest.TestCase):
             self.assertEqual(len(names), len(set(names)))
             self.assertEqual(window.monitors.before_view.minimumWidth(), 320)
             self.assertGreaterEqual(window.monitors.after_view.minimumHeight(), 232)
+            self.assertTrue(
+                window.panels["source"].websocket_url.text().startswith("ws://")
+            )
         finally:
             window.close()
 
@@ -188,6 +194,50 @@ class QtUITests(unittest.TestCase):
     def test_timeline_uses_frame_accurate_timecode(self) -> None:
         self.assertEqual(format_timecode(300, 30.0), "00:00:10:00")
         self.assertEqual(format_timecode(45, 30.0), "00:00:01:15")
+
+    def test_detection_overlay_uses_requested_80_pixel_font_height(self) -> None:
+        from autocamtracker.ui_qt.controller import QtRuntimeController
+
+        self.assertEqual(QtRuntimeController.OVERLAY_FONT_HEIGHT, 80)
+
+    def test_vehicle_database_is_read_only_and_double_click_opens_features(self) -> None:
+        panel = VehicleDatabasePanel()
+        panel.set_vehicles(
+            [
+                SimpleNamespace(
+                    vehicle_id=2,
+                    display_name="2",
+                    class_name="car",
+                    last_track_id=59,
+                    master_feature_count=31,
+                )
+            ]
+        )
+        opened: list[int] = []
+        panel.manageFeaturesRequested.connect(opened.append)
+
+        panel._open_feature_manager(0, 2)
+
+        self.assertEqual(opened, [2])
+        for column in range(panel.table.columnCount()):
+            self.assertFalse(
+                bool(
+                    panel.table.item(0, column).flags()
+                    & Qt.ItemFlag.ItemIsEditable
+                )
+            )
+
+    def test_source_panel_switches_to_only_the_selected_source_page(self) -> None:
+        panel = SourcePanel()
+        panel.set_iphone_url("ws://mac.local:8765/ws/tracking")
+        panel.source.setCurrentIndex(panel.source.findData("video_url"))
+
+        self.assertEqual(panel.pages.currentIndex(), panel.source.currentIndex())
+        self.assertIs(panel.pages.currentWidget(), panel.video_url.parentWidget())
+        self.assertTrue(panel.websocket_url.isReadOnly())
+        self.assertEqual(
+            panel.websocket_url.text(), "ws://mac.local:8765/ws/tracking"
+        )
 
 
 if __name__ == "__main__":

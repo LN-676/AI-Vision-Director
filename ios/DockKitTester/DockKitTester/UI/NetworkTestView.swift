@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct NetworkTestView: View {
     @ObservedObject var client: V13NetworkClient
@@ -8,7 +9,7 @@ struct NetworkTestView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("AI Vision Director V1.0")
+                Text("AI Vision Director V2.0 beta1")
                     .font(.headline)
                 Spacer()
                 Text(client.status.rawValue)
@@ -26,6 +27,19 @@ struct NetworkTestView: View {
                 .textFieldStyle(.roundedBorder)
 
             HStack {
+                Button("Paste Desktop URL") {
+                    if let clipboardText = UIPasteboard.general.string {
+                        let pasted = clipboardText.trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        )
+                        if !pasted.isEmpty {
+                            client.serverURL = pasted
+                        }
+                    }
+                    isServerURLFocused = false
+                }
+                .buttonStyle(.bordered)
+
                 Button("Connect") {
                     isServerURLFocused = false
                     Task { await client.connect() }
@@ -65,7 +79,7 @@ struct NetworkTestView: View {
             .buttonStyle(.bordered)
             .disabled(!canInjectCommand)
 
-            Text("Bonjour checks the desktop endpoint on launch and repairs stale saved IP addresses. Camera frames remain paused until the WebSocket handshake succeeds.")
+            Text("Paste the WebSocket URL copied from the desktop Source > iPhone page. Bonjour also checks the desktop endpoint and repairs stale saved IP addresses. Camera frames remain paused until the WebSocket handshake succeeds.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

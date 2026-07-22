@@ -41,6 +41,7 @@ def video_sync_plan(
 
 
 class QtRuntimeController(QObject):
+    OVERLAY_FONT_HEIGHT = 80
     beforeFrameReady = Signal(object)
     afterFrameReady = Signal(object)
     statusChanged = Signal(str)
@@ -385,6 +386,29 @@ class QtRuntimeController(QObject):
         summary = self.application.identity_store.summary(feature_counts=feature_counts)
         self.vehiclesChanged.emit(summary.vehicles)
 
+    def first_feature_preview(self, gid: int) -> bytes | None:
+        return self.application.feature_gallery.first_feature_crop_jpeg(gid)
+
+    def feature_snapshots(self, gid: int):
+        return self.application.feature_gallery.feature_snapshots(gid, "master")
+
+    def vehicle_display_name(self, gid: int) -> str:
+        return self.application.identity_store.display_label(gid)
+
+    def rollback_features(self, gid: int, feature_ids: list[int]) -> int:
+        result = self.application.feature_gallery.rollback_features(
+            feature_ids,
+            vehicle_id=gid,
+            reason="manual contamination rollback from Qt feature manager",
+            actor="desktop_qt",
+        )
+        self.refresh_vehicles()
+        self.statusChanged.emit(
+            f"Rolled back {result.rolled_back_count} contaminated feature photo(s) "
+            f"from GID {gid}"
+        )
+        return result.rolled_back_count
+
     def close(self) -> None:
         self._timer.stop()
         self._metrics_timer.stop()
@@ -558,14 +582,39 @@ class QtRuntimeController(QObject):
             selected = self.application.identity_manager.is_selected_detection(detection)
             color = (0, 0, 255) if selected else (80, 220, 80)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 4 if selected else 2)
+            global_id = self.application.identity_manager.global_id_for_detection(detection)
+            label = f"LID {detection.track_id}"
+            if global_id is not None:
+                label += f"  GID {global_id}"
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            thickness = 5
+            scale = cv2.getFontScaleFromHeight(
+                font, self.OVERLAY_FONT_HEIGHT, thickness
+            )
+            (_text_width, text_height), baseline = cv2.getTextSize(
+                label, font, scale, thickness
+            )
+            text_y = y1 - 12
+            if text_y - text_height < 0:
+                text_y = min(annotated.shape[0] - baseline - 4, y1 + text_height + 12)
             cv2.putText(
                 annotated,
-                f"LID {detection.track_id}",
-                (x1, max(18, y1 - 6)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
+                label,
+                (max(0, x1), max(text_height, text_y)),
+                font,
+                scale,
+                (0, 0, 0),
+                thickness + 5,
+                cv2.LINE_AA,
+            )
+            cv2.putText(
+                annotated,
+                label,
+                (max(0, x1), max(text_height, text_y)),
+                font,
+                scale,
                 color,
-                2,
+                thickness,
                 cv2.LINE_AA,
             )
         return annotated

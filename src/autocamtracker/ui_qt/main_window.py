@@ -21,6 +21,7 @@ from autocamtracker.ui_qt.panels import (
     TrackingPanel,
     VehicleDatabasePanel,
 )
+from autocamtracker.ui_qt.panels.feature_manager_dialog import FeatureManagerDialog
 from autocamtracker.ui_qt.state import (
     APPLICATION_NAME,
     GEOMETRY_KEY,
@@ -193,6 +194,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
         database.findRequested.connect(self.controller.find_vehicle)
         database.releaseRequested.connect(self.controller.release_vehicle)
         database.deleteRequested.connect(self.controller.delete_vehicle)
+        database.previewRequested.connect(self._show_feature_preview)
+        database.manageFeaturesRequested.connect(self._open_feature_manager)
         reid.manualFeatureRequested.connect(self.controller.add_manual_feature)
         reid.autoFeatureRequested.connect(self.controller.toggle_auto_feature)
         self.monitors.before_view.frameClicked.connect(self.controller.select_at)
@@ -229,6 +232,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
             tracking.tracker.currentText(),
             tracking.confidence.value(),
         )
+        source.set_iphone_url(self.dependencies.tracking_server.preferred_url)
 
     def _update_timeline(self, maximum: int, value: int, fps: float) -> None:
         playback: PlaybackPanel = self.panels["playback"]
@@ -349,7 +353,25 @@ class AIVisionDirectorMainWindow(QMainWindow):
 
     def _test_connection(self) -> None:
         self.dependencies.tracking_server.start()
+        self.panels["source"].set_iphone_url(
+            self.dependencies.tracking_server.preferred_url
+        )
         self.status_label.setText("Status: iPhone connection service started")
+
+    def _show_feature_preview(self, gid: int) -> None:
+        self.panels["vehicle_database"].show_feature_preview(
+            gid, self.controller.first_feature_preview(gid)
+        )
+
+    def _open_feature_manager(self, gid: int) -> None:
+        dialog = FeatureManagerDialog(
+            gid,
+            self.controller.vehicle_display_name(gid),
+            self.controller.feature_snapshots,
+            self.controller.rollback_features,
+            self,
+        )
+        dialog.exec()
 
     def _refresh_status_panels(self) -> None:
         try:
@@ -360,6 +382,9 @@ class AIVisionDirectorMainWindow(QMainWindow):
                 self.panels["source"].set_connection(text)
         except Empty:
             pass
+        self.panels["source"].set_iphone_url(
+            self.dependencies.tracking_server.preferred_url
+        )
         self.panels["performance"].set_snapshot(
             self.dependencies.performance_evaluator.snapshot()
         )
