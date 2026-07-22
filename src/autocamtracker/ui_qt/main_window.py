@@ -14,8 +14,6 @@ from autocamtracker.ui_qt.controller import QtRuntimeController
 from autocamtracker.ui_qt.panels import (
     DiagnosticsPanel,
     PerformancePanel,
-    PlaybackPanel,
-    ReIDPanel,
     SourcePanel,
     TrackShotPanel,
     TrackingPanel,
@@ -79,11 +77,13 @@ class AIVisionDirectorMainWindow(QMainWindow):
     def _create_panels(self) -> dict[str, object]:
         return {
             "source": SourcePanel(),
-            "tracking": TrackingPanel(),
+            "tracking": TrackingPanel(
+                self.config.model_dir,
+                self.config.default_model,
+                self.config.default_reid_model,
+            ),
             "track_shot": TrackShotPanel(),
-            "playback": PlaybackPanel(),
             "vehicle_database": VehicleDatabasePanel(),
-            "reid": ReIDPanel(),
             "performance": PerformancePanel(),
             "diagnostics": DiagnosticsPanel(),
         }
@@ -93,9 +93,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
             "source": "Source",
             "tracking": "Tracking",
             "track_shot": "Track Shot",
-            "playback": "Playback",
             "vehicle_database": "Vehicle Database",
-            "reid": "ReID / Features",
             "performance": "Performance",
             "diagnostics": "Diagnostics",
         }
@@ -112,7 +110,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
             )
             if key in {"source", "tracking"}:
                 dock.setMinimumWidth(260)
-            elif key in {"vehicle_database", "reid"}:
+            elif key == "vehicle_database":
                 dock.setMinimumWidth(300)
             if key in {"performance", "diagnostics"}:
                 dock.topLevelChanged.connect(
@@ -136,9 +134,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
             "source",
             "tracking",
             "track_shot",
-            "playback",
             "vehicle_database",
-            "reid",
             "performance",
             "diagnostics",
         ):
@@ -167,9 +163,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
         source: SourcePanel = self.panels["source"]
         tracking: TrackingPanel = self.panels["tracking"]
         track_shot: TrackShotPanel = self.panels["track_shot"]
-        playback: PlaybackPanel = self.panels["playback"]
+        playback = source.playback
         database: VehicleDatabasePanel = self.panels["vehicle_database"]
-        reid: ReIDPanel = self.panels["reid"]
 
         source.sourceChanged.connect(self.controller.configure_source)
         source.videoFileChanged.connect(self.controller.set_video_file)
@@ -182,6 +177,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
         tracking.resetRequested.connect(self.controller.reset_tracking)
         tracking.framingChanged.connect(self.controller.set_framing)
         tracking.configurationChanged.connect(self.controller.configure_tracking)
+        tracking.detectorModelChanged.connect(self.controller.set_detector_model)
+        tracking.reidModelChanged.connect(self.controller.set_reid_model)
         track_shot.modeChanged.connect(self.controller.set_track_shot_mode)
         track_shot.rearmRequested.connect(self.controller.rearm_track_shot)
         playback.startRequested.connect(self.controller.start)
@@ -189,6 +186,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
         playback.stopRequested.connect(self.controller.stop)
         playback.recordRequested.connect(self.controller.toggle_recording)
         playback.speedChanged.connect(self.controller.set_playback_speed)
+        playback.loopChanged.connect(self.controller.set_loop_enabled)
         database.addRequested.connect(self.controller.add_vehicle)
         database.linkRequested.connect(self.controller.link_vehicle)
         database.findRequested.connect(self.controller.find_vehicle)
@@ -196,8 +194,9 @@ class AIVisionDirectorMainWindow(QMainWindow):
         database.deleteRequested.connect(self.controller.delete_vehicle)
         database.previewRequested.connect(self._show_feature_preview)
         database.manageFeaturesRequested.connect(self._open_feature_manager)
-        reid.manualFeatureRequested.connect(self.controller.add_manual_feature)
-        reid.autoFeatureRequested.connect(self.controller.toggle_auto_feature)
+        database.findThresholdChanged.connect(self.controller.set_find_threshold)
+        database.manualFeatureRequested.connect(self.controller.add_manual_feature)
+        database.autoFeatureRequested.connect(self.controller.toggle_auto_feature)
         self.monitors.before_view.frameClicked.connect(self.controller.select_at)
 
         self.controller.beforeFrameReady.connect(self.monitors.before_view.set_frame)
@@ -232,11 +231,15 @@ class AIVisionDirectorMainWindow(QMainWindow):
             tracking.tracker.currentText(),
             tracking.confidence.value(),
         )
+        self.controller.set_detector_model(str(tracking.detector_model.currentData() or ""))
+        self.controller.set_reid_model(str(tracking.reid_model.currentData() or ""))
+        database.find_threshold.setValue(
+            self.controller.application.identity_manager.auto_reid_min_score
+        )
         source.set_iphone_url(self.dependencies.tracking_server.preferred_url)
 
     def _update_timeline(self, maximum: int, value: int, fps: float) -> None:
-        playback: PlaybackPanel = self.panels["playback"]
-        playback.set_timeline(maximum, value, fps)
+        self.panels["source"].playback.set_timeline(maximum, value, fps)
 
     def toggle_monitor_maximize(self, checked: bool | None = None) -> None:
         maximize = not self._monitor_maximized if checked is None else bool(checked)
@@ -270,21 +273,12 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.docks["diagnostics"].hide()
             self.docks["performance"].hide()
             self.monitors.splitter.setSizes([1, 2])
-            self.resizeDocks(
-                [self.docks["vehicle_database"], self.docks["reid"]],
-                [520, 520],
-                Qt.Orientation.Horizontal,
-            )
             self.docks["vehicle_database"].raise_()
-            self.resizeDocks(
-                [self.docks["playback"]], [140], Qt.Orientation.Vertical
-            )
         elif workspace == Workspace.PERFORMANCE:
             self.docks["source"].hide()
             self.docks["tracking"].hide()
             self.docks["track_shot"].hide()
             self.docks["vehicle_database"].hide()
-            self.docks["reid"].hide()
             self.monitors.splitter.setSizes([1, 1])
             self.docks["performance"].raise_()
             self.resizeDocks(
@@ -297,10 +291,6 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.monitors.splitter.setSizes([1, 1])
             self.docks["tracking"].raise_()
             self.docks["vehicle_database"].raise_()
-            self.docks["playback"].raise_()
-            self.resizeDocks(
-                [self.docks["playback"]], [140], Qt.Orientation.Vertical
-            )
         self.workspace_actions[workspace].setChecked(True)
         self.settings.setValue(PRESET_KEY, workspace.value)
 
@@ -312,12 +302,11 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.docks[key])
         self.tabifyDockWidget(self.docks["source"], self.docks["tracking"])
         self.tabifyDockWidget(self.docks["tracking"], self.docks["track_shot"])
-        for key in ("vehicle_database", "reid"):
-            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.docks[key])
-        self.tabifyDockWidget(self.docks["vehicle_database"], self.docks["reid"])
-        for key in ("playback", "performance", "diagnostics"):
+        self.addDockWidget(
+            Qt.DockWidgetArea.RightDockWidgetArea, self.docks["vehicle_database"]
+        )
+        for key in ("performance", "diagnostics"):
             self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.docks[key])
-        self.tabifyDockWidget(self.docks["playback"], self.docks["performance"])
         self.tabifyDockWidget(self.docks["performance"], self.docks["diagnostics"])
 
     def save_workspace(self) -> None:

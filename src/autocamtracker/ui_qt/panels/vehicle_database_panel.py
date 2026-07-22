@@ -2,6 +2,8 @@ from PySide6.QtCore import QEvent, QPoint, Qt, Signal
 from PySide6.QtGui import QCursor, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QDoubleSpinBox,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -21,6 +23,9 @@ class VehicleDatabasePanel(QWidget):
     deleteRequested = Signal(int)
     previewRequested = Signal(int)
     manageFeaturesRequested = Signal(int)
+    manualFeatureRequested = Signal()
+    autoFeatureRequested = Signal()
+    findThresholdChanged = Signal(float)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -61,6 +66,26 @@ class VehicleDatabasePanel(QWidget):
         layout.addWidget(self.hint)
         layout.addWidget(self.table)
         layout.addWidget(buttons)
+        feature_controls = QWidget()
+        feature_form = QFormLayout(feature_controls)
+        feature_form.setContentsMargins(0, 0, 0, 0)
+        self.find_threshold = QDoubleSpinBox()
+        self.find_threshold.setRange(0.0, 1.0)
+        self.find_threshold.setSingleStep(0.05)
+        self.find_threshold.setValue(0.75)
+        feature_buttons = QWidget()
+        feature_row = QHBoxLayout(feature_buttons)
+        feature_row.setContentsMargins(0, 0, 0, 0)
+        self.manual_feature_button = QPushButton("Add Manual Feature")
+        self.auto_feature_button = QPushButton("Start / Stop Auto Feature")
+        feature_row.addWidget(self.manual_feature_button)
+        feature_row.addWidget(self.auto_feature_button)
+        feature_form.addRow("Find GID confidence threshold", self.find_threshold)
+        feature_form.addRow(feature_buttons)
+        layout.addWidget(feature_controls)
+        self.find_threshold.valueChanged.connect(self.findThresholdChanged)
+        self.manual_feature_button.clicked.connect(self.manualFeatureRequested)
+        self.auto_feature_button.clicked.connect(self.autoFeatureRequested)
 
     def selected_gid(self) -> int | None:
         row = self.table.currentRow()

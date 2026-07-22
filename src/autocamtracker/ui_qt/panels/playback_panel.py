@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
-    QHBoxLayout,
+    QGridLayout,
     QLabel,
     QPushButton,
     QSlider,
@@ -17,22 +17,30 @@ class PlaybackPanel(FormPanel):
     stopRequested = Signal()
     recordRequested = Signal()
     speedChanged = Signal(float)
+    loopChanged = Signal(bool)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setMinimumHeight(130)
         buttons = QWidget()
-        row = QHBoxLayout(buttons)
-        row.setContentsMargins(0, 0, 0, 0)
-        for label, signal in (
-            ("Start", self.startRequested),
-            ("Pause", self.pauseRequested),
-            ("Stop", self.stopRequested),
-            ("Record", self.recordRequested),
+        grid = QGridLayout(buttons)
+        grid.setContentsMargins(0, 0, 0, 0)
+        for index, (label, signal) in enumerate(
+            (
+                ("Start", self.startRequested),
+                ("Pause", self.pauseRequested),
+                ("Stop", self.stopRequested),
+                ("Record", self.recordRequested),
+            )
         ):
             button = QPushButton(label)
             button.clicked.connect(signal)
-            row.addWidget(button)
+            grid.addWidget(button, index // 3, index % 3)
+        self.loop_button = QPushButton("Loop")
+        self.loop_button.setCheckable(True)
+        self.loop_button.setToolTip("Repeat the video file when it reaches the end")
+        self.loop_button.toggled.connect(self.loopChanged)
+        grid.addWidget(self.loop_button, 1, 1, 1, 2)
         self.speed = QComboBox()
         self.speed.addItems(["0.5×", "1×", "2×"])
         self.speed.setCurrentText("1×")

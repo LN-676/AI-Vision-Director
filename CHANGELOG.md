@@ -4,6 +4,26 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## V2.1 — 2026-07-22
+
+### 中文
+
+- 將 Playback 完整整合到 Source 的 Video file 頁，移除獨立 Playback Dock，並新增可保持按下狀態的影片 Loop。
+- 已選定並綁定 GID 的紅框只顯示 GID 與編號，不再同時顯示 LID。
+- Tracking 頁新增 Detection model 與 ReID model 下拉選單及模型重新掃描功能。
+- 將 Find GID 信心門檻、Add Manual Feature 與 Start/Stop Auto Feature 整合到 Vehicle Database，移除獨立 ReID/Features Dock。
+- 修正 Qt Auto Feature 只在啟動時取樣一次的問題；啟動後會持續依 frame、品質、身份與重複 gate 寫入 SQLite feature gallery。
+- Desktop 與 iOS 顯示版本更新為 V2.1；iOS build 更新為 2101，既有 1.0 WebSocket contract 與 safety policy 不變。
+
+### English
+
+- Moved all playback controls into Source > Video file, removed the standalone Playback dock, and added a persistent pressed-state video loop toggle.
+- Red selected boxes linked to a GID now display only the GID and number, without the LID.
+- Added Detection model and ReID model selectors plus model refresh to the Tracking panel.
+- Moved the Find GID threshold, Add Manual Feature, and Start/Stop Auto Feature controls into Vehicle Database and removed the standalone ReID/Features dock.
+- Fixed Qt Auto Feature so it continues sampling frames after activation and writes accepted, quality/identity/duplicate-gated features to the SQLite gallery.
+- Updated Desktop and iOS display versions to V2.1 and iOS build 2101 while preserving the 1.0 WebSocket contract and safety policy.
+
 ## V2.0 — 2026-07-22
 
 ### 中文

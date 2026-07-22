@@ -15,7 +15,7 @@ from autocamtracker.ui.app import (
     AppConfig,
     AutoCamTrackerApp,
 )
-from autocamtracker.ui_qt.controller import video_sync_plan
+from autocamtracker.ui_qt.controller import overlay_identity_label, video_sync_plan
 from autocamtracker.ui_qt.bootstrap import BootstrappedQtDesktop
 from autocamtracker.ui_qt.main_window import AIVisionDirectorMainWindow
 from autocamtracker.ui_qt.panels.feature_manager_dialog import FeatureManagerDialog
@@ -55,7 +55,7 @@ class QtUITests(unittest.TestCase):
         )
 
     def test_display_label_and_tk_class_aliases_preserve_protocol_version(self) -> None:
-        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.0")
+        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.1")
         self.assertEqual(VERSION, "1.0")
         self.assertIs(AIVisonDirectorApp, AIVisionDirectorApp)
         self.assertIs(AutoCamTrackerApp, AIVisionDirectorApp)
@@ -67,8 +67,10 @@ class QtUITests(unittest.TestCase):
             self.qt_app.processEvents()
             names = [dock.objectName() for dock in window.docks.values()]
             self.assertEqual(window.windowTitle(), DISPLAY_NAME)
-            self.assertEqual(len(names), 8)
+            self.assertEqual(len(names), 6)
             self.assertEqual(len(names), len(set(names)))
+            self.assertNotIn("playback", window.docks)
+            self.assertNotIn("reid", window.docks)
             self.assertEqual(window.monitors.before_view.minimumWidth(), 320)
             self.assertGreaterEqual(window.monitors.after_view.minimumHeight(), 232)
             self.assertTrue(
@@ -201,6 +203,14 @@ class QtUITests(unittest.TestCase):
         from autocamtracker.ui_qt.controller import QtRuntimeController
 
         self.assertEqual(QtRuntimeController.OVERLAY_FONT_HEIGHT, 80)
+        self.assertEqual(
+            overlay_identity_label(selected=True, track_id=59, global_id=2),
+            "GID 2",
+        )
+        self.assertEqual(
+            overlay_identity_label(selected=False, track_id=59, global_id=2),
+            "LID 59  GID 2",
+        )
 
     def test_vehicle_database_is_read_only_and_double_click_opens_features(self) -> None:
         panel = VehicleDatabasePanel()
@@ -232,6 +242,14 @@ class QtUITests(unittest.TestCase):
                     & Qt.ItemFlag.ItemIsEditable
                 )
             )
+        self.assertEqual(panel.manual_feature_button.text(), "Add Manual Feature")
+        self.assertEqual(
+            panel.auto_feature_button.text(), "Start / Stop Auto Feature"
+        )
+        changed: list[float] = []
+        panel.findThresholdChanged.connect(changed.append)
+        panel.find_threshold.setValue(0.8)
+        self.assertEqual(changed, [0.8])
 
     def test_source_panel_switches_to_only_the_selected_source_page(self) -> None:
         panel = SourcePanel()
@@ -244,6 +262,29 @@ class QtUITests(unittest.TestCase):
         self.assertEqual(
             panel.websocket_url.text(), "ws://mac.local:8765/ws/tracking"
         )
+        panel.source.setCurrentIndex(panel.source.findData("video_file"))
+        loop_states: list[bool] = []
+        panel.playback.loopChanged.connect(loop_states.append)
+        panel.playback.loop_button.click()
+        self.assertTrue(panel.playback.loop_button.isChecked())
+        panel.playback.loop_button.click()
+        self.assertFalse(panel.playback.loop_button.isChecked())
+        self.assertEqual(loop_states, [True, False])
+
+    def test_tracking_page_has_detection_and_reid_model_selectors(self) -> None:
+        window = self._window()
+        try:
+            tracking = window.panels["tracking"]
+            self.assertGreaterEqual(tracking.detector_model.count(), 5)
+            self.assertGreaterEqual(tracking.reid_model.count(), 5)
+            self.assertTrue(str(tracking.detector_model.currentData()).endswith(".pt"))
+            self.assertTrue(str(tracking.reid_model.currentData()).endswith("-reid.onnx"))
+            self.assertEqual(
+                window.controller.input_config.model_path,
+                str(tracking.detector_model.currentData()),
+            )
+        finally:
+            window.close()
 
     def test_feature_manager_uses_responsive_extended_icon_selection(self) -> None:
         snapshots = [

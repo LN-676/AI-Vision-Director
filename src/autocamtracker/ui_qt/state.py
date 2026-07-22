@@ -7,7 +7,7 @@ from enum import StrEnum
 
 ORGANIZATION_NAME = "AI Vision Director"
 APPLICATION_NAME = "AI Vision Director Qt"
-LAYOUT_VERSION = 2
+LAYOUT_VERSION = 3
 GEOMETRY_KEY = "workspace/geometry"
 STATE_KEY = "workspace/windowState"
 VERSION_KEY = "workspace/layoutVersion"

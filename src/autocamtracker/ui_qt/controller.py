@@ -40,6 +40,17 @@ def video_sync_plan(
     return VideoSyncPlan(frames_to_skip, wait_seconds, lag_ms)
 
 
+def overlay_identity_label(
+    *, selected: bool, track_id: int | None, global_id: int | None
+) -> str:
+    if selected and global_id is not None:
+        return f"GID {global_id}"
+    label = f"LID {track_id}"
+    if global_id is not None:
+        label += f"  GID {global_id}"
+    return label
+
+
 class QtRuntimeController(QObject):
     OVERLAY_FONT_HEIGHT = 80
     beforeFrameReady = Signal(object)
@@ -64,6 +75,7 @@ class QtRuntimeController(QObject):
             self.input_config.model_path = str(default_model)
         self.running = False
         self.recording = False
+        self.loop_enabled = False
         self.last_raw_frame = None
         self.last_frame_data = None
         self.last_inference_ms = 0.0
@@ -127,17 +139,41 @@ class QtRuntimeController(QObject):
 
     @Slot(str, str, float)
     def configure_tracking(self, profile: str, tracker: str, confidence: float) -> None:
-        model = "model/yolo26n.pt" if profile == "High FPS" else "model/yolo26s.pt"
-        self.input_config.model_path = str(self.config.model_dir / model)
         self.input_config.tracker_name = "bytetrack" if tracker == "ByteTrack" else "botsort"
         self.input_config.confidence_threshold = float(confidence)
+        self.input_config.detector_imgsz = 640 if profile == "High FPS" else None
         self.input_config.tracker_reid_enabled = profile == "Balanced ID"
+
+    @Slot(str)
+    def set_detector_model(self, model_path: str) -> None:
+        if not model_path:
+            return
+        self.input_config.model_path = model_path
+        self.statusChanged.emit(f"Detection model: {Path(model_path).name} (applies on Start)")
+
+    @Slot(str)
+    def set_reid_model(self, model_path: str) -> None:
+        if not model_path:
+            return
+        self.application.feature_gallery.set_reid_model(model_path)
+        self.statusChanged.emit(f"ReID model: {Path(model_path).name}")
+
+    @Slot(float)
+    def set_find_threshold(self, threshold: float) -> None:
+        value = max(0.0, min(1.0, float(threshold)))
+        self.application.identity_manager.set_auto_reid_threshold(value)
+        self.statusChanged.emit(f"Find GID confidence threshold: {value:.2f}")
 
     @Slot(float)
     def set_playback_speed(self, speed: float) -> None:
         self.playback_speed = max(0.05, float(speed))
         self._reset_playback_clock()
         self.statusChanged.emit(f"Playback speed: {self.playback_speed:g}×")
+
+    @Slot(bool)
+    def set_loop_enabled(self, enabled: bool) -> None:
+        self.loop_enabled = bool(enabled)
+        self.statusChanged.emit("Video loop enabled" if enabled else "Video loop disabled")
 
     @Slot()
     def start(self) -> None:
@@ -431,6 +467,17 @@ class QtRuntimeController(QObject):
                 if self.input_config.source_type == "iphone" and self.running:
                     self._next_video_request_at = now + 0.005
                     return
+                if (
+                    self.input_config.source_type == "video_file"
+                    and self.loop_enabled
+                    and self.running
+                    and self.session.seek(0)
+                ):
+                    self.session.reset_pipeline()
+                    self.skipped_frames = 0
+                    self._reset_playback_clock()
+                    self.statusChanged.emit("Loop: restarted video")
+                    return
                 self.running = False
                 self.runningChanged.emit(False)
                 self.statusChanged.emit("End of source")
@@ -438,6 +485,7 @@ class QtRuntimeController(QObject):
             self.last_raw_frame = result.raw_frame
             self.last_frame_data = result.frame_data
             self.last_inference_ms = result.inference_time_ms
+            self._run_auto_feature_sampling(result.raw_frame)
             before = getattr(result.frame_data, "before_frame", result.raw_frame)
             after = getattr(result.frame_data, "after_frame", result.raw_frame)
             self.beforeFrameReady.emit(before)
@@ -583,9 +631,11 @@ class QtRuntimeController(QObject):
             color = (0, 0, 255) if selected else (80, 220, 80)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 4 if selected else 2)
             global_id = self.application.identity_manager.global_id_for_detection(detection)
-            label = f"LID {detection.track_id}"
-            if global_id is not None:
-                label += f"  GID {global_id}"
+            label = overlay_identity_label(
+                selected=selected,
+                track_id=detection.track_id,
+                global_id=global_id,
+            )
             font = cv2.FONT_HERSHEY_SIMPLEX
             thickness = 5
             scale = cv2.getFontScaleFromHeight(
@@ -618,3 +668,24 @@ class QtRuntimeController(QObject):
                 cv2.LINE_AA,
             )
         return annotated
+
+    def _run_auto_feature_sampling(self, frame) -> None:
+        sampler = self.application.auto_feature_sampler
+        gid = sampler.active_vehicle_id
+        if gid is None:
+            return
+        detection = next(
+            (
+                item
+                for item in self.application.store.current_detections
+                if self.application.identity_manager.global_id_for_detection(item) == gid
+            ),
+            None,
+        )
+        result = sampler.update(detection, frame, self.application.store)
+        if result.accepted and result.feature_id is not None:
+            self.refresh_vehicles()
+            self.statusChanged.emit(
+                f"Auto Feature added {result.feature_id} to GID {gid} "
+                f"(quality {result.quality_score:.2f})"
+            )

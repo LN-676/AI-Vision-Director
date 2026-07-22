@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from autocamtracker.ui_qt.panels.base import FormPanel
+from autocamtracker.ui_qt.panels.playback_panel import PlaybackPanel
 
 
 class SourcePanel(FormPanel):
@@ -57,8 +58,10 @@ class SourcePanel(FormPanel):
         self.video_path = QLineEdit()
         self.video_path.setPlaceholderText("Choose a local video…")
         choose_video = QPushButton("Browse Video…")
+        self.playback = PlaybackPanel()
         video_file_form.addRow("Video file", self.video_path)
         video_file_form.addRow(choose_video)
+        video_file_form.addRow(self.playback)
 
         video_url_page = QWidget()
         video_url_form = QFormLayout(video_url_page)
