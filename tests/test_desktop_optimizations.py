@@ -192,6 +192,15 @@ class DetectorRuntimeConfigTests(unittest.TestCase):
 
 
 class VehicleIdentityStoreBatchingTests(unittest.TestCase):
+    def test_unknown_vehicle_update_is_rejected_without_queuing_a_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = VehicleIdentityStore(Path(temp_dir) / "identity.sqlite3")
+            try:
+                self.assertFalse(store.update_vehicle(999, detection(frame_index=2)))
+                self.assertEqual(store._pending_updates, {})
+            finally:
+                store.close()
+
     def test_frame_updates_are_flushed_in_batches(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = Path(temp_dir) / "identity.sqlite3"

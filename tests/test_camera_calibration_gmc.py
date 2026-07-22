@@ -161,6 +161,29 @@ class GlobalMotionCompensatorTests(unittest.TestCase):
         self.assertEqual(backend.calls[0][2], (first_box,))
         self.assertEqual(backend.calls[0][3], (second_box,))
 
+    def test_large_frames_use_smaller_analysis_pixels_and_restore_source_coordinates(self) -> None:
+        import numpy as np
+
+        measurement = GMCMeasurement((1.0, 0.0, 5.0, 0.0, 1.0, -2.0), 40, 36, 0.5)
+        backend = FakeGMCBackend(GMCBackendResult(measurement, GMCReasonCode.ESTIMATED))
+        gmc = GlobalMotionCompensator(
+            GMCConfig(analysis_max_dimension=960),
+            backend=backend,
+        )
+        frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        box = (200.0, 100.0, 600.0, 500.0)
+
+        gmc.update(frame, [box])
+        estimate = gmc.update(frame, [box])
+
+        previous, current, previous_boxes, current_boxes, _config = backend.calls[0]
+        self.assertEqual(previous.shape[:2], (540, 960))
+        self.assertEqual(current.shape[:2], (540, 960))
+        self.assertEqual(previous_boxes, ((100.0, 50.0, 300.0, 250.0),))
+        self.assertEqual(current_boxes, previous_boxes)
+        self.assertEqual((estimate.translation_x, estimate.translation_y), (10.0, -4.0))
+        self.assertEqual(estimate.residual_px, 1.0)
+
     def test_rejects_low_inlier_and_excessive_motion(self) -> None:
         low = GMCMeasurement((1.0, 0.0, 2.0, 0.0, 1.0, 1.0), 50, 10, 1.0)
         low_backend = FakeGMCBackend(GMCBackendResult(low, GMCReasonCode.ESTIMATED))

@@ -68,6 +68,10 @@ class VehicleIdentityStore:
         self._pending_updates: dict[int, tuple[Any, ...]] = {}
         self._pending_lock = RLock()
         self._ensure_schema()
+        self._known_vehicle_ids = {
+            int(row["id"])
+            for row in self._database.execute("SELECT id FROM vehicles").fetchall()
+        }
 
     def close(self) -> None:
         self.flush()
@@ -125,7 +129,9 @@ class VehicleIdentityStore:
         )
         with self._pending_lock:
             self._last_commit_at = time()
-        return int(cursor.lastrowid)
+            vehicle_id = int(cursor.lastrowid)
+            self._known_vehicle_ids.add(vehicle_id)
+        return vehicle_id
 
     def update_vehicle(
         self,
@@ -134,13 +140,9 @@ class VehicleIdentityStore:
         metadata: dict[str, Any] | None = None,
     ) -> bool:
         payload = self._detection_payload(detection)
-        exists = self._database.execute(
-            "SELECT 1 FROM vehicles WHERE id = ?",
-            (vehicle_id,),
-        ).fetchone() is not None
-        if not exists:
-            return False
         with self._pending_lock:
+            if vehicle_id not in self._known_vehicle_ids:
+                return False
             self._pending_updates[vehicle_id] = (
                 time(),
                 detection.class_name,
@@ -217,6 +219,9 @@ class VehicleIdentityStore:
             commit=True,
         )
         deleted = cursor.rowcount > 0
+        if deleted:
+            with self._pending_lock:
+                self._known_vehicle_ids.discard(vehicle_id)
         return deleted
 
     def clear_track_link(self, vehicle_id: int, track_id: int | None) -> bool:

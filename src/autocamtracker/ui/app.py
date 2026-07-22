@@ -45,6 +45,9 @@ class AppConfig:
     model_dir: Path = Path(__file__).resolve().parents[3] / "code" / "model"
     default_model: str = "model/yolo26n.pt"
     default_reid_model: str = "reid/yolo26s-reid.onnx"
+    frame_telemetry_interval_seconds: float = 0.25
+    video_preview_interval_seconds: float = 1.0 / 30.0
+    iphone_preview_interval_seconds: float = 0.10
 
 
 @dataclass(frozen=True)
@@ -144,8 +147,8 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
         self.auto_feature_status_message = ""
         self.last_desktop_state_publish_at = 0.0
         self.last_frame_telemetry_at = 0.0
+        self.last_frame_telemetry_signature: tuple[object, ...] | None = None
         self.last_preview_render_at = 0.0
-        self.preview_render_interval_seconds = 0.10
 
         self.before_image_ref = None
         self.after_image_ref = None

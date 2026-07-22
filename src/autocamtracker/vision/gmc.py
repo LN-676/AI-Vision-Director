@@ -34,6 +34,7 @@ class GMCConfig:
     max_rotation_degrees: float = 15.0
     max_scale_change: float = 0.15
     exclusion_padding_px: int = 8
+    analysis_max_dimension: int = 960
 
     def __post_init__(self) -> None:
         if self.max_features < 1 or self.min_tracked_points < 3:
@@ -49,8 +50,9 @@ class GMCConfig:
             or self.max_rotation_degrees < 0.0
             or self.max_scale_change < 0.0
             or self.exclusion_padding_px < 0
+            or self.analysis_max_dimension < 0
         ):
-            raise ValueError("GMC transform limits and exclusion padding cannot be negative")
+            raise ValueError("GMC transform limits, padding, and analysis size cannot be negative")
 
 
 @dataclass(frozen=True)
@@ -226,26 +228,72 @@ class GlobalMotionCompensator:
             if self.calibration is not None else (frame, None)
         )
         shape = (int(calibrated_frame.shape[0]), int(calibrated_frame.shape[1]))
-        exclusions = tuple(tuple(float(value) for value in box) for box in exclusion_bboxes)
+        analysis_frame, analysis_scale = self._analysis_frame(calibrated_frame, shape)
+        exclusions = tuple(
+            tuple(float(value) * analysis_scale for value in box)
+            for box in exclusion_bboxes
+        )
         if self._previous_frame is None:
             reason = self._next_initial_reason
-            self._remember(calibrated_frame, shape, exclusions)
+            self._remember(analysis_frame, shape, exclusions)
             self._next_initial_reason = GMCReasonCode.INITIALIZING
             return _empty_estimate(reason, profile_id)
         if shape != self._previous_shape:
-            self._remember(calibrated_frame, shape, exclusions)
+            self._remember(analysis_frame, shape, exclusions)
             return _empty_estimate(GMCReasonCode.FRAME_SHAPE_CHANGED, profile_id)
         result = self.backend.estimate(
             self._previous_frame,
-            calibrated_frame,
+            analysis_frame,
             self._previous_exclusions,
             exclusions,
             self.config,
         )
-        self._remember(calibrated_frame, shape, exclusions)
+        self._remember(analysis_frame, shape, exclusions)
         if result.measurement is None:
             return _empty_estimate(result.reason_code, profile_id)
-        return self._from_measurement(result.measurement, shape, profile_id)
+        return self._from_measurement(
+            self._measurement_at_source_scale(result.measurement, analysis_scale),
+            shape,
+            profile_id,
+        )
+
+    def _analysis_frame(
+        self,
+        frame: Any,
+        shape: tuple[int, int],
+    ) -> tuple[Any, float]:
+        """Downscale pixels used by optical flow while preserving source coordinates."""
+        limit = self.config.analysis_max_dimension
+        largest_dimension = max(shape)
+        if limit <= 0 or largest_dimension <= limit:
+            return frame, 1.0
+
+        scale = limit / largest_dimension
+        width = max(1, int(round(shape[1] * scale)))
+        height = max(1, int(round(shape[0] * scale)))
+        try:
+            import cv2
+
+            resized = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+        except (TypeError, ValueError, cv2.error):
+            # Test doubles and non-array injected frames keep the original path.
+            return frame, 1.0
+        return resized, scale
+
+    @staticmethod
+    def _measurement_at_source_scale(
+        measurement: GMCMeasurement,
+        analysis_scale: float,
+    ) -> GMCMeasurement:
+        if analysis_scale == 1.0:
+            return measurement
+        a, b, tx, c, d, ty = measurement.affine
+        return GMCMeasurement(
+            (a, b, tx / analysis_scale, c, d, ty / analysis_scale),
+            measurement.tracked_points,
+            measurement.inlier_count,
+            measurement.residual_px / analysis_scale,
+        )
 
     def _remember(self, frame: Any, shape: tuple[int, int], exclusions) -> None:
         self._previous_frame = frame

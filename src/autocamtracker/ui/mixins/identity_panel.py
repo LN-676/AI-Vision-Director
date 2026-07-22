@@ -23,7 +23,6 @@ class IdentityPanelMixin:
             return
         now = time()
         if not force and now - self.last_identity_panel_refresh_at < 0.5:
-            self._refresh_selection_panel()
             return
         self.last_identity_panel_refresh_at = now
         self.refreshing_identity_panel = True

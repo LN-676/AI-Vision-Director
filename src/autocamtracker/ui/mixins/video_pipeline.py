@@ -56,7 +56,6 @@ class VideoPipelineMixin:
             self.stop()
             return
 
-        self._process_frame_data(frame_data, frame)
         now = time()
         elapsed = max(1e-6, now - self.last_frame_time)
         self.fps = 1.0 / elapsed
@@ -64,6 +63,7 @@ class VideoPipelineMixin:
         frame_data.display_fps = self.fps
         frame_data.source_fps = self.tracking_session.get_source_fps()
         frame_data.skipped_frames = self.skipped_frames
+        self._process_frame_data(frame_data, frame)
         motor_status = self.tracking_server.motor_status
         if motor_status is not None:
             frame_data.stream_counters.update(
@@ -142,6 +142,27 @@ class VideoPipelineMixin:
         self.publish_desktop_state(force=False)
 
     def _log_frame_telemetry(self, frame_data: FrameData, frame_shape, shot_decision, motor_output_active: bool) -> None:
+        reason_code = (
+            frame_data.identity_decision.reason_code.value
+            if frame_data.identity_decision is not None else None
+        )
+        signature = (
+            frame_data.tracking_status,
+            frame_data.selected_global_vehicle_id,
+            frame_data.selected_local_track_id,
+            reason_code,
+            frame_data.camera_cut_detected,
+            motor_output_active,
+        )
+        now = time()
+        interval = max(0.0, float(self.config.frame_telemetry_interval_seconds))
+        if (
+            signature == self.last_frame_telemetry_signature
+            and now - self.last_frame_telemetry_at < interval
+        ):
+            return
+        self.last_frame_telemetry_at = now
+        self.last_frame_telemetry_signature = signature
         selected_target = frame_data.selected_targets[0] if frame_data.selected_targets else None
         frame_h, frame_w = frame_shape[:2]
         target_locked = (
@@ -172,10 +193,7 @@ class VideoPipelineMixin:
             lost_frames=frame_data.lost_frames,
             reid_confidence_level=frame_data.reid_confidence_level,
             motor_safe_to_track=frame_data.motor_safe_to_track,
-            identity_reason_code=(
-                frame_data.identity_decision.reason_code.value
-                if frame_data.identity_decision is not None else None
-            ),
+            identity_reason_code=reason_code,
             identity_score=(
                 frame_data.identity_decision.score
                 if frame_data.identity_decision is not None else None
@@ -343,6 +361,8 @@ class VideoPipelineMixin:
         self.last_raw_frame = None
         self.current_frame_data = None
         self.last_preview_render_at = 0.0
+        self.last_frame_telemetry_at = 0.0
+        self.last_frame_telemetry_signature = None
         self.skipped_frames = 0
         self.performance_evaluator.reset()
         self.auto_feature_sampler.stop()
@@ -364,10 +384,13 @@ class VideoPipelineMixin:
         )
 
     def _should_render_preview_frame(self) -> bool:
-        if self.input_config.source_type != "iphone":
-            return True
         now = time()
-        if now - self.last_preview_render_at < self.preview_render_interval_seconds:
+        interval = (
+            self.config.iphone_preview_interval_seconds
+            if self.input_config.source_type == "iphone"
+            else self.config.video_preview_interval_seconds
+        )
+        if now - self.last_preview_render_at < max(0.0, float(interval)):
             return False
         self.last_preview_render_at = now
         return True
