@@ -4,15 +4,19 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
-## Unreleased
+## V2.0 — 2026-07-22
 
 ### 中文
 
 - Qt 影片播放改以來源媒體時鐘同步；當推論速度低於 source FPS 時跳過落後影格，不再把影片變成慢動作，iPhone 來源維持 latest-frame 無排隊策略。
 - Before／After 黑邊新增精簡即時資訊：live/source FPS、frame/drop、E2E、inference、pipeline、receive、decode 與同步延遲。
 - 新增雙監看最大化（雙擊監看畫面或 `Ctrl+Shift+M`）及 frame-accurate timeline 時間碼。
-- 新增 **AI Vision Director V2.0 beta1** PySide6 方案 A「雙監看平衡型」平行介面與 `ai-vision-director-qt` 預覽入口。
+- 發布 **AI Vision Director V2.0** PySide6 方案 A「雙監看平衡型」平行介面與 `ai-vision-director-qt` 正式入口。
 - 新增可移動、浮動、關閉及從 Window menu 重開的模組化 Dock，以及 Tracking／Identity／Performance Workspace 保存、恢復與重設。
+- Vehicle Database 改為唯讀，支援首張 feature 照片懸浮預覽；雙擊車輛可進入會自動換列的圖庫，並以 Command／Ctrl／Shift 多選刪除受污染 feature。
+- LID／GID 監看標籤放大至 80 px；Source 面板按來源分頁，只顯示目前來源所需的輸入欄位。
+- Desktop iPhone 頁顯示／複製 WebSocket URL，iPhone App 可直接貼上；iPhone 來源會在 Qt 啟動時自動啟動 WebSocket listener。
+- iOS App 升級為 V2.0 build 2001；產品版本升級不改變既有 1.0 WebSocket contract、Bonjour type 或 DockKit safety policy。
 - 修正 Python 類別名稱為 `AIVisionDirectorApp`，並保留 `AIVisonDirectorApp` 與 `AutoCamTrackerApp` 相容 alias；既有 Tkinter UI、1.0 WebSocket contract、Bonjour type 與安全策略均不變。
 - 新增 `ACTF2` camera frame envelope，以 iPhone 來源 frame ID 關聯擷取、傳送、接收、解碼與推論階段；Desktop 仍相容 `ACTF1`。
 - 即時效能頁新增 session／rolling throughput、P50／P95／P99、分階段掉幀率、無畫面停頓與失追區間／frame 範圍。
@@ -24,8 +28,12 @@ This document records current releases. Complete historical source is available 
 - Synchronized Qt video playback to the source media clock, skipping overdue frames when inference is slower than source FPS instead of producing slow motion; iPhone input retains latest-frame, no-queue delivery.
 - Added concise Before/After telemetry for live/source FPS, frame/drop counts, and end-to-end, inference, pipeline, receive, decode, and sync latency.
 - Added dual-monitor maximize via double-click or `Ctrl+Shift+M` and frame-accurate timeline timecode.
-- Added the parallel **AI Vision Director V2.0 beta1** PySide6 Scheme A balanced dual-monitor UI and the `ai-vision-director-qt` preview entry point.
+- Released the **AI Vision Director V2.0** PySide6 Scheme A balanced dual-monitor UI and the `ai-vision-director-qt` production entry point.
 - Added movable, floatable, closable modular docks plus Tracking, Identity, and Performance workspace persistence and reset.
+- Made Vehicle Database read-only with first-feature hover previews; double-clicking a vehicle opens a responsive gallery with Command/Ctrl/Shift multi-selection for deleting contaminated features.
+- Enlarged LID/GID monitor labels to 80 px and split Source controls into source-specific pages.
+- Displayed and copied the desktop WebSocket URL from the iPhone source page, added paste support on iOS, and automatically started the listener for Qt iPhone sessions.
+- Updated the iOS app to V2.0 build 2001 without changing the 1.0 WebSocket contract, Bonjour type, or DockKit safety policy.
 - Corrected the Python class name to `AIVisionDirectorApp` while preserving `AIVisonDirectorApp` and `AutoCamTrackerApp` aliases; the Tkinter UI, 1.0 WebSocket contract, Bonjour type, and safety policy remain unchanged.
 - Added the backward-compatible `ACTF2` camera envelope with an iPhone source frame ID across capture, send, receive, decode, and inference stages.
 - Added session/rolling throughput, latency percentiles, stage-specific frame loss, frame stalls, and loss episodes to live performance evaluation.

@@ -404,8 +404,8 @@ class QtRuntimeController(QObject):
         )
         self.refresh_vehicles()
         self.statusChanged.emit(
-            f"Rolled back {result.rolled_back_count} contaminated feature photo(s) "
-            f"from GID {gid}"
+            f"Deleted {result.rolled_back_count} feature photo(s) from active ReID "
+            f"matching for GID {gid}"
         )
         return result.rolled_back_count
 

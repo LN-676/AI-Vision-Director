@@ -55,6 +55,10 @@ class VehicleDatabasePanel(QWidget):
             button.clicked.connect(callback)
             row.addWidget(button)
         layout = QVBoxLayout(self)
+        self.hint = QLabel("Double-click a vehicle to open its photo gallery.")
+        self.hint.setWordWrap(True)
+        self.hint.setStyleSheet("color: #98a2b3;")
+        layout.addWidget(self.hint)
         layout.addWidget(self.table)
         layout.addWidget(buttons)
 

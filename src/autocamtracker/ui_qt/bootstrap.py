@@ -20,6 +20,8 @@ class BootstrappedQtDesktop:
     window: AIVisionDirectorMainWindow
 
     def run(self) -> int:
+        if self.window.controller.input_config.source_type == "iphone":
+            self.window.dependencies.tracking_server.start()
         self.window.show()
         return self.application.exec()
 

@@ -1,4 +1,4 @@
-"""Preview command entry point for the parallel PySide6 desktop UI."""
+"""Command entry point for the PySide6 desktop UI."""
 
 from autocamtracker.ui_qt.bootstrap import run
 

@@ -16,7 +16,9 @@ from autocamtracker.ui.app import (
     AutoCamTrackerApp,
 )
 from autocamtracker.ui_qt.controller import video_sync_plan
+from autocamtracker.ui_qt.bootstrap import BootstrappedQtDesktop
 from autocamtracker.ui_qt.main_window import AIVisionDirectorMainWindow
+from autocamtracker.ui_qt.panels.feature_manager_dialog import FeatureManagerDialog
 from autocamtracker.ui_qt.panels.playback_panel import format_timecode
 from autocamtracker.ui_qt.panels.source_panel import SourcePanel
 from autocamtracker.ui_qt.panels.vehicle_database_panel import VehicleDatabasePanel
@@ -53,7 +55,7 @@ class QtUITests(unittest.TestCase):
         )
 
     def test_display_label_and_tk_class_aliases_preserve_protocol_version(self) -> None:
-        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.0 beta1")
+        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.0")
         self.assertEqual(VERSION, "1.0")
         self.assertIs(AIVisonDirectorApp, AIVisionDirectorApp)
         self.assertIs(AutoCamTrackerApp, AIVisionDirectorApp)
@@ -219,6 +221,10 @@ class QtUITests(unittest.TestCase):
         panel._open_feature_manager(0, 2)
 
         self.assertEqual(opened, [2])
+        self.assertEqual(
+            panel.hint.text(),
+            "Double-click a vehicle to open its photo gallery.",
+        )
         for column in range(panel.table.columnCount()):
             self.assertFalse(
                 bool(
@@ -238,6 +244,53 @@ class QtUITests(unittest.TestCase):
         self.assertEqual(
             panel.websocket_url.text(), "ws://mac.local:8765/ws/tracking"
         )
+
+    def test_feature_manager_uses_responsive_extended_icon_selection(self) -> None:
+        snapshots = [
+            SimpleNamespace(
+                feature_id=index,
+                frame_index=index * 10,
+                quality_score=0.9,
+                created_at=1_700_000_000.0,
+                crop_jpeg=None,
+            )
+            for index in range(1, 6)
+        ]
+        dialog = FeatureManagerDialog(2, "2", lambda _gid: snapshots, lambda *_: 0)
+
+        self.assertEqual(
+            dialog.gallery.selectionMode(),
+            dialog.gallery.SelectionMode.ExtendedSelection,
+        )
+        self.assertEqual(dialog.gallery.viewMode(), dialog.gallery.ViewMode.IconMode)
+        self.assertTrue(dialog.gallery.isWrapping())
+        self.assertEqual(dialog.gallery.resizeMode(), dialog.gallery.ResizeMode.Adjust)
+        self.assertEqual(dialog.delete_button.text(), "Delete Feature")
+        self.assertEqual(dialog.gallery.count(), 5)
+
+    def test_qt_run_starts_iphone_server_automatically(self) -> None:
+        class FakeServer:
+            def __init__(self) -> None:
+                self.started = 0
+
+            def start(self) -> None:
+                self.started += 1
+
+        class FakeApplication:
+            def exec(self) -> int:
+                return 0
+
+        server = FakeServer()
+        window = SimpleNamespace(
+            controller=SimpleNamespace(input_config=SimpleNamespace(source_type="iphone")),
+            dependencies=SimpleNamespace(tracking_server=server),
+            show=lambda: None,
+        )
+
+        result = BootstrappedQtDesktop(FakeApplication(), window).run()
+
+        self.assertEqual(result, 0)
+        self.assertEqual(server.started, 1)
 
 
 if __name__ == "__main__":

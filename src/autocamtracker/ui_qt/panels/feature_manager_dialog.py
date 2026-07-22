@@ -1,23 +1,21 @@
-"""Feature-gallery review and contamination rollback dialog."""
+"""Finder-style feature-gallery review and deletion dialog."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
-    QCheckBox,
+    QAbstractItemView,
     QDialog,
     QDialogButtonBox,
-    QFrame,
-    QGridLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QVBoxLayout,
-    QWidget,
 )
 
 
@@ -35,91 +33,93 @@ class FeatureManagerDialog(QDialog):
         self.display_name = display_name
         self.snapshot_provider = snapshot_provider
         self.rollback_callback = rollback_callback
-        self._checks: dict[int, QCheckBox] = {}
         self.setWindowTitle(f"Feature Manager · GID {display_name}")
-        self.setMinimumSize(820, 600)
+        self.setMinimumSize(520, 420)
+        self.resize(920, 640)
 
         self.summary = QLabel()
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.content = QWidget()
-        self.grid = QGridLayout(self.content)
-        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.scroll.setWidget(self.content)
-        rollback = QPushButton("Rollback Selected Contaminated Photos")
-        rollback.clicked.connect(self._rollback_selected)
+        self.summary.setWordWrap(True)
+        self.gallery = QListWidget()
+        self.gallery.setViewMode(QListWidget.ViewMode.IconMode)
+        self.gallery.setFlow(QListWidget.Flow.LeftToRight)
+        self.gallery.setWrapping(True)
+        self.gallery.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.gallery.setMovement(QListWidget.Movement.Static)
+        self.gallery.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.gallery.setIconSize(QSize(180, 120))
+        self.gallery.setGridSize(QSize(215, 180))
+        self.gallery.setSpacing(6)
+        self.gallery.setUniformItemSizes(True)
+        self.delete_button = QPushButton("Delete Feature")
+        self.delete_button.clicked.connect(self._delete_selected)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.summary)
-        layout.addWidget(self.scroll, 1)
-        layout.addWidget(rollback)
+        layout.addWidget(self.gallery, 1)
+        layout.addWidget(self.delete_button)
         layout.addWidget(buttons)
         self.refresh()
 
     def refresh(self) -> None:
-        while self.grid.count():
-            item = self.grid.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-        self._checks.clear()
+        self.gallery.clear()
         snapshots = self.snapshot_provider(self.gid)
         self.summary.setText(
             f"GID {self.display_name} · Active master features: {len(snapshots)} · "
-            "Select contaminated photos to remove them from ReID matching."
+            "Click a photo to select it. Command/Ctrl-click selects multiple photos; "
+            "Shift-click selects a range."
         )
         if not snapshots:
-            self.grid.addWidget(QLabel("No active master feature photos."), 0, 0)
+            self.gallery.setEnabled(False)
             return
-        for index, snapshot in enumerate(snapshots):
-            tile = QFrame()
-            tile.setFrameShape(QFrame.Shape.StyledPanel)
-            tile_layout = QVBoxLayout(tile)
-            preview = QLabel("No preview")
-            preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            preview.setFixedSize(180, 120)
+        self.gallery.setEnabled(True)
+        for snapshot in snapshots:
+            icon = QIcon()
             if snapshot.crop_jpeg:
                 pixmap = QPixmap()
                 if pixmap.loadFromData(snapshot.crop_jpeg):
-                    preview.setPixmap(
+                    icon = QIcon(
                         pixmap.scaled(
-                            preview.size(),
+                            self.gallery.iconSize(),
                             Qt.AspectRatioMode.KeepAspectRatio,
                             Qt.TransformationMode.SmoothTransformation,
                         )
                     )
             created = datetime.fromtimestamp(snapshot.created_at).strftime("%m-%d %H:%M:%S")
-            details = QLabel(
+            item = QListWidgetItem(
+                icon,
                 f"Feature #{snapshot.feature_id} · Frame {snapshot.frame_index}\n"
-                f"Quality {snapshot.quality_score:.2f} · {created}"
+                f"Quality {snapshot.quality_score:.2f} · {created}",
             )
-            details.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            check = QCheckBox("Mark as contaminated")
-            self._checks[snapshot.feature_id] = check
-            tile_layout.addWidget(preview)
-            tile_layout.addWidget(details)
-            tile_layout.addWidget(check)
-            self.grid.addWidget(tile, index // 4, index % 4)
+            item.setData(Qt.ItemDataRole.UserRole, snapshot.feature_id)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+            item.setToolTip(
+                f"Feature #{snapshot.feature_id}\nFrame {snapshot.frame_index}\n"
+                f"Quality {snapshot.quality_score:.2f}\nCreated {created}"
+            )
+            self.gallery.addItem(item)
 
-    def _rollback_selected(self) -> None:
-        selected = [feature_id for feature_id, check in self._checks.items() if check.isChecked()]
+    def _delete_selected(self) -> None:
+        selected = [
+            int(item.data(Qt.ItemDataRole.UserRole))
+            for item in self.gallery.selectedItems()
+        ]
         if not selected:
             QMessageBox.information(self, "Feature Manager", "Select at least one photo first.")
             return
         answer = QMessageBox.question(
             self,
-            "Rollback Contaminated Photos",
-            f"Remove {len(selected)} selected photo(s) from active ReID matching? "
+            "Delete Selected Features",
+            f"Delete {len(selected)} selected feature photo(s) from active ReID matching? "
             "The audit record will be retained.",
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
-        rolled_back = self.rollback_callback(self.gid, selected)
+        deleted = self.rollback_callback(self.gid, selected)
         QMessageBox.information(
             self,
             "Feature Manager",
-            f"Rolled back {rolled_back} contaminated photo(s).",
+            f"Deleted {deleted} feature photo(s) from active ReID matching.",
         )
         self.refresh()
