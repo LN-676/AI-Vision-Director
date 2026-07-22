@@ -1,0 +1,341 @@
+"""Scheme A dockable PySide6 main window."""
+
+from __future__ import annotations
+
+from queue import Empty
+
+from PySide6.QtCore import QByteArray, QSettings, Qt, QTimer
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QDockWidget, QLabel, QMainWindow, QTabWidget
+
+from autocamtracker.product import DISPLAY_NAME
+from autocamtracker.ui_qt.actions import create_workspace_actions
+from autocamtracker.ui_qt.controller import QtRuntimeController
+from autocamtracker.ui_qt.panels import (
+    DiagnosticsPanel,
+    PerformancePanel,
+    PlaybackPanel,
+    ReIDPanel,
+    SourcePanel,
+    TrackShotPanel,
+    TrackingPanel,
+    VehicleDatabasePanel,
+)
+from autocamtracker.ui_qt.state import (
+    APPLICATION_NAME,
+    GEOMETRY_KEY,
+    LAYOUT_VERSION,
+    ORGANIZATION_NAME,
+    PRESET_KEY,
+    STATE_KEY,
+    VERSION_KEY,
+    Workspace,
+)
+from autocamtracker.ui_qt.widgets import DualMonitorWidget
+
+
+class AIVisionDirectorMainWindow(QMainWindow):
+    """Balanced dual-monitor workspace backed by existing application services."""
+
+    def __init__(self, config, dependencies, *, settings: QSettings | None = None, parent=None) -> None:
+        super().__init__(parent)
+        self.config = config
+        self.dependencies = dependencies
+        self.settings = settings or QSettings(ORGANIZATION_NAME, APPLICATION_NAME)
+        self.setObjectName("main.aiVisionDirector")
+        self.setWindowTitle(DISPLAY_NAME)
+        self.setMinimumSize(1120, 720)
+        self.resize(1440, 900)
+        self.setDockOptions(
+            QMainWindow.DockOption.AllowNestedDocks
+            | QMainWindow.DockOption.AllowTabbedDocks
+            | QMainWindow.DockOption.GroupedDragging
+        )
+        self.setTabPosition(
+            Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North
+        )
+
+        self.monitors = DualMonitorWidget(self)
+        self.setCentralWidget(self.monitors)
+        self.controller = QtRuntimeController(config, dependencies, self)
+        self.panels = self._create_panels()
+        self.docks = self._create_docks()
+        self.workspace_actions = create_workspace_actions(self, self.apply_workspace)
+        self._create_menus()
+        self._create_status_bar()
+        self._connect_panels()
+
+        self._status_timer = QTimer(self)
+        self._status_timer.setInterval(500)
+        self._status_timer.timeout.connect(self._refresh_status_panels)
+        self._status_timer.start()
+        self.restore_workspace()
+        self.controller.refresh_vehicles()
+
+    def _create_panels(self) -> dict[str, object]:
+        return {
+            "source": SourcePanel(),
+            "tracking": TrackingPanel(),
+            "track_shot": TrackShotPanel(),
+            "playback": PlaybackPanel(),
+            "vehicle_database": VehicleDatabasePanel(),
+            "reid": ReIDPanel(),
+            "performance": PerformancePanel(),
+            "diagnostics": DiagnosticsPanel(),
+        }
+
+    def _create_docks(self) -> dict[str, QDockWidget]:
+        titles = {
+            "source": "Source",
+            "tracking": "Tracking",
+            "track_shot": "Track Shot",
+            "playback": "Playback",
+            "vehicle_database": "Vehicle Database",
+            "reid": "ReID / Features",
+            "performance": "Performance",
+            "diagnostics": "Diagnostics",
+        }
+        docks: dict[str, QDockWidget] = {}
+        for key, panel in self.panels.items():
+            dock = QDockWidget(titles[key], self)
+            dock.setObjectName(f"dock.{key}")
+            dock.setWidget(panel)
+            dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+            dock.setFeatures(
+                QDockWidget.DockWidgetFeature.DockWidgetClosable
+                | QDockWidget.DockWidgetFeature.DockWidgetMovable
+                | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+            )
+            if key in {"source", "tracking"}:
+                dock.setMinimumWidth(260)
+            elif key in {"vehicle_database", "reid"}:
+                dock.setMinimumWidth(300)
+            if key in {"performance", "diagnostics"}:
+                dock.topLevelChanged.connect(
+                    lambda floating, item=dock: item.setMinimumSize(
+                        720 if floating else 0, 480 if floating else 0
+                    )
+                )
+            docks[key] = dock
+        return docks
+
+    def _create_menus(self) -> None:
+        window_menu = self.menuBar().addMenu("Window")
+        panels_menu = window_menu.addMenu("Panels")
+        for key in (
+            "source",
+            "tracking",
+            "track_shot",
+            "playback",
+            "vehicle_database",
+            "reid",
+            "performance",
+            "diagnostics",
+        ):
+            panels_menu.addAction(self.docks[key].toggleViewAction())
+        workspace_menu = window_menu.addMenu("Workspace")
+        for workspace in Workspace:
+            workspace_menu.addAction(self.workspace_actions[workspace])
+        workspace_menu.addSeparator()
+        reset_action = QAction("Reset Workspace", self)
+        reset_action.setShortcut("Ctrl+Shift+0")
+        reset_action.triggered.connect(self.reset_workspace)
+        workspace_menu.addAction(reset_action)
+
+    def _create_status_bar(self) -> None:
+        self.status_label = QLabel("Status: idle")
+        self.iphone_label = QLabel("iPhone link: idle")
+        self.fps_label = QLabel("FPS: 0.0")
+        self.inference_label = QLabel("Inference: 0.0 ms")
+        status = self.statusBar()
+        status.addWidget(self.status_label, 1)
+        status.addPermanentWidget(self.iphone_label)
+        status.addPermanentWidget(self.fps_label)
+        status.addPermanentWidget(self.inference_label)
+
+    def _connect_panels(self) -> None:
+        source: SourcePanel = self.panels["source"]
+        tracking: TrackingPanel = self.panels["tracking"]
+        track_shot: TrackShotPanel = self.panels["track_shot"]
+        playback: PlaybackPanel = self.panels["playback"]
+        database: VehicleDatabasePanel = self.panels["vehicle_database"]
+        reid: ReIDPanel = self.panels["reid"]
+
+        source.sourceChanged.connect(self.controller.configure_source)
+        source.videoFileChanged.connect(self.controller.set_video_file)
+        source.videoUrlChanged.connect(self.controller.set_video_url)
+        source.cameraIndexChanged.connect(self.controller.set_camera_index)
+        source.screenRegionChanged.connect(self.controller.set_screen_region)
+        source.testConnectionRequested.connect(self._test_connection)
+        tracking.autoTrackRequested.connect(self.controller.auto_track)
+        tracking.clearRequested.connect(self.controller.clear_selection)
+        tracking.resetRequested.connect(self.controller.reset_tracking)
+        tracking.framingChanged.connect(self.controller.set_framing)
+        tracking.configurationChanged.connect(self.controller.configure_tracking)
+        track_shot.modeChanged.connect(self.controller.set_track_shot_mode)
+        track_shot.rearmRequested.connect(self.controller.rearm_track_shot)
+        playback.startRequested.connect(self.controller.start)
+        playback.pauseRequested.connect(self.controller.pause)
+        playback.stopRequested.connect(self.controller.stop)
+        playback.recordRequested.connect(self.controller.toggle_recording)
+        database.addRequested.connect(self.controller.add_vehicle)
+        database.linkRequested.connect(self.controller.link_vehicle)
+        database.findRequested.connect(self.controller.find_vehicle)
+        database.releaseRequested.connect(self.controller.release_vehicle)
+        database.deleteRequested.connect(self.controller.delete_vehicle)
+        reid.manualFeatureRequested.connect(self.controller.add_manual_feature)
+        reid.autoFeatureRequested.connect(self.controller.toggle_auto_feature)
+        self.monitors.before_view.frameClicked.connect(self.controller.select_at)
+
+        self.controller.beforeFrameReady.connect(self.monitors.before_view.set_frame)
+        self.controller.afterFrameReady.connect(self.monitors.after_view.set_frame)
+        self.controller.statusChanged.connect(
+            lambda text: self.status_label.setText(f"Status: {text}")
+        )
+        self.controller.fpsChanged.connect(
+            lambda value: self.fps_label.setText(f"FPS: {value:.1f}")
+        )
+        self.controller.inferenceChanged.connect(
+            lambda value: self.inference_label.setText(f"Inference: {value:.1f} ms")
+        )
+        self.controller.vehiclesChanged.connect(database.set_vehicles)
+        self.controller.timelineChanged.connect(self._update_timeline)
+
+        playback.timeline.sliderReleased.connect(
+            lambda: self.controller.seek(playback.timeline.value())
+        )
+        source.source.setCurrentIndex(
+            source.source.findData(self.controller.input_config.source_type)
+        )
+        self.controller.configure_tracking(
+            tracking.profile.currentText(),
+            tracking.tracker.currentText(),
+            tracking.confidence.value(),
+        )
+
+    def _update_timeline(self, maximum: int, value: int) -> None:
+        playback: PlaybackPanel = self.panels["playback"]
+        if not playback.timeline.isSliderDown():
+            playback.timeline.setRange(0, maximum)
+            playback.timeline.setValue(max(0, min(value, maximum)))
+
+    def apply_workspace(self, workspace: Workspace) -> None:
+        if not isinstance(workspace, Workspace):
+            workspace = Workspace(workspace)
+        self._install_default_docks()
+        for dock in self.docks.values():
+            dock.show()
+        if workspace == Workspace.IDENTITY:
+            self.docks["source"].hide()
+            self.docks["diagnostics"].hide()
+            self.docks["performance"].hide()
+            self.monitors.splitter.setSizes([1, 2])
+            self.resizeDocks(
+                [self.docks["vehicle_database"], self.docks["reid"]],
+                [520, 520],
+                Qt.Orientation.Horizontal,
+            )
+            self.docks["vehicle_database"].raise_()
+            self.resizeDocks(
+                [self.docks["playback"]], [140], Qt.Orientation.Vertical
+            )
+        elif workspace == Workspace.PERFORMANCE:
+            self.docks["source"].hide()
+            self.docks["tracking"].hide()
+            self.docks["track_shot"].hide()
+            self.docks["vehicle_database"].hide()
+            self.docks["reid"].hide()
+            self.monitors.splitter.setSizes([1, 1])
+            self.docks["performance"].raise_()
+            self.resizeDocks(
+                [self.docks["performance"], self.docks["diagnostics"]],
+                [480, 480],
+                Qt.Orientation.Vertical,
+            )
+        else:
+            self.docks["performance"].hide()
+            self.monitors.splitter.setSizes([1, 1])
+            self.docks["tracking"].raise_()
+            self.docks["vehicle_database"].raise_()
+            self.docks["playback"].raise_()
+            self.resizeDocks(
+                [self.docks["playback"]], [140], Qt.Orientation.Vertical
+            )
+        self.workspace_actions[workspace].setChecked(True)
+        self.settings.setValue(PRESET_KEY, workspace.value)
+
+    def _install_default_docks(self) -> None:
+        for dock in self.docks.values():
+            dock.setFloating(False)
+            self.removeDockWidget(dock)
+        for key in ("source", "tracking", "track_shot"):
+            self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.docks[key])
+        self.tabifyDockWidget(self.docks["source"], self.docks["tracking"])
+        self.tabifyDockWidget(self.docks["tracking"], self.docks["track_shot"])
+        for key in ("vehicle_database", "reid"):
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.docks[key])
+        self.tabifyDockWidget(self.docks["vehicle_database"], self.docks["reid"])
+        for key in ("playback", "performance", "diagnostics"):
+            self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.docks[key])
+        self.tabifyDockWidget(self.docks["playback"], self.docks["performance"])
+        self.tabifyDockWidget(self.docks["performance"], self.docks["diagnostics"])
+
+    def save_workspace(self) -> None:
+        self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)
+        self.settings.setValue(GEOMETRY_KEY, self.saveGeometry())
+        self.settings.setValue(STATE_KEY, self.saveState(LAYOUT_VERSION))
+        self.settings.sync()
+
+    def restore_workspace(self) -> bool:
+        version = int(self.settings.value(VERSION_KEY, 0))
+        if version != LAYOUT_VERSION:
+            self.reset_workspace()
+            return False
+        geometry = self.settings.value(GEOMETRY_KEY, QByteArray())
+        state = self.settings.value(STATE_KEY, QByteArray())
+        geometry_ok = bool(geometry) and self.restoreGeometry(geometry)
+        state_ok = bool(state) and self.restoreState(state, LAYOUT_VERSION)
+        try:
+            workspace = Workspace(str(self.settings.value(PRESET_KEY, Workspace.TRACKING.value)))
+        except ValueError:
+            workspace = Workspace.TRACKING
+        self.workspace_actions[workspace].setChecked(True)
+        if not state_ok:
+            self.apply_workspace(workspace)
+        return bool(geometry_ok and state_ok)
+
+    def reset_workspace(self) -> None:
+        self.settings.remove(GEOMETRY_KEY)
+        self.settings.remove(STATE_KEY)
+        self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)
+        self.resize(1440, 900)
+        self.apply_workspace(Workspace.TRACKING)
+
+    def _test_connection(self) -> None:
+        self.dependencies.tracking_server.start()
+        self.status_label.setText("Status: iPhone connection service started")
+
+    def _refresh_status_panels(self) -> None:
+        try:
+            while True:
+                message = self.dependencies.iphone_status_queue.get_nowait()
+                text = f"iPhone link: {message}"
+                self.iphone_label.setText(text)
+                self.panels["source"].set_connection(text)
+        except Empty:
+            pass
+        self.panels["performance"].set_snapshot(
+            self.dependencies.performance_evaluator.snapshot()
+        )
+        self.dependencies.diagnostics_service.observe_server(
+            self.dependencies.tracking_server, False
+        )
+        self.panels["diagnostics"].set_health(
+            self.dependencies.diagnostics_service.snapshot()
+        )
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        self.save_workspace()
+        self._status_timer.stop()
+        self.controller.close()
+        event.accept()

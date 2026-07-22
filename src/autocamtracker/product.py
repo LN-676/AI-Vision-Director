@@ -1,6 +1,8 @@
 """Canonical product identity shared by desktop runtime components."""
 
 APP_NAME = "AI Vision Director"
+# VERSION is the established protocol/source version and must remain stable.
 VERSION = "1.0"
-VERSION_LABEL = f"V{VERSION}"
-DISPLAY_NAME = f"{APP_NAME} {VERSION_LABEL}"
+UI_VERSION_LABEL = "V2.0 beta1"
+VERSION_LABEL = UI_VERSION_LABEL
+DISPLAY_NAME = f"{APP_NAME} {UI_VERSION_LABEL}"

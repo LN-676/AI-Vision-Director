@@ -8,6 +8,9 @@ This document records current releases. Complete historical source is available 
 
 ### 中文
 
+- 新增 **AI Vision Director V2.0 beta1** PySide6 方案 A「雙監看平衡型」平行介面與 `ai-vision-director-qt` 預覽入口。
+- 新增可移動、浮動、關閉及從 Window menu 重開的模組化 Dock，以及 Tracking／Identity／Performance Workspace 保存、恢復與重設。
+- 修正 Python 類別名稱為 `AIVisionDirectorApp`，並保留 `AIVisonDirectorApp` 與 `AutoCamTrackerApp` 相容 alias；既有 Tkinter UI、1.0 WebSocket contract、Bonjour type 與安全策略均不變。
 - 新增 `ACTF2` camera frame envelope，以 iPhone 來源 frame ID 關聯擷取、傳送、接收、解碼與推論階段；Desktop 仍相容 `ACTF1`。
 - 即時效能頁新增 session／rolling throughput、P50／P95／P99、分階段掉幀率、無畫面停頓與失追區間／frame 範圍。
 - 診斷頁改為模組健康總覽與結構化事件列表，提供 Healthy／Degraded／Fault／Idle、原因代碼及建議。
@@ -15,6 +18,9 @@ This document records current releases. Complete historical source is available 
 
 ### English
 
+- Added the parallel **AI Vision Director V2.0 beta1** PySide6 Scheme A balanced dual-monitor UI and the `ai-vision-director-qt` preview entry point.
+- Added movable, floatable, closable modular docks plus Tracking, Identity, and Performance workspace persistence and reset.
+- Corrected the Python class name to `AIVisionDirectorApp` while preserving `AIVisonDirectorApp` and `AutoCamTrackerApp` aliases; the Tkinter UI, 1.0 WebSocket contract, Bonjour type, and safety policy remain unchanged.
 - Added the backward-compatible `ACTF2` camera envelope with an iPhone source frame ID across capture, send, receive, decode, and inference stages.
 - Added session/rolling throughput, latency percentiles, stage-specific frame loss, frame stalls, and loss episodes to live performance evaluation.
 - Reworked diagnostics into module health and structured event views with state, reason codes, and recommendations.

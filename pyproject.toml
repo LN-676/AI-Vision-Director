@@ -18,10 +18,12 @@ dependencies = [
     "onnx>=1.21.0",
     "onnxruntime>=1.26.0",
     "websockets>=13.0,<17.0",
+    "PySide6>=6.8,<7.0",
 ]
 
 [project.scripts]
 ai-vision-director = "autocamtracker.main:main"
+ai-vision-director-qt = "autocamtracker.qt_main:main"
 gid-loss-benchmark = "autocamtracker.evaluation.gid_loss:main"
 
 [tool.setuptools.packages.find]

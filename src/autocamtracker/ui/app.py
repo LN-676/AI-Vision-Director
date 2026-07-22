@@ -72,7 +72,7 @@ from autocamtracker.ui.mixins.video_pipeline import VideoPipelineMixin
 from autocamtracker.ui.mixins.commands import CommandsMixin
 from autocamtracker.ui.mixins.performance_panel import PerformancePanelMixin
 
-class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, CommandsMixin, PerformancePanelMixin):
+class AIVisionDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin, CommandsMixin, PerformancePanelMixin):
     def __init__(self, root: tk.Tk, config: AppConfig, dependencies: AppDependencies) -> None:
         self.root = root
         self.config = config
@@ -164,5 +164,6 @@ class AIVisonDirectorApp(UIBuilderMixin, IdentityPanelMixin, VideoPipelineMixin,
     """Tkinter integration shell for the five V1 modules."""
 
 
-# Backward-compatible import for integrations written before V1.0.
-AutoCamTrackerApp = AIVisonDirectorApp
+# Compatibility imports for integrations written before the V2 Qt transition.
+AIVisonDirectorApp = AIVisionDirectorApp
+AutoCamTrackerApp = AIVisionDirectorApp

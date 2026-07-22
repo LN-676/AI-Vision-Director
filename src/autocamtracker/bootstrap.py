@@ -30,7 +30,7 @@ from autocamtracker.tracking.identity_components import (
 )
 from autocamtracker.tracking.identity_manager import GlobalIdentityManager
 from autocamtracker.tracking.vehicle_identity_store import VehicleIdentityStore
-from autocamtracker.ui.app import AIVisonDirectorApp, AppConfig, AppDependencies
+from autocamtracker.ui.app import AIVisionDirectorApp, AppConfig, AppDependencies
 from autocamtracker.vision.reframer import FramingConfig, Reframer
 from autocamtracker.vision.framing_engine import FramingEngine, FramingEngineConfig
 from autocamtracker.vision.scene_cut import SceneCutDetector
@@ -48,7 +48,7 @@ class BootstrappedDesktop:
     """The process objects needed to enter the Tk event loop."""
 
     root: Any
-    app: AIVisonDirectorApp
+    app: AIVisionDirectorApp
 
     def run(self) -> None:
         self.root.mainloop()
@@ -59,11 +59,25 @@ def bootstrap(
     config: AppConfig | None = None,
     argv: Sequence[str] | None = None,
     root_factory: Callable[[], Any] = tk.Tk,
-    app_factory: Callable[..., AIVisonDirectorApp] = AIVisonDirectorApp,
+    app_factory: Callable[..., AIVisionDirectorApp] = AIVisionDirectorApp,
 ) -> BootstrappedDesktop:
     """Construct the complete desktop object graph exactly once."""
 
     app_config = config or AppConfig()
+    dependencies = build_dependencies(app_config)
+    root = root_factory()
+    app = app_factory(root, app_config, dependencies)
+
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments:
+        app.input_config.source_type = "video_file"
+        app.input_config.video_path = arguments[0]
+    return BootstrappedDesktop(root=root, app=app)
+
+
+def build_dependencies(app_config: AppConfig) -> AppDependencies:
+    """Build one shared core runtime for either desktop delivery layer."""
+
     status_queue: SimpleQueue[str] = SimpleQueue()
     control_queue: SimpleQueue[dict] = SimpleQueue()
     telemetry_logger = TelemetryLogger(app_config.telemetry_dir)
@@ -150,7 +164,7 @@ def bootstrap(
         latency_compensator=latency_compensator,
         camera_control_policy=camera_control_policy,
     )
-    dependencies = AppDependencies(
+    return AppDependencies(
         application=application,
         telemetry_logger=telemetry_logger,
         performance_evaluator=PerformanceEvaluationTracker(),
@@ -161,14 +175,6 @@ def bootstrap(
         iphone_status_queue=status_queue,
         iphone_control_queue=control_queue,
     )
-    root = root_factory()
-    app = app_factory(root, app_config, dependencies)
-
-    arguments = list(sys.argv[1:] if argv is None else argv)
-    if arguments:
-        app.input_config.source_type = "video_file"
-        app.input_config.video_path = arguments[0]
-    return BootstrappedDesktop(root=root, app=app)
 
 
 def run(argv: Sequence[str] | None = None) -> None:
