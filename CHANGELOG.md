@@ -8,6 +8,9 @@ This document records current releases. Complete historical source is available 
 
 ### 中文
 
+- Qt 影片播放改以來源媒體時鐘同步；當推論速度低於 source FPS 時跳過落後影格，不再把影片變成慢動作，iPhone 來源維持 latest-frame 無排隊策略。
+- Before／After 黑邊新增精簡即時資訊：live/source FPS、frame/drop、E2E、inference、pipeline、receive、decode 與同步延遲。
+- 新增雙監看最大化（雙擊監看畫面或 `Ctrl+Shift+M`）及 frame-accurate timeline 時間碼。
 - 新增 **AI Vision Director V2.0 beta1** PySide6 方案 A「雙監看平衡型」平行介面與 `ai-vision-director-qt` 預覽入口。
 - 新增可移動、浮動、關閉及從 Window menu 重開的模組化 Dock，以及 Tracking／Identity／Performance Workspace 保存、恢復與重設。
 - 修正 Python 類別名稱為 `AIVisionDirectorApp`，並保留 `AIVisonDirectorApp` 與 `AutoCamTrackerApp` 相容 alias；既有 Tkinter UI、1.0 WebSocket contract、Bonjour type 與安全策略均不變。
@@ -18,6 +21,9 @@ This document records current releases. Complete historical source is available 
 
 ### English
 
+- Synchronized Qt video playback to the source media clock, skipping overdue frames when inference is slower than source FPS instead of producing slow motion; iPhone input retains latest-frame, no-queue delivery.
+- Added concise Before/After telemetry for live/source FPS, frame/drop counts, and end-to-end, inference, pipeline, receive, decode, and sync latency.
+- Added dual-monitor maximize via double-click or `Ctrl+Shift+M` and frame-accurate timeline timecode.
 - Added the parallel **AI Vision Director V2.0 beta1** PySide6 Scheme A balanced dual-monitor UI and the `ai-vision-director-qt` preview entry point.
 - Added movable, floatable, closable modular docks plus Tracking, Identity, and Performance workspace persistence and reset.
 - Corrected the Python class name to `AIVisionDirectorApp` while preserving `AIVisonDirectorApp` and `AutoCamTrackerApp` aliases; the Tkinter UI, 1.0 WebSocket contract, Bonjour type, and safety policy remain unchanged.

@@ -193,6 +193,8 @@ V2.0 beta1 的 PySide6 方案 A 預覽入口：
 
 `ai-vision-director` 仍啟動既有 Tkinter UI；兩個入口共用同一套 application use case、資料格式與 WebSocket contract。
 
+Qt 監看畫面可雙擊或按 `Ctrl+Shift+M` 切換最大化。影片播放會依 source FPS 維持媒體時間；若 AI 處理速度不足，會跳過落後影格以避免慢動作，Before／After 下方會顯示 live/source FPS、drop 與必要延遲數據。
+
 也可以直接使用 module entry point：
 
 ```bash
@@ -319,6 +321,8 @@ PySide6 Scheme A preview:
 ```
 
 `ai-vision-director` continues to launch Tkinter. Both delivery layers share the same application use cases, data formats, and WebSocket contract.
+
+Double-click either Qt monitor or press `Ctrl+Shift+M` to maximize the dual-monitor area. Video playback follows source media time and drops overdue frames rather than slowing down when AI processing is behind; the monitor readouts show live/source FPS, drops, and essential latency metrics.
 
 Module entry point:
 

@@ -21,6 +21,24 @@ class DualMonitorWidget(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.addWidget(self.splitter)
 
+    def set_metrics(self, metrics: dict) -> None:
+        live_fps = float(metrics.get("display_fps", 0.0))
+        source_fps = float(metrics.get("source_fps", 0.0))
+        frame_index = int(metrics.get("frame_index", 0))
+        dropped = int(metrics.get("skipped_frames", 0))
+        self.before_view.set_metrics_text(
+            f"LIVE {live_fps:5.1f} FPS   SOURCE {source_fps:5.1f} FPS\n"
+            f"FRAME {frame_index:07d}   DROPPED {dropped}"
+        )
+        self.after_view.set_metrics_text(
+            f"E2E {float(metrics.get('end_to_end_ms', 0.0)):5.1f} ms   "
+            f"INFER {float(metrics.get('inference_ms', 0.0)):5.1f} ms   "
+            f"PIPE {float(metrics.get('pipeline_ms', 0.0)):5.1f} ms\n"
+            f"RX {float(metrics.get('receive_ms', 0.0)):5.1f} ms   "
+            f"DECODE {float(metrics.get('decode_ms', 0.0)):4.1f} ms   "
+            f"SYNC {float(metrics.get('video_lag_ms', 0.0)):5.1f} ms"
+        )
+
     @staticmethod
     def _monitor(title: str, view: VideoView) -> QGroupBox:
         group = QGroupBox(title)

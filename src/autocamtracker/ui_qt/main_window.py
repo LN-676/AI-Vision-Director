@@ -60,6 +60,9 @@ class AIVisionDirectorMainWindow(QMainWindow):
         self.controller = QtRuntimeController(config, dependencies, self)
         self.panels = self._create_panels()
         self.docks = self._create_docks()
+        self._monitor_maximized = False
+        self._dock_visibility_before_maximize: dict[str, bool] = {}
+        self._status_bar_was_visible = True
         self.workspace_actions = create_workspace_actions(self, self.apply_workspace)
         self._create_menus()
         self._create_status_bar()
@@ -121,6 +124,12 @@ class AIVisionDirectorMainWindow(QMainWindow):
 
     def _create_menus(self) -> None:
         window_menu = self.menuBar().addMenu("Window")
+        self.maximize_monitors_action = QAction("Maximize Monitors", self)
+        self.maximize_monitors_action.setCheckable(True)
+        self.maximize_monitors_action.setShortcut("Ctrl+Shift+M")
+        self.maximize_monitors_action.triggered.connect(self.toggle_monitor_maximize)
+        window_menu.addAction(self.maximize_monitors_action)
+        window_menu.addSeparator()
         panels_menu = window_menu.addMenu("Panels")
         for key in (
             "source",
@@ -178,6 +187,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
         playback.pauseRequested.connect(self.controller.pause)
         playback.stopRequested.connect(self.controller.stop)
         playback.recordRequested.connect(self.controller.toggle_recording)
+        playback.speedChanged.connect(self.controller.set_playback_speed)
         database.addRequested.connect(self.controller.add_vehicle)
         database.linkRequested.connect(self.controller.link_vehicle)
         database.findRequested.connect(self.controller.find_vehicle)
@@ -200,6 +210,13 @@ class AIVisionDirectorMainWindow(QMainWindow):
         )
         self.controller.vehiclesChanged.connect(database.set_vehicles)
         self.controller.timelineChanged.connect(self._update_timeline)
+        self.controller.metricsChanged.connect(self.monitors.set_metrics)
+        self.monitors.before_view.doubleClicked.connect(
+            lambda: self.toggle_monitor_maximize()
+        )
+        self.monitors.after_view.doubleClicked.connect(
+            lambda: self.toggle_monitor_maximize()
+        )
 
         playback.timeline.sliderReleased.connect(
             lambda: self.controller.seek(playback.timeline.value())
@@ -213,13 +230,32 @@ class AIVisionDirectorMainWindow(QMainWindow):
             tracking.confidence.value(),
         )
 
-    def _update_timeline(self, maximum: int, value: int) -> None:
+    def _update_timeline(self, maximum: int, value: int, fps: float) -> None:
         playback: PlaybackPanel = self.panels["playback"]
-        if not playback.timeline.isSliderDown():
-            playback.timeline.setRange(0, maximum)
-            playback.timeline.setValue(max(0, min(value, maximum)))
+        playback.set_timeline(maximum, value, fps)
+
+    def toggle_monitor_maximize(self, checked: bool | None = None) -> None:
+        maximize = not self._monitor_maximized if checked is None else bool(checked)
+        if maximize == self._monitor_maximized:
+            return
+        if maximize:
+            self._dock_visibility_before_maximize = {
+                key: dock.isVisible() for key, dock in self.docks.items()
+            }
+            self._status_bar_was_visible = self.statusBar().isVisible()
+            for dock in self.docks.values():
+                dock.hide()
+            self.statusBar().hide()
+        else:
+            for key, dock in self.docks.items():
+                dock.setVisible(self._dock_visibility_before_maximize.get(key, True))
+            self.statusBar().setVisible(self._status_bar_was_visible)
+        self._monitor_maximized = maximize
+        self.maximize_monitors_action.setChecked(maximize)
 
     def apply_workspace(self, workspace: Workspace) -> None:
+        if self._monitor_maximized:
+            self.toggle_monitor_maximize(False)
         if not isinstance(workspace, Workspace):
             workspace = Workspace(workspace)
         self._install_default_docks()
@@ -335,6 +371,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
         )
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._monitor_maximized:
+            self.toggle_monitor_maximize(False)
         self.save_workspace()
         self._status_timer.stop()
         self.controller.close()

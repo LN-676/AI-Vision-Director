@@ -2,10 +2,42 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
+
+
+@dataclass(frozen=True)
+class VideoSyncPlan:
+    frames_to_skip: int
+    wait_seconds: float
+    lag_ms: float
+
+
+def video_sync_plan(
+    *,
+    start_frame: int,
+    current_frame: int,
+    source_fps: float,
+    playback_speed: float,
+    elapsed_seconds: float,
+    max_skip: int = 120,
+) -> VideoSyncPlan:
+    """Keep media time tied to the source clock instead of inference speed."""
+
+    fps = max(1.0, float(source_fps))
+    speed = max(0.05, float(playback_speed))
+    elapsed = max(0.0, float(elapsed_seconds))
+    desired_frame = start_frame + int(elapsed * fps * speed)
+    overdue_frames = max(0, desired_frame - current_frame)
+    frames_to_skip = min(max(0, int(max_skip)), overdue_frames)
+    next_frame = current_frame + frames_to_skip
+    next_due_seconds = max(0.0, (next_frame - start_frame) / (fps * speed))
+    wait_seconds = max(0.0, next_due_seconds - elapsed)
+    lag_ms = overdue_frames * 1000.0 / fps
+    return VideoSyncPlan(frames_to_skip, wait_seconds, lag_ms)
 
 
 class QtRuntimeController(QObject):
@@ -16,7 +48,8 @@ class QtRuntimeController(QObject):
     inferenceChanged = Signal(float)
     runningChanged = Signal(bool)
     vehiclesChanged = Signal(object)
-    timelineChanged = Signal(int, int)
+    timelineChanged = Signal(int, int, float)
+    metricsChanged = Signal(object)
 
     def __init__(self, config, dependencies, parent=None) -> None:
         super().__init__(parent)
@@ -33,11 +66,22 @@ class QtRuntimeController(QObject):
         self.last_raw_frame = None
         self.last_frame_data = None
         self.last_inference_ms = 0.0
+        self.skipped_frames = 0
+        self.playback_speed = 1.0
         self._selected_detection = None
         self._frames_since_fps = 0
         self._fps_started = monotonic()
+        self._display_fps = 0.0
+        self._playback_started_at = monotonic()
+        self._playback_start_frame = 0
+        self._next_video_request_at = 0.0
+        self._video_lag_ms = 0.0
+        self._last_metrics_emit = 0.0
+        self._last_received_count: int | None = None
+        self._last_received_at = monotonic()
+        self._observed_source_fps = 0.0
         self._timer = QTimer(self)
-        self._timer.setInterval(max(1, int(config.update_interval_ms)))
+        self._timer.setInterval(min(5, max(1, int(config.update_interval_ms))))
         self._timer.timeout.connect(self._poll)
         self._timer.start()
         self._metrics_timer = QTimer(self)
@@ -88,6 +132,12 @@ class QtRuntimeController(QObject):
         self.input_config.confidence_threshold = float(confidence)
         self.input_config.tracker_reid_enabled = profile == "Balanced ID"
 
+    @Slot(float)
+    def set_playback_speed(self, speed: float) -> None:
+        self.playback_speed = max(0.05, float(speed))
+        self._reset_playback_clock()
+        self.statusChanged.emit(f"Playback speed: {self.playback_speed:g}×")
+
     @Slot()
     def start(self) -> None:
         try:
@@ -102,11 +152,16 @@ class QtRuntimeController(QObject):
                 self.input_config,
                 frame_provider=provider,
                 draw_detections=self._draw_detections,
-                get_skipped_frames=lambda: 0,
+                get_skipped_frames=lambda: self.skipped_frames,
                 should_render_preview=lambda: True,
                 get_frame_timing=self.dependencies.tracking_server.latest_frame_timing,
             )
             self.running = True
+            self.skipped_frames = 0
+            self._last_received_count = None
+            self._last_received_at = monotonic()
+            self._observed_source_fps = 0.0
+            self._reset_playback_clock()
             self.runningChanged.emit(True)
             self.statusChanged.emit("Tracking started")
             self.session.request_frame()
@@ -128,6 +183,7 @@ class QtRuntimeController(QObject):
         self.running = False
         self.dependencies.tracking_server.publish_stop()
         self.session.stop()
+        self._next_video_request_at = 0.0
         self.application.identity_manager.reset()
         self._selected_detection = None
         self.runningChanged.emit(False)
@@ -147,6 +203,7 @@ class QtRuntimeController(QObject):
         self.session.discard_results()
         if self.session.seek(frame_index):
             self.session.reset_pipeline()
+            self._reset_playback_clock()
             self.statusChanged.emit(f"Seek: frame {frame_index}")
         self.running = was_running
 
@@ -338,6 +395,7 @@ class QtRuntimeController(QObject):
 
     @Slot()
     def _poll(self) -> None:
+        now = monotonic()
         result = self.session.poll()
         if result is not None:
             if result.error is not None:
@@ -346,6 +404,9 @@ class QtRuntimeController(QObject):
                 self.statusChanged.emit(f"Tracking error: {result.error}")
                 return
             if result.raw_frame is None or result.frame_data is None:
+                if self.input_config.source_type == "iphone" and self.running:
+                    self._next_video_request_at = now + 0.005
+                    return
                 self.running = False
                 self.runningChanged.emit(False)
                 self.statusChanged.emit("End of source")
@@ -359,21 +420,119 @@ class QtRuntimeController(QObject):
             self.afterFrameReady.emit(after)
             self.inferenceChanged.emit(result.inference_time_ms)
             self.dependencies.performance_evaluator.record_frame(result.frame_data)
+            self._update_fps()
+            self._update_observed_source_fps(result.frame_data, now)
+            self._synchronize_video_clock(now)
             frame_count = self.session.get_source_frame_count() or 0
             self.timelineChanged.emit(
-                max(0, frame_count - 1), self.session.get_current_frame_index()
+                max(0, frame_count - 1),
+                self.session.get_current_frame_index(),
+                float(self.session.get_source_fps() or 0.0),
             )
-            self._update_fps()
-        if self.running:
+            self._emit_metrics(now)
+        if self.running and now >= self._next_video_request_at:
             self.session.request_frame()
 
     def _update_fps(self) -> None:
         self._frames_since_fps += 1
         elapsed = monotonic() - self._fps_started
         if elapsed >= 0.5:
-            self.fpsChanged.emit(self._frames_since_fps / elapsed)
+            self._display_fps = self._frames_since_fps / elapsed
+            self.fpsChanged.emit(self._display_fps)
             self._frames_since_fps = 0
             self._fps_started = monotonic()
+
+    def _reset_playback_clock(self) -> None:
+        self._playback_started_at = monotonic()
+        self._playback_start_frame = self.session.get_current_frame_index()
+        self._next_video_request_at = 0.0
+        self._video_lag_ms = 0.0
+
+    def _synchronize_video_clock(self, now: float) -> None:
+        if self.input_config.source_type not in {"video_file", "video_url"}:
+            self._next_video_request_at = 0.0
+            self._video_lag_ms = 0.0
+            return
+        source_fps = self.session.get_source_fps()
+        if not source_fps:
+            self._next_video_request_at = 0.0
+            return
+        current_frame = self.session.get_current_frame_index()
+        elapsed = max(0.0, now - self._playback_started_at)
+        plan = video_sync_plan(
+            start_frame=self._playback_start_frame,
+            current_frame=current_frame,
+            source_fps=source_fps,
+            playback_speed=self.playback_speed,
+            elapsed_seconds=elapsed,
+        )
+        if plan.frames_to_skip:
+            skipped = self.session.skip(plan.frames_to_skip)
+            self.skipped_frames += skipped
+            current_frame = self.session.get_current_frame_index()
+            plan = video_sync_plan(
+                start_frame=self._playback_start_frame,
+                current_frame=current_frame,
+                source_fps=source_fps,
+                playback_speed=self.playback_speed,
+                elapsed_seconds=elapsed,
+            )
+        self._video_lag_ms = plan.lag_ms
+        self._next_video_request_at = now + plan.wait_seconds
+
+    def _emit_metrics(self, now: float) -> None:
+        if self.last_frame_data is None or now - self._last_metrics_emit < 0.10:
+            return
+        self._last_metrics_emit = now
+        frame_data = self.last_frame_data
+        source_fps = (
+            self._observed_source_fps
+            if self.input_config.source_type == "iphone" and self._observed_source_fps > 0.0
+            else frame_data.source_fps or self.session.get_source_fps() or 0.0
+        )
+        counters = dict(frame_data.stream_counters or {})
+        stream_drops = (
+            int(counters.get("source_sequence_gaps", 0))
+            + int(counters.get("receive_overwritten", 0))
+            + int(counters.get("decode_failed", 0))
+        )
+        latency_breakdown = frame_data.latency_breakdown
+        end_to_end_ms = (
+            float(latency_breakdown.end_to_end_ms)
+            if latency_breakdown is not None
+            else 0.0
+        )
+        self.metricsChanged.emit(
+            {
+                "display_fps": self._display_fps,
+                "source_fps": float(source_fps),
+                "frame_index": self.session.get_current_frame_index(),
+                "skipped_frames": self.skipped_frames + stream_drops,
+                "video_lag_ms": self._video_lag_ms,
+                "inference_ms": float(frame_data.inference_time_ms),
+                "pipeline_ms": float(frame_data.pipeline_time_ms),
+                "receive_ms": float(frame_data.receive_latency_ms or 0.0),
+                "decode_ms": float(frame_data.decode_time_ms),
+                "end_to_end_ms": end_to_end_ms,
+            }
+        )
+
+    def _update_observed_source_fps(self, frame_data, now: float) -> None:
+        if self.input_config.source_type != "iphone":
+            return
+        received = int((frame_data.stream_counters or {}).get("received", 0))
+        if self._last_received_count is not None:
+            elapsed = max(0.001, now - self._last_received_at)
+            delta = max(0, received - self._last_received_count)
+            instant_fps = delta / elapsed
+            if 0.0 < instant_fps < 240.0:
+                self._observed_source_fps = (
+                    instant_fps
+                    if self._observed_source_fps <= 0.0
+                    else self._observed_source_fps * 0.75 + instant_fps * 0.25
+                )
+        self._last_received_count = received
+        self._last_received_at = now
 
     def _current_detection(self):
         if self._selected_detection is None:
