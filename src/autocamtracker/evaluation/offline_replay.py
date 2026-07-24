@@ -55,7 +55,7 @@ class OfflineReplayReport:
             "ReID": {
                 "Rank-1": self.reid.rank1,
                 "Rank-5": self.reid.rank5,
-                "mAP": self.reid.mean_average_precision,
+                "MRR": self.reid.mean_reciprocal_rank,
                 "False Reacquire Rate": self.reid.false_reacquire_rate,
                 "Reacquire Success Rate": self.reid.reacquire_success_rate,
             },

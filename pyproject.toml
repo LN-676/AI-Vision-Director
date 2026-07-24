@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "AI-Vision-Director"
-version = "1.0"
+version = "2.2.0"
 description = "AI vision direction, vehicle tracking, and digital reframing tool"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,10 +21,16 @@ dependencies = [
     "PySide6>=6.8,<7.0",
 ]
 
+[project.optional-dependencies]
+benchmark = [
+    "pycocotools>=2.0.7",
+]
+
 [project.scripts]
 ai-vision-director = "autocamtracker.main:main"
 ai-vision-director-qt = "autocamtracker.qt_main:main"
 gid-loss-benchmark = "autocamtracker.evaluation.gid_loss:main"
+model-benchmark = "autocamtracker.evaluation.vision_benchmark:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

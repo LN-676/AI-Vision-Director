@@ -4,6 +4,28 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## V2.2 — 2026-07-24
+
+### 中文
+
+- 新增 Benchmark Center，可從工具列或 Benchmark workspace 開啟，最多選擇五個 Detection 模型依序比較。
+- 新增 100 萬分制跑分、六軸比例圖、原始 Detection／Tracking／ReID／Framing／Control／System 指標表與資料覆蓋率。
+- 新增 `model-benchmark` headless runner、Golden Dataset v1 規格，以及 COCO／MOTChallenge 標準格式匯出。
+- 將 Detection model 與 ReID model 從 Tracking 拆成獨立 Models 頁，支援連結外部模型與開啟模型資料夾。
+- Detection 提示支援 Ultralytics `.pt` 與 exported `.onnx`；ReID 支援 `.onnx` embedding model。
+- Playback 的 Record 現在會建立 live/iPhone closed-loop benchmark session，保存 source video 與待標註 observations，不會把模型輸出誤當 ground truth。
+- Desktop 與 iOS 顯示版本更新為 V2.2；iOS build 更新為 2201，既有 1.0 WebSocket contract 與 safety policy 不變。
+
+### English
+
+- Added Benchmark Center with toolbar and workspace entry points and sequential comparison for up to five Detection models.
+- Added a one-million-point score, six-axis ratio chart, raw Detection/Tracking/ReID/Framing/Control/System table, and evaluation coverage.
+- Added the headless `model-benchmark` runner, Golden Dataset v1 contract, and COCO/MOTChallenge format exports.
+- Moved Detection and ReID selection from Tracking into an independent Models page with external-model linking and model-folder access.
+- Detection supports Ultralytics `.pt` and exported `.onnx`; ReID supports `.onnx` embedding models.
+- Playback Record now creates a live/iPhone closed-loop benchmark session with source video and pending observations without treating predictions as ground truth.
+- Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract and safety policy.
+
 ## V2.1 — 2026-07-22
 
 ### 中文

@@ -12,9 +12,14 @@ from autocamtracker.evaluation.models import ReIDObservation
 class ReIDMetrics:
     rank1: float | None
     rank5: float | None
-    mean_average_precision: float | None
+    mean_reciprocal_rank: float | None
     false_reacquire_rate: float | None
     reacquire_success_rate: float | None
+
+    @property
+    def mean_average_precision(self) -> float | None:
+        """Deprecated compatibility alias; single-relevant-query AP equals RR."""
+        return self.mean_reciprocal_rank
 
 
 def evaluate_reid(observations: list[ReIDObservation]) -> ReIDMetrics:

@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from queue import Empty
 
 from PySide6.QtCore import QByteArray, QSettings, Qt, QTimer
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QDockWidget, QLabel, QMainWindow, QTabWidget
+from PySide6.QtWidgets import QDockWidget, QLabel, QMainWindow, QTabWidget, QToolBar
 
 from autocamtracker.product import DISPLAY_NAME
 from autocamtracker.ui_qt.actions import create_workspace_actions
 from autocamtracker.ui_qt.controller import QtRuntimeController
 from autocamtracker.ui_qt.panels import (
+    BenchmarkPanel,
     DiagnosticsPanel,
+    ModelsPanel,
     PerformancePanel,
     SourcePanel,
     TrackShotPanel,
@@ -85,6 +88,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
         self._status_bar_was_visible = True
         self.workspace_actions = create_workspace_actions(self, self.apply_workspace)
         self._create_menus()
+        self._create_navigation_toolbar()
         self._create_status_bar()
         self._connect_panels()
 
@@ -98,7 +102,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
     def _create_panels(self) -> dict[str, object]:
         return {
             "source": SourcePanel(),
-            "tracking": TrackingPanel(
+            "tracking": TrackingPanel(),
+            "models": ModelsPanel(
                 self.config.model_dir,
                 self.config.default_model,
                 self.config.default_reid_model,
@@ -107,16 +112,22 @@ class AIVisionDirectorMainWindow(QMainWindow):
             "vehicle_database": VehicleDatabasePanel(),
             "performance": PerformancePanel(),
             "diagnostics": DiagnosticsPanel(),
+            "benchmark": BenchmarkPanel(
+                self.config.model_dir,
+                Path(self.config.log_dir) / "benchmarks",
+            ),
         }
 
     def _create_docks(self) -> dict[str, QDockWidget]:
         titles = {
             "source": "Source",
             "tracking": "Tracking",
+            "models": "Models",
             "track_shot": "Track Shot",
             "vehicle_database": "Vehicle Database",
             "performance": "Performance",
             "diagnostics": "Diagnostics",
+            "benchmark": "Benchmark Center",
         }
         docks: dict[str, QDockWidget] = {}
         for key, panel in self.panels.items():
@@ -129,11 +140,11 @@ class AIVisionDirectorMainWindow(QMainWindow):
                 | QDockWidget.DockWidgetFeature.DockWidgetMovable
                 | QDockWidget.DockWidgetFeature.DockWidgetFloatable
             )
-            if key in {"source", "tracking"}:
+            if key in {"source", "tracking", "models"}:
                 dock.setMinimumWidth(260)
             elif key == "vehicle_database":
                 dock.setMinimumWidth(300)
-            if key in {"performance", "diagnostics"}:
+            if key in {"performance", "diagnostics", "benchmark"}:
                 dock.topLevelChanged.connect(
                     lambda floating, item=dock: item.setMinimumSize(
                         720 if floating else 0, 480 if floating else 0
@@ -154,10 +165,12 @@ class AIVisionDirectorMainWindow(QMainWindow):
         for key in (
             "source",
             "tracking",
+            "models",
             "track_shot",
             "vehicle_database",
             "performance",
             "diagnostics",
+            "benchmark",
         ):
             panels_menu.addAction(self.docks[key].toggleViewAction())
         workspace_menu = window_menu.addMenu("Workspace")
@@ -165,7 +178,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
             workspace_menu.addAction(self.workspace_actions[workspace])
         workspace_menu.addSeparator()
         save_custom_action = QAction("Custom Layout — Save Current", self)
-        save_custom_action.setShortcut("Ctrl+4")
+        save_custom_action.setShortcut("Ctrl+5")
         save_custom_action.triggered.connect(self.save_custom_workspace)
         workspace_menu.addAction(save_custom_action)
         restore_custom_action = QAction("Restore Custom Layout", self)
@@ -176,6 +189,14 @@ class AIVisionDirectorMainWindow(QMainWindow):
         reset_action.setShortcut("Ctrl+Shift+0")
         reset_action.triggered.connect(self.reset_workspace)
         workspace_menu.addAction(reset_action)
+
+    def _create_navigation_toolbar(self) -> None:
+        toolbar = QToolBar("Pages", self)
+        toolbar.setObjectName("toolbar.pages")
+        toolbar.setMovable(False)
+        toolbar.addAction(self.docks["models"].toggleViewAction())
+        toolbar.addAction(self.docks["benchmark"].toggleViewAction())
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
 
     def _create_status_bar(self) -> None:
         self.status_label = QLabel("Status: idle")
@@ -191,6 +212,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
     def _connect_panels(self) -> None:
         source: SourcePanel = self.panels["source"]
         tracking: TrackingPanel = self.panels["tracking"]
+        models: ModelsPanel = self.panels["models"]
+        benchmark: BenchmarkPanel = self.panels["benchmark"]
         track_shot: TrackShotPanel = self.panels["track_shot"]
         playback = source.playback
         database: VehicleDatabasePanel = self.panels["vehicle_database"]
@@ -206,8 +229,11 @@ class AIVisionDirectorMainWindow(QMainWindow):
         tracking.resetRequested.connect(self.controller.reset_tracking)
         tracking.framingChanged.connect(self.controller.set_framing)
         tracking.configurationChanged.connect(self.controller.configure_tracking)
-        tracking.detectorModelChanged.connect(self.controller.set_detector_model)
-        tracking.reidModelChanged.connect(self.controller.set_reid_model)
+        models.detectorModelChanged.connect(self.controller.set_detector_model)
+        models.reidModelChanged.connect(self.controller.set_reid_model)
+        models.modelsChanged.connect(
+            lambda: benchmark.set_models(models.detection_model_paths())
+        )
         track_shot.modeChanged.connect(self.controller.set_track_shot_mode)
         track_shot.rearmRequested.connect(self.controller.rearm_track_shot)
         playback.startRequested.connect(self.controller.start)
@@ -260,8 +286,9 @@ class AIVisionDirectorMainWindow(QMainWindow):
             tracking.tracker.currentText(),
             tracking.confidence.value(),
         )
-        self.controller.set_detector_model(str(tracking.detector_model.currentData() or ""))
-        self.controller.set_reid_model(str(tracking.reid_model.currentData() or ""))
+        self.controller.set_detector_model(str(models.detector_model.currentData() or ""))
+        self.controller.set_reid_model(str(models.reid_model.currentData() or ""))
+        benchmark.set_models(models.detection_model_paths())
         database.find_threshold.setValue(
             self.controller.application.identity_manager.auto_reid_min_score
         )
@@ -295,12 +322,15 @@ class AIVisionDirectorMainWindow(QMainWindow):
         if not isinstance(workspace, Workspace):
             workspace = Workspace(workspace)
         self._install_default_docks()
+        self.monitors.show()
         for dock in self.docks.values():
             dock.show()
         if workspace == Workspace.IDENTITY:
             self.docks["source"].hide()
             self.docks["diagnostics"].hide()
             self.docks["performance"].hide()
+            self.docks["benchmark"].hide()
+            self.docks["models"].hide()
             self.monitors.splitter.setSizes([1, 2])
             self.docks["vehicle_database"].raise_()
         elif workspace == Workspace.PERFORMANCE:
@@ -308,6 +338,8 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.docks["tracking"].hide()
             self.docks["track_shot"].hide()
             self.docks["vehicle_database"].hide()
+            self.docks["models"].hide()
+            self.docks["benchmark"].hide()
             self.monitors.splitter.setSizes([1, 1])
             self.docks["performance"].raise_()
             self.resizeDocks(
@@ -315,8 +347,28 @@ class AIVisionDirectorMainWindow(QMainWindow):
                 [480, 480],
                 Qt.Orientation.Vertical,
             )
+        elif workspace == Workspace.BENCHMARK:
+            self.monitors.hide()
+            for key in (
+                "source",
+                "tracking",
+                "track_shot",
+                "vehicle_database",
+                "performance",
+                "diagnostics",
+            ):
+                self.docks[key].hide()
+            self.docks["models"].show()
+            self.docks["benchmark"].show()
+            self.docks["benchmark"].raise_()
+            self.resizeDocks(
+                [self.docks["models"], self.docks["benchmark"]],
+                [320, 960],
+                Qt.Orientation.Horizontal,
+            )
         else:
             self.docks["performance"].hide()
+            self.docks["benchmark"].hide()
             self.monitors.splitter.setSizes([1, 1])
             self.docks["tracking"].raise_()
             self.docks["vehicle_database"].raise_()
@@ -327,16 +379,18 @@ class AIVisionDirectorMainWindow(QMainWindow):
         for dock in self.docks.values():
             dock.setFloating(False)
             self.removeDockWidget(dock)
-        for key in ("source", "tracking", "track_shot"):
+        for key in ("source", "tracking", "track_shot", "models"):
             self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.docks[key])
         self.tabifyDockWidget(self.docks["source"], self.docks["tracking"])
         self.tabifyDockWidget(self.docks["tracking"], self.docks["track_shot"])
+        self.tabifyDockWidget(self.docks["track_shot"], self.docks["models"])
         self.addDockWidget(
             Qt.DockWidgetArea.RightDockWidgetArea, self.docks["vehicle_database"]
         )
         for key in ("performance", "diagnostics"):
             self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.docks[key])
         self.tabifyDockWidget(self.docks["performance"], self.docks["diagnostics"])
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.docks["benchmark"])
 
     def save_workspace(self) -> None:
         self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)

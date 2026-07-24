@@ -1,4 +1,4 @@
-# AI Vision Director V2.1
+# AI Vision Director V2.2
 
 [中文](#中文) · [English](#english)
 
@@ -12,17 +12,17 @@ AI Vision Director 是一套由 **Mac 桌面端**與 **iPhone 相機／DockKit �
 
 | 元件 | 正式名稱 | 主要責任 |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V2.1 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
-| iOS | AI Vision Director Camera for iOS V2.1 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
+| Desktop | AI Vision Director Desktop V2.2 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
+| iOS | AI Vision Director Camera for iOS V2.2 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
 
-目前正式產品版本是 **V2.1**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
+目前正式產品版本是 **V2.2**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
 
 ## 整體硬體與資料連接
 
 ```mermaid
 flowchart LR
     subgraph COMPUTER["Mac／電腦端"]
-        DESKTOP["AI Vision Director Desktop V2.1<br/>PySide6 Scheme A／Tkinter compatibility"]
+        DESKTOP["AI Vision Director Desktop V2.2<br/>PySide6 Scheme A／Tkinter compatibility"]
         SERVER["WebSocket Server<br/>ws://Mac.local:8765/ws/tracking"]
         AI["YOLO Detection<br/>Tracking · GID/ReID · Framing"]
         DB[("SQLite Identity DB<br/>本機持久化")]
@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph MOBILE["iPhone＋手機穩定器"]
-        IOS["AI Vision Director Camera for iOS V2.1"]
+        IOS["AI Vision Director Camera for iOS V2.2"]
         CAMERA["iPhone Camera<br/>AVCaptureSession"]
         DOCKKIT["Apple DockKit<br/>Custom Motor Control"]
         GIMBAL["Insta360 Flow 2 Pro<br/>Motors · Firmware"]
@@ -161,6 +161,15 @@ flowchart TD
 - 即時效能評估會分開統計來源序號缺口、iPhone send drop、Desktop latest-frame overwrite、decode failure 與影片主動跳幀，並顯示 latency percentile 與失追 frame 區間。
 - 一鍵診斷會彙整 source、decoder、detector、tracker、ReID、GMC、framing、SQLite、WebSocket、DockKit 與 motor control 的健康狀態及結構化事件。
 
+## V2.2 更新內容
+
+- 新增 Benchmark Center，可用按鈕或 `Ctrl+4` 開啟，最多選擇五個 Detection 模型依序比較，不會讓多個模型互搶 CPU/GPU。
+- 使用同一支 Golden video 與 ground-truth JSONL 計算 Detection、Tracking、ReID、Framing、Control 與 Realtime 六軸比例，以及顯示資料覆蓋率的 100 萬分制跑分。
+- 新增雷達比較圖、完整原始數值表、JSON 匯入／匯出、`model-benchmark` CLI、COCO 與 MOTChallenge 格式匯出。
+- Detection model 與 ReID model 已移至獨立 Models 頁；可連結外部 `.pt`／`.onnx` 檔案及直接開啟模型資料夾。
+- Record 會保存 live／iPhone closed-loop session 的 source video 與 observations；必須補 ground truth 後才會用於準確度評分。
+- Desktop 與 iOS 顯示版本更新至 V2.2，iOS build 2201；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
+
 ## V2.1 更新內容
 
 - Playback 已整合到 Source 的 Video file 頁並移除獨立 Dock；新增保持按下狀態的 Loop，影片結束時從第 0 frame 重新播放。
@@ -186,11 +195,11 @@ flowchart TD
 
 ```text
 AI-Vision-Director/
-├── src/autocamtracker/       # Desktop V2.1 Python application and shared use cases
+├── src/autocamtracker/       # Desktop V2.2 Python application and shared use cases
 │   ├── ui_qt/                # PySide6 Scheme A workspace
 │   └── ui/                   # Preserved Tkinter compatibility UI
 ├── tests/                    # Desktop unit and integration tests
-├── ios/DockKitTester/        # iOS V2.1 Xcode project and Swift tests
+├── ios/DockKitTester/        # iOS V2.2 Xcode project and Swift tests
 ├── docs/architecture/        # Architecture contracts and design notes
 ├── evaluation/               # Versioned evaluation scenarios
 ├── code/model/               # YOLO, tracker and ReID model assets
@@ -198,7 +207,7 @@ AI-Vision-Director/
 └── outputs/                  # Local runtime data; excluded from releases
 ```
 
-`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V2.1**。
+`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V2.2**。
 
 ## Desktop 安裝與執行
 
@@ -240,9 +249,9 @@ Mac 與 iPhone 必須位於可互相存取的同一區域網路。單純 USB 充
 ## 版本與歷史
 
 - 最新程式碼：`main`
-- 目前發布：`AI-Vision-Director-V2.1`
+- 目前發布：`v2.2`
 - 舊版封存：`v1.77` 與其他歷史 tags
-- Desktop 與 iOS 使用同一個 V2.1 產品版本，並維持 1.0 WebSocket contract 相容。
+- Desktop 與 iOS 使用同一個 V2.2 產品版本，並維持 1.0 WebSocket contract 相容。
 - 版本變更內容：[CHANGELOG.md](CHANGELOG.md)
 
 ---
@@ -255,10 +264,10 @@ Both components are maintained in this monorepo because they share one versioned
 
 | Component | Product name | Responsibility |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V2.1 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
-| iOS | AI Vision Director Camera for iOS V2.1 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
+| Desktop | AI Vision Director Desktop V2.2 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
+| iOS | AI Vision Director Camera for iOS V2.2 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
 
-The current product release is **V2.1**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
+The current product release is **V2.2**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
 
 ## End-to-end hardware and data flow
 
@@ -308,6 +317,15 @@ The desktop diagram above maps these responsibilities:
 - DockKit yaw/pitch/roll, Home, and physical iPhone camera zoom control.
 - Lost-target coasting, zoom hold/ramp, rate limits, acceleration limits, and timeout STOP.
 - Versioned calibration, GMC, timestamp pipeline, offline replay, and benchmark infrastructure.
+
+## V2.2 release highlights
+
+- Added Benchmark Center with toolbar/`Ctrl+4` access and sequential comparison of up to five Detection models without accelerator contention.
+- Added a six-axis Detection, Tracking, ReID, Framing, Control, and Realtime ratio chart plus a coverage-aware one-million-point score.
+- Added raw metric tables, JSON import/export, the `model-benchmark` CLI, and COCO/MOTChallenge format exports.
+- Moved Detection and ReID selection into an independent Models page with external `.pt`/`.onnx` linking and model-folder access.
+- Record now captures live/iPhone closed-loop source video and observations; accuracy scoring remains disabled until ground truth is supplied.
+- Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
 
 ## V2.1 release highlights
 
@@ -368,7 +386,7 @@ The Mac and iPhone must have mutually reachable IP connectivity. A charging cabl
 ## Version history
 
 - Latest code: `main`
-- Current release: `AI-Vision-Director-V2.1`
+- Current release: `v2.2`
 - Archived releases: `v1.77` and earlier tags
-- Desktop and iOS share the V2.1 product version while retaining the compatible 1.0 WebSocket contract.
+- Desktop and iOS share the V2.2 product version while retaining the compatible 1.0 WebSocket contract.
 - Release notes: [CHANGELOG.md](CHANGELOG.md)

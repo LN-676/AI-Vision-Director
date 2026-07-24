@@ -15,6 +15,7 @@ def create_workspace_actions(parent, callback) -> dict[Workspace, QAction]:
         Workspace.TRACKING: QKeySequence("Ctrl+1"),
         Workspace.IDENTITY: QKeySequence("Ctrl+2"),
         Workspace.PERFORMANCE: QKeySequence("Ctrl+3"),
+        Workspace.BENCHMARK: QKeySequence("Ctrl+4"),
     }
     for workspace in Workspace:
         action = QAction(workspace.value, parent)

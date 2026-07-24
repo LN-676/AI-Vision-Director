@@ -7,7 +7,7 @@ from enum import StrEnum
 
 ORGANIZATION_NAME = "AI Vision Director"
 APPLICATION_NAME = "AI Vision Director Qt"
-LAYOUT_VERSION = 3
+LAYOUT_VERSION = 4
 GEOMETRY_KEY = "workspace/geometry"
 STATE_KEY = "workspace/windowState"
 SPLITTER_KEY = "workspace/monitorSplitter"
@@ -23,3 +23,4 @@ class Workspace(StrEnum):
     TRACKING = "Tracking"
     IDENTITY = "Identity"
     PERFORMANCE = "Performance"
+    BENCHMARK = "Benchmark"

@@ -1,4 +1,4 @@
-# AI Vision Director Camera for iOS V2.1
+# AI Vision Director Camera for iOS V2.2
 
 [中文](#中文) · [English](#english)
 
@@ -46,7 +46,7 @@ NFC 用於 Flow 2 Pro 首次快速配對／喚醒，不是持續控制資料通�
 
 ### 連接 Desktop
 
-1. 在 Mac 啟動 AI Vision Director Desktop V2.1。
+1. 在 Mac 啟動 AI Vision Director Desktop V2.2。
 2. Source 選擇 `iphone`；Desktop 會啟動 `8765` port 的 WebSocket Server 並廣播 Bonjour。
 3. 開啟 iOS App。App 會先等待 Bonjour，再依序驗證 `.local` 與保存的 URL。
 4. 握手成功後，驗證過的 URL 會寫回設定；如果 Mac IP 改變，不需要手動輸入新 IP。
@@ -128,7 +128,7 @@ References: [Insta360 NFC pairing](https://onlinemanual.insta360.com/flow2pro/en
 
 ### Connect to the desktop
 
-1. Start AI Vision Director Desktop V2.1.
+1. Start AI Vision Director Desktop V2.2.
 2. Select the `iphone` source. The desktop starts the WebSocket server on port `8765` and advertises it through Bonjour.
 3. Launch the iOS app. It prioritizes Bonjour `.local` candidates, then tries the saved URL.
 4. After a verified handshake, the working endpoint replaces any stale saved IP.

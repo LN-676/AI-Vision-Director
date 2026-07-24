@@ -8,6 +8,8 @@ from time import monotonic
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
+from autocamtracker.evaluation.live_capture import LiveBenchmarkRecorder
+
 
 @dataclass(frozen=True)
 class VideoSyncPlan:
@@ -75,6 +77,9 @@ class QtRuntimeController(QObject):
             self.input_config.model_path = str(default_model)
         self.running = False
         self.recording = False
+        self.live_benchmark_recorder = LiveBenchmarkRecorder(
+            Path(config.log_dir) / "benchmarks"
+        )
         self.loop_enabled = False
         self.last_raw_frame = None
         self.last_frame_data = None
@@ -244,8 +249,26 @@ class QtRuntimeController(QObject):
 
     @Slot()
     def toggle_recording(self) -> None:
-        self.recording = not self.recording
-        self.statusChanged.emit("Recording armed" if self.recording else "Recording stopped")
+        if self.recording:
+            session = self.live_benchmark_recorder.stop()
+            self.recording = False
+            self.statusChanged.emit(
+                f"Benchmark recording saved: {session}"
+                if session is not None
+                else "Benchmark recording stopped"
+            )
+            return
+        try:
+            session = self.live_benchmark_recorder.start(
+                source=self.input_config.source_type,
+                model_path=self.input_config.model_path,
+                tracker=self.input_config.tracker_name,
+            )
+            self.recording = True
+            self.statusChanged.emit(f"Benchmark recording: {session.name}")
+        except Exception as exc:
+            self.recording = False
+            self.statusChanged.emit(f"Recording failed: {exc}")
 
     @Slot(int)
     def seek(self, frame_index: int) -> None:
@@ -465,6 +488,7 @@ class QtRuntimeController(QObject):
         self._timer.stop()
         self._metrics_timer.stop()
         self.running = False
+        self.live_benchmark_recorder.stop()
         self.dependencies.tracking_server.publish_stop()
         self.dependencies.tracking_server.stop()
         self.application.close()
@@ -508,6 +532,8 @@ class QtRuntimeController(QObject):
             self.last_raw_frame = result.raw_frame
             self.last_frame_data = result.frame_data
             self.last_inference_ms = result.inference_time_ms
+            if self.recording:
+                self.live_benchmark_recorder.record(result.raw_frame, result.frame_data)
             self._run_auto_feature_sampling(result.raw_frame)
             before = getattr(result.frame_data, "before_frame", result.raw_frame)
             after = getattr(result.frame_data, "after_frame", result.raw_frame)

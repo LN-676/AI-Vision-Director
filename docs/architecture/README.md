@@ -20,6 +20,7 @@
 | Persistence | [sqlite-threading.md](sqlite-threading.md) | SQLite 單一 owner worker |
 | Network | [websocket-components.md](websocket-components.md) | protocol、transport、receiver、publisher 與 policy |
 | Evaluation | [offline-replay.md](offline-replay.md) | 無 UI 的可重現 replay |
+| Benchmark | [benchmark-center.md](benchmark-center.md) | 最多五模型的標準格式、跑分與 live capture |
 | Safety | [camera-control-policy.md](camera-control-policy.md) | dead zone、hysteresis 與安全限制 |
 | Timing | [timestamp-pipeline.md](timestamp-pipeline.md) | capture-to-control 時間軸 |
 

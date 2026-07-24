@@ -53,7 +53,7 @@ frame coordinates.
   0.95 in 0.05 steps. Precision and recall use IoU 0.50.
 - Tracking reports HOTA averaged over IoU thresholds 0.05 through 0.95, global
   IDF1, MOTA, identity switches, and fragmentation.
-- ReID reports Rank-1, Rank-5, and mean reciprocal rank as mAP for the current
+- ReID reports Rank-1, Rank-5, and mean reciprocal rank (MRR) for the current
   single-relevant-identity query model. False reacquire rate is wrong accepted
   identities divided by attempts. Success rate is correct accepted identities
   divided by attempts.

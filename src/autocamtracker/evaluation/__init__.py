@@ -23,6 +23,13 @@ from autocamtracker.evaluation.gid_loss import (
 from autocamtracker.evaluation.reid import ReIDMetrics, evaluate_reid
 from autocamtracker.evaluation.system import SystemMetrics, SystemSample, evaluate_system
 from autocamtracker.evaluation.tracking import TrackingMetrics, evaluate_tracking
+from autocamtracker.evaluation.benchmark import (
+    BenchmarkAxes,
+    BenchmarkScore,
+    ModelBenchmarkResult,
+    result_from_report,
+    score_offline_report,
+)
 
 __all__ = [
     "ControlMetrics", "ControlObservation", "DetectionMetrics", "EvaluationObject", "FrameEvaluation",
@@ -31,4 +38,6 @@ __all__ = [
     "ReplayOutput", "SystemMetrics", "SystemSample", "TrackingMetrics", "evaluate_control",
     "evaluate_detection", "evaluate_reid", "evaluate_system", "evaluate_tracking", "load_gid_loss_spec",
     "load_replay_jsonl",
+    "BenchmarkAxes", "BenchmarkScore", "ModelBenchmarkResult", "result_from_report",
+    "score_offline_report",
 ]

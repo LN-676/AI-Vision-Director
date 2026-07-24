@@ -55,7 +55,7 @@ class QtUITests(unittest.TestCase):
         )
 
     def test_display_label_and_tk_class_aliases_preserve_protocol_version(self) -> None:
-        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.1")
+        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.2")
         self.assertEqual(VERSION, "1.0")
         self.assertIs(AIVisonDirectorApp, AIVisionDirectorApp)
         self.assertIs(AutoCamTrackerApp, AIVisionDirectorApp)
@@ -67,7 +67,7 @@ class QtUITests(unittest.TestCase):
             self.qt_app.processEvents()
             names = [dock.objectName() for dock in window.docks.values()]
             self.assertEqual(window.windowTitle(), DISPLAY_NAME)
-            self.assertEqual(len(names), 6)
+            self.assertEqual(len(names), 8)
             self.assertEqual(len(names), len(set(names)))
             self.assertNotIn("playback", window.docks)
             self.assertNotIn("reid", window.docks)
@@ -307,17 +307,21 @@ class QtUITests(unittest.TestCase):
         self.assertFalse(panel.playback.loop_button.isChecked())
         self.assertEqual(loop_states, [True, False])
 
-    def test_tracking_page_has_detection_and_reid_model_selectors(self) -> None:
+    def test_models_page_has_detection_and_reid_model_selectors(self) -> None:
         window = self._window()
         try:
+            models = window.panels["models"]
             tracking = window.panels["tracking"]
-            self.assertGreaterEqual(tracking.detector_model.count(), 5)
-            self.assertGreaterEqual(tracking.reid_model.count(), 5)
-            self.assertTrue(str(tracking.detector_model.currentData()).endswith(".pt"))
-            self.assertTrue(str(tracking.reid_model.currentData()).endswith("-reid.onnx"))
+            benchmark = window.panels["benchmark"]
+            self.assertGreaterEqual(models.detector_model.count(), 5)
+            self.assertGreaterEqual(models.reid_model.count(), 5)
+            self.assertTrue(str(models.detector_model.currentData()).endswith(".pt"))
+            self.assertTrue(str(models.reid_model.currentData()).endswith("-reid.onnx"))
+            self.assertFalse(hasattr(tracking, "detector_model"))
+            self.assertEqual(benchmark.model_table.rowCount(), models.detector_model.count())
             self.assertEqual(
                 window.controller.input_config.model_path,
-                str(tracking.detector_model.currentData()),
+                str(models.detector_model.currentData()),
             )
         finally:
             window.close()

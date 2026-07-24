@@ -1,0 +1,2 @@
+{"frame_index":0,"capture_timestamp_ms":0.0,"ground_truth":[{"bbox":[100.0,80.0,300.0,220.0],"class_id":2,"confidence":1.0,"identity_id":7}],"metadata":{"annotation_status":"example-only"}}
+{"frame_index":1,"capture_timestamp_ms":33.333,"ground_truth":[{"bbox":[104.0,80.0,304.0,220.0],"class_id":2,"confidence":1.0,"identity_id":7}],"metadata":{"annotation_status":"example-only"}}
