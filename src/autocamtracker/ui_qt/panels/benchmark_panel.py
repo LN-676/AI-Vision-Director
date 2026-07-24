@@ -8,6 +8,7 @@ from typing import Iterable
 from PySide6.QtCore import QObject, QPointF, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QFileDialog,
     QGridLayout,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -30,6 +32,11 @@ from autocamtracker.evaluation.benchmark import (
     ModelBenchmarkResult,
     load_results,
     save_results,
+)
+from autocamtracker.evaluation.auto_benchmark import (
+    AutoBenchmarkRequest,
+    AutoBenchmarkRunner,
+    BenchmarkModelPair,
 )
 from autocamtracker.evaluation.vision_benchmark import (
     VisionBenchmarkRequest,
@@ -55,6 +62,15 @@ RESULT_COLUMNS = (
     ("Framing ratio", None, None),
     ("Control ratio", None, None),
     ("Realtime ratio", None, None),
+    ("Detection proxy", "Detection proxy", 3),
+    ("Tracking proxy", "Tracking proxy", 3),
+    ("ReID proxy", "ReID proxy", 3),
+    ("Feature count", "Feature count", 0),
+    ("Rounds", "Rounds", 0),
+    ("Scene cuts", "Scene cuts", 0),
+    ("Proxy reacquire", "Proxy reacquire rate", 3),
+    ("Reacquire ms", "Reacquire time ms", 1),
+    ("FPS std", "FPS std", 2),
     ("mAP50", "mAP50", 3),
     ("mAP50-95", "mAP50-95", 3),
     ("Precision", "Precision", 3),
@@ -85,7 +101,7 @@ class BenchmarkRadarChart(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.results: list[ModelBenchmarkResult] = []
-        self.setMinimumHeight(300)
+        self.setMinimumHeight(220)
 
     def set_results(self, results: Iterable[ModelBenchmarkResult]) -> None:
         self.results = list(results)[:MAX_COMPARE_MODELS]
@@ -179,14 +195,15 @@ class _BenchmarkWorker(QObject):
     failed = Signal(str)
     progressed = Signal(int, int, str)
 
-    def __init__(self, request: VisionBenchmarkRequest) -> None:
+    def __init__(self, request, runner) -> None:
         super().__init__()
         self.request = request
+        self.runner = runner
 
     @Slot()
     def run(self) -> None:
         try:
-            results = VisionBenchmarkRunner().run(
+            results = self.runner.run(
                 self.request,
                 progress=lambda current, total, text: self.progressed.emit(
                     current, total, text
@@ -226,61 +243,100 @@ class BenchmarkPanel(QWidget):
         self.setup_grid.setColumnStretch(0, 1)
         self.setup_grid.setColumnStretch(1, 1)
         self.video_path = QLineEdit()
+        self.latest_recording_button = QPushButton("Latest Recording")
+        self.latest_recording_button.clicked.connect(
+            self._use_latest_recording
+        )
         self.annotation_path = QLineEdit()
+        self.annotation_field = self._path_row(
+            self.annotation_path,
+            self._choose_annotations,
+        )
         self.setup_grid.addWidget(
             self._setup_cell(
-                "Golden video",
-                self._path_row(self.video_path, self._choose_video),
+                "Benchmark video",
+                self._video_row(),
             ),
             0,
             0,
         )
         self.setup_grid.addWidget(
             self._setup_cell(
-                "Ground truth JSONL",
-                self._path_row(self.annotation_path, self._choose_annotations),
+                "Ground truth JSONL (Verified only)",
+                self.annotation_field,
             ),
             0,
             1,
         )
         self.dataset_version = QLineEdit("local-golden-v1")
+        self.mode = QComboBox()
+        self.mode.addItem("Quick Auto — no annotations", "quick_auto")
+        self.mode.addItem("Verified Detection/Tracking — JSONL", "verified")
         self.tracker = QComboBox()
         self.tracker.addItem("ByteTrack", "bytetrack")
         self.tracker.addItem("BoT-SORT", "botsort")
         self.tracker.addItem("Deep OC-SORT", "deepocsort")
         self.setup_grid.addWidget(
-            self._setup_cell("Dataset version", self.dataset_version),
+            self._setup_cell("Benchmark mode", self.mode),
             1,
             0,
         )
         self.setup_grid.addWidget(
-            self._setup_cell("Tracker", self.tracker),
+            self._setup_cell("Dataset version", self.dataset_version),
             1,
             1,
         )
         layout.addLayout(self.setup_grid)
 
-        usage_hint = QLabel(
-            "Choose a matching golden video and JSONL annotation, then select up to "
-            "five detection models."
-        )
-        usage_hint.setWordWrap(True)
-        usage_hint.setStyleSheet("color: #687386;")
-        layout.addWidget(usage_hint)
+        run_options = QHBoxLayout()
+        self.rounds = QSpinBox()
+        self.rounds.setRange(1, 5)
+        self.rounds.setValue(3)
+        self.feature_limit = QSpinBox()
+        self.feature_limit.setRange(1, 500)
+        self.feature_limit.setValue(50)
+        self.duration_seconds = QSpinBox()
+        self.duration_seconds.setRange(0, 86_400)
+        self.duration_seconds.setValue(0)
+        self.duration_seconds.setSpecialValueText("Full video")
+        for label_text, widget in (
+            ("Tracker", self.tracker),
+            ("Measured rounds", self.rounds),
+            ("Feature limit", self.feature_limit),
+            ("Duration (seconds)", self.duration_seconds),
+        ):
+            run_options.addWidget(QLabel(label_text))
+            run_options.addWidget(widget)
+        layout.addLayout(run_options)
 
-        self.model_table = QTableWidget(0, 2)
-        self.model_table.setMinimumHeight(145)
-        self.model_table.setHorizontalHeaderLabels(("Compare", "Detection model"))
+        self.usage_hint = QLabel(
+            "Quick Auto needs only a video. It enrolls a frozen feature gallery, "
+            "then reports three-round proxy and performance metrics."
+        )
+        self.usage_hint.setWordWrap(True)
+        self.usage_hint.setStyleSheet("color: #687386;")
+        layout.addWidget(self.usage_hint)
+
+        self.model_table = QTableWidget(0, 3)
+        self.model_table.setMinimumHeight(120)
+        self.model_table.setHorizontalHeaderLabels(
+            ("Compare", "Detection model", "ReID model")
+        )
         self.model_table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
         )
-        self.model_table.setMaximumHeight(180)
+        self.model_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.ResizeMode.Stretch
+        )
+        self.model_table.setMaximumHeight(150)
         self.model_table.itemChanged.connect(self._selection_changed)
-        layout.addWidget(QLabel(f"Select 1–{MAX_COMPARE_MODELS} models"))
+        layout.addWidget(
+            QLabel(f"Select 1–{MAX_COMPARE_MODELS} Detection × ReID combinations")
+        )
         layout.addWidget(self.model_table)
 
         buttons = QHBoxLayout()
-        self.run_button = QPushButton("Run Selected Models")
+        self.run_button = QPushButton("Run Selected Combinations")
         import_button = QPushButton("Import Results…")
         export_button = QPushButton("Export Comparison…")
         self.run_button.clicked.connect(self.run_selected)
@@ -305,20 +361,77 @@ class BenchmarkPanel(QWidget):
         self.result_table.setHorizontalHeaderLabels(
             tuple(column[0] for column in RESULT_COLUMNS)
         )
+        self.result_table.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+        )
+        self.result_table.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+        )
+        self.result_table.setHorizontalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+        self.result_table.setVerticalScrollMode(
+            QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+        self.result_table.setMinimumHeight(100)
+        self.result_table.setToolTip(
+            "Drag the bottom and right scroll bars to inspect all benchmark metrics."
+        )
         self.result_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
+        self.result_table.currentCellChanged.connect(self._show_shot_details)
+        self.shot_table = QTableWidget(0, 8)
+        self.shot_table.setMinimumHeight(90)
+        self.shot_table.setHorizontalHeaderLabels(
+            (
+                "Shot",
+                "Camera label",
+                "Start frame",
+                "End frame",
+                "Frames",
+                "Detection coverage",
+                "ReID match coverage",
+                "Unique tracks",
+            )
+        )
+        self.shot_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.shot_table.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+        )
+        self.shot_table.itemChanged.connect(self._shot_label_changed)
+        result_region = QSplitter(Qt.Orientation.Vertical)
+        result_region.addWidget(self.result_table)
+        result_region.addWidget(self.shot_table)
+        result_region.setSizes([220, 130])
         splitter.addWidget(self.chart)
-        splitter.addWidget(self.result_table)
-        splitter.setSizes([360, 220])
+        splitter.addWidget(result_region)
+        splitter.setSizes([330, 350])
         layout.addWidget(splitter, 1)
+        self.mode.currentIndexChanged.connect(self._mode_changed)
+        self._mode_changed()
 
-    def set_models(self, paths: Iterable[Path]) -> None:
-        selected = set(self.selected_model_paths())
-        unique_paths = list(dict.fromkeys(Path(path) for path in paths))
+    def set_models(
+        self,
+        detection_paths: Iterable[Path],
+        reid_paths: Iterable[Path],
+    ) -> None:
+        selected = {
+            (str(pair.detection_model), str(pair.reid_model))
+            for pair in self.selected_model_pairs()
+        }
+        detectors = list(dict.fromkeys(Path(path) for path in detection_paths))
+        reid_models = list(dict.fromkeys(Path(path) for path in reid_paths))
+        pairs = [
+            BenchmarkModelPair(detector, reid)
+            for detector in detectors
+            for reid in reid_models
+        ]
         self._updating_checks = True
-        self.model_table.setRowCount(len(unique_paths))
-        for row, path in enumerate(unique_paths):
+        self.model_table.setRowCount(len(pairs))
+        for row, pair in enumerate(pairs):
             check = QTableWidgetItem()
             check.setFlags(
                 Qt.ItemFlag.ItemIsEnabled
@@ -326,36 +439,96 @@ class BenchmarkPanel(QWidget):
                 | Qt.ItemFlag.ItemIsUserCheckable
             )
             check.setCheckState(
-                Qt.CheckState.Checked if path in selected else Qt.CheckState.Unchecked
+                Qt.CheckState.Checked
+                if (
+                    str(pair.detection_model),
+                    str(pair.reid_model),
+                )
+                in selected
+                else Qt.CheckState.Unchecked
             )
-            name = QTableWidgetItem(path.name)
-            name.setData(Qt.ItemDataRole.UserRole, str(path))
-            name.setToolTip(str(path))
-            name.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            detection = QTableWidgetItem(pair.detection_model.name)
+            detection.setData(
+                Qt.ItemDataRole.UserRole,
+                str(pair.detection_model),
+            )
+            detection.setToolTip(str(pair.detection_model))
+            detection.setFlags(
+                Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+            )
+            reid = QTableWidgetItem(pair.reid_model.name)
+            reid.setData(Qt.ItemDataRole.UserRole, str(pair.reid_model))
+            reid.setToolTip(str(pair.reid_model))
+            reid.setFlags(
+                Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
+            )
             self.model_table.setItem(row, 0, check)
-            self.model_table.setItem(row, 1, name)
+            self.model_table.setItem(row, 1, detection)
+            self.model_table.setItem(row, 2, reid)
         self._updating_checks = False
 
-    def selected_model_paths(self) -> list[Path]:
-        paths = []
+    def selected_model_pairs(self) -> list[BenchmarkModelPair]:
+        pairs = []
         for row in range(self.model_table.rowCount()):
             check = self.model_table.item(row, 0)
-            name = self.model_table.item(row, 1)
-            if check and name and check.checkState() == Qt.CheckState.Checked:
-                paths.append(Path(str(name.data(Qt.ItemDataRole.UserRole))))
-        return paths
+            detection = self.model_table.item(row, 1)
+            reid = self.model_table.item(row, 2)
+            if (
+                check
+                and detection
+                and reid
+                and check.checkState() == Qt.CheckState.Checked
+            ):
+                pairs.append(
+                    BenchmarkModelPair(
+                        Path(
+                            str(
+                                detection.data(Qt.ItemDataRole.UserRole)
+                            )
+                        ),
+                        Path(str(reid.data(Qt.ItemDataRole.UserRole))),
+                    )
+                )
+        return pairs
+
+    def selected_model_paths(self) -> list[Path]:
+        return [pair.detection_model for pair in self.selected_model_pairs()]
 
     @Slot()
     def run_selected(self) -> None:
-        models = self.selected_model_paths()
+        pairs = self.selected_model_pairs()
         try:
-            request = VisionBenchmarkRequest(
-                video_path=Path(self.video_path.text().strip()),
-                annotation_path=Path(self.annotation_path.text().strip()),
-                model_paths=tuple(models),
-                tracker=str(self.tracker.currentData()),
-                dataset_version=self.dataset_version.text().strip() or "local-golden-v1",
-            )
+            if self.mode.currentData() == "quick_auto":
+                request = AutoBenchmarkRequest(
+                    video_path=Path(self.video_path.text().strip()),
+                    model_pairs=tuple(pairs),
+                    tracker=str(self.tracker.currentData()),
+                    dataset_version=(
+                        self.dataset_version.text().strip() or "quick-auto-v1"
+                    ),
+                    rounds=self.rounds.value(),
+                    feature_limit=self.feature_limit.value(),
+                    duration_seconds=float(self.duration_seconds.value()),
+                )
+                runner = AutoBenchmarkRunner()
+            else:
+                request = VisionBenchmarkRequest(
+                    video_path=Path(self.video_path.text().strip()),
+                    annotation_path=Path(
+                        self.annotation_path.text().strip()
+                    ),
+                    model_paths=tuple(
+                        dict.fromkeys(
+                            pair.detection_model for pair in pairs
+                        )
+                    ),
+                    tracker=str(self.tracker.currentData()),
+                    dataset_version=(
+                        self.dataset_version.text().strip()
+                        or "local-golden-v1"
+                    ),
+                )
+                runner = VisionBenchmarkRunner()
             request.validate()
         except Exception as exc:
             QMessageBox.warning(self, "Benchmark setup", str(exc))
@@ -363,7 +536,7 @@ class BenchmarkPanel(QWidget):
         self.run_button.setEnabled(False)
         self.status.setText("Starting benchmark…")
         self._thread = QThread(self)
-        self._worker = _BenchmarkWorker(request)
+        self._worker = _BenchmarkWorker(request, runner)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.progressed.connect(self._show_progress)
@@ -434,6 +607,11 @@ class BenchmarkPanel(QWidget):
         else:
             self.score_summary.setText("No score")
         self.resultsChanged.emit(self.results)
+        if self.results:
+            self.result_table.selectRow(0)
+            self._show_shot_details(0, 0, -1, -1)
+        else:
+            self.shot_table.setRowCount(0)
 
     def _path_row(self, field: QLineEdit, callback) -> QWidget:
         widget = QWidget()
@@ -443,6 +621,11 @@ class BenchmarkPanel(QWidget):
         button.clicked.connect(callback)
         row.addWidget(field, 1)
         row.addWidget(button)
+        return widget
+
+    def _video_row(self) -> QWidget:
+        widget = self._path_row(self.video_path, self._choose_video)
+        widget.layout().addWidget(self.latest_recording_button)
         return widget
 
     @staticmethod
@@ -457,10 +640,29 @@ class BenchmarkPanel(QWidget):
 
     def _choose_video(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Golden benchmark video", "", "Video files (*.mp4 *.mov *.mkv *.avi)"
+            self,
+            "Benchmark video",
+            str(self.output_dir),
+            "Video files (*.mp4 *.mov *.mkv *.avi)",
         )
         if path:
             self.video_path.setText(path)
+
+    def _use_latest_recording(self) -> None:
+        recordings = sorted(
+            self.output_dir.glob("live-*/source.mp4"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        if recordings:
+            self.video_path.setText(str(recordings[0]))
+            self.status.setText(f"Using recorded stream: {recordings[0]}")
+            return
+        QMessageBox.information(
+            self,
+            "Latest recording",
+            "No recorded stream was found. Record one from Track Page first.",
+        )
 
     def _choose_annotations(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -472,13 +674,99 @@ class BenchmarkPanel(QWidget):
     def _selection_changed(self, item: QTableWidgetItem) -> None:
         if self._updating_checks or item.column() != 0:
             return
-        selected = self.selected_model_paths()
+        selected = self.selected_model_pairs()
         if len(selected) <= MAX_COMPARE_MODELS:
             return
         self._updating_checks = True
         item.setCheckState(Qt.CheckState.Unchecked)
         self._updating_checks = False
-        self.status.setText(f"You can compare at most {MAX_COMPARE_MODELS} models.")
+        self.status.setText(
+            f"You can compare at most {MAX_COMPARE_MODELS} combinations."
+        )
+
+    @Slot()
+    def _mode_changed(self, _index: int | None = None) -> None:
+        quick = self.mode.currentData() == "quick_auto"
+        self.annotation_field.setEnabled(not quick)
+        self.rounds.setEnabled(quick)
+        self.feature_limit.setEnabled(quick)
+        self.duration_seconds.setEnabled(quick)
+        self.usage_hint.setText(
+            (
+                "Quick Auto needs only a video. Each pair enrolls a frozen "
+                "gallery first, then reports multi-round proxy metrics by shot."
+            )
+            if quick
+            else (
+                "Verified mode requires matching JSONL ground truth and reports "
+                "standard Detection/Tracking accuracy. ReID identity verification "
+                "needs confirmed identity events."
+            )
+        )
+        if self._thread is None:
+            self.status.setText(
+                (
+                    "Quick Auto: proxy metrics only; no ground-truth accuracy "
+                    "claims."
+                )
+                if quick
+                else (
+                    "Verified mode: annotations are required for standard "
+                    "Detection/Tracking metrics."
+                )
+            )
+
+    @Slot(int, int, int, int)
+    def _show_shot_details(
+        self,
+        current_row: int,
+        _current_column: int,
+        _previous_row: int,
+        _previous_column: int,
+    ) -> None:
+        if not 0 <= current_row < len(self.results):
+            self.shot_table.setRowCount(0)
+            return
+        shots = list(self.results[current_row].metadata.get("shots", []))
+        self.shot_table.blockSignals(True)
+        self.shot_table.setRowCount(len(shots))
+        for row, shot in enumerate(shots):
+            values = (
+                shot.get("shot_id"),
+                shot.get(
+                    "camera_label",
+                    f"Shot {shot.get('shot_id', row)}",
+                ),
+                shot.get("start_frame"),
+                shot.get("end_frame"),
+                shot.get("frames"),
+                _format_ratio(shot.get("detection_coverage")),
+                _format_ratio(shot.get("reid_match_coverage")),
+                shot.get("unique_tracks"),
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                if column != 1:
+                    item.setFlags(
+                        Qt.ItemFlag.ItemIsEnabled
+                        | Qt.ItemFlag.ItemIsSelectable
+                    )
+                self.shot_table.setItem(row, column, item)
+        self.shot_table.blockSignals(False)
+
+    @Slot(QTableWidgetItem)
+    def _shot_label_changed(self, item: QTableWidgetItem) -> None:
+        if item.column() != 1:
+            return
+        result_row = self.result_table.currentRow()
+        if not 0 <= result_row < len(self.results):
+            return
+        shots = self.results[result_row].metadata.get("shots", [])
+        if 0 <= item.row() < len(shots):
+            shots[item.row()]["camera_label"] = (
+                item.text().strip()
+                or f"Shot {shots[item.row()].get('shot_id', item.row())}"
+            )
 
     @Slot(int, int, str)
     def _show_progress(self, current: int, total: int, text: str) -> None:
@@ -491,7 +779,21 @@ class BenchmarkPanel(QWidget):
         self.set_results(results)
         self.run_button.setEnabled(True)
         self.progress.setValue(self.progress.maximum())
-        self.status.setText("Benchmark complete. Scores are comparable within this dataset version.")
+        quick = bool(
+            self.results
+            and self.results[0].metadata.get("mode") == "quick_auto"
+        )
+        self.status.setText(
+            (
+                "Quick Auto complete. Proxy scores compare consistency and "
+                "performance, not ground-truth identity accuracy."
+            )
+            if quick
+            else (
+                "Verified benchmark complete. Scores are comparable within "
+                "this dataset version."
+            )
+        )
 
     @Slot(str)
     def _benchmark_failed(self, message: str) -> None:

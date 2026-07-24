@@ -1,5 +1,6 @@
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 from autocamtracker.evaluation import (
@@ -15,6 +16,11 @@ from autocamtracker.evaluation.benchmark import (
     load_results,
     result_from_report,
     save_results,
+)
+from autocamtracker.evaluation.auto_benchmark import (
+    AutoBenchmarkRequest,
+    AutoBenchmarkRunner,
+    BenchmarkModelPair,
 )
 from autocamtracker.evaluation.live_capture import LiveBenchmarkRecorder
 from autocamtracker.evaluation.standard_formats import (
@@ -196,6 +202,101 @@ class BenchmarkTests(unittest.TestCase):
             [("loaded", "a.pt"), ("loaded", "b.pt")],
         )
         self.assertTrue(all(item.score.profile == "Vision Core" for item in results))
+
+    def test_quick_auto_runner_enrolls_then_averages_three_rounds(self) -> None:
+        class FakeDetector:
+            def __init__(self, config):
+                self.config = config
+                self.index = 0
+
+            def load_model(self):
+                pass
+
+            def open_source(self):
+                self.index = 0
+
+            def get_source_fps(self):
+                return 5.0
+
+            def read_frame(self):
+                if self.index >= 12:
+                    return None
+                self.index += 1
+                return object()
+
+            def track_frame(self, _frame):
+                return [
+                    TrackedDetection(
+                        track_id=1 if self.index < 8 else 2,
+                        bbox=(0.0, 0.0, 100.0, 60.0),
+                        class_id=2,
+                        class_name="car",
+                        confidence=0.9,
+                        center=(50.0, 30.0),
+                        frame_index=self.index - 1,
+                        timestamp=0.0,
+                        tracker_name="botsort",
+                    )
+                ]
+
+            def seek_video_frame(self, frame_index):
+                self.index = frame_index
+                return True
+
+            def close(self):
+                pass
+
+        class FakeEncoder:
+            available = True
+            error = None
+
+            def __init__(self, _config):
+                pass
+
+            def extract_batch(self, _frame, bboxes):
+                return [[1.0, 0.0] for _ in bboxes]
+
+        class FakeCuts:
+            def __init__(self):
+                self.count = 0
+
+            def update(self, _frame):
+                self.count += 1
+                return self.count == 4
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            video = root / "source.mp4"
+            detection = root / "detector.pt"
+            reid = root / "reid.onnx"
+            for path in (video, detection, reid):
+                path.touch()
+            request = AutoBenchmarkRequest(
+                video_path=video,
+                model_pairs=(BenchmarkModelPair(detection, reid),),
+                rounds=3,
+                feature_limit=2,
+                warmup_frames=1,
+            )
+            result = AutoBenchmarkRunner(
+                detector_factory=FakeDetector,
+                embedding_factory=FakeEncoder,
+                scene_cut_factory=FakeCuts,
+                quality_assessor=SimpleNamespace(
+                    assess=lambda *_: SimpleNamespace(accepted=True)
+                ),
+            ).run(request)[0]
+            output = root / "quick-auto.json"
+            save_results(output, [result])
+            reloaded = load_results(output)[0]
+
+        self.assertEqual(result.model_name, "detector + reid")
+        self.assertEqual(reloaded, result)
+        self.assertEqual(result.metrics["Feature count"], 2)
+        self.assertEqual(result.metrics["Rounds"], 3)
+        self.assertEqual(result.score.profile, "Quick Auto · proxy")
+        self.assertAlmostEqual(result.score.coverage, 4 / 6)
+        self.assertGreaterEqual(len(result.metadata["shots"]), 2)
 
 
 if __name__ == "__main__":

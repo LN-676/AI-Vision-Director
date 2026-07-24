@@ -55,7 +55,7 @@ class QtUITests(unittest.TestCase):
         )
 
     def test_display_label_and_tk_class_aliases_preserve_protocol_version(self) -> None:
-        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.2")
+        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.2.1")
         self.assertEqual(VERSION, "1.0")
         self.assertIs(AIVisonDirectorApp, AIVisionDirectorApp)
         self.assertIs(AutoCamTrackerApp, AIVisionDirectorApp)
@@ -380,7 +380,10 @@ class QtUITests(unittest.TestCase):
             self.assertTrue(str(models.detector_model.currentData()).endswith(".pt"))
             self.assertTrue(str(models.reid_model.currentData()).endswith("-reid.onnx"))
             self.assertFalse(hasattr(tracking, "detector_model"))
-            self.assertEqual(benchmark.model_table.rowCount(), models.detector_model.count())
+            self.assertEqual(
+                benchmark.model_table.rowCount(),
+                models.detector_model.count() * models.reid_model.count(),
+            )
             self.assertEqual(
                 window.controller.input_config.model_path,
                 str(models.detector_model.currentData()),
@@ -426,12 +429,31 @@ class QtUITests(unittest.TestCase):
     def test_benchmark_setup_is_a_two_by_two_grid(self) -> None:
         window = self._window()
         try:
-            grid = window.panels["benchmark"].setup_grid
+            benchmark = window.panels["benchmark"]
+            grid = benchmark.setup_grid
             self.assertEqual(grid.count(), 4)
             self.assertIsNotNone(grid.itemAtPosition(0, 0))
             self.assertIsNotNone(grid.itemAtPosition(0, 1))
             self.assertIsNotNone(grid.itemAtPosition(1, 0))
             self.assertIsNotNone(grid.itemAtPosition(1, 1))
+            self.assertEqual(
+                benchmark.result_table.horizontalScrollBarPolicy(),
+                Qt.ScrollBarPolicy.ScrollBarAlwaysOn,
+            )
+            self.assertEqual(
+                benchmark.result_table.verticalScrollBarPolicy(),
+                Qt.ScrollBarPolicy.ScrollBarAlwaysOn,
+            )
+            self.assertEqual(benchmark.mode.currentData(), "quick_auto")
+            self.assertFalse(benchmark.annotation_path.isEnabled())
+            self.assertEqual(benchmark.rounds.value(), 3)
+            self.assertEqual(benchmark.feature_limit.value(), 50)
+            benchmark.output_dir = self.root / "benchmarks"
+            recording = benchmark.output_dir / "live-test" / "source.mp4"
+            recording.parent.mkdir(parents=True, exist_ok=True)
+            recording.touch()
+            benchmark._use_latest_recording()
+            self.assertEqual(benchmark.video_path.text(), str(recording))
         finally:
             window.close()
 

@@ -260,7 +260,10 @@ class AIVisionDirectorMainWindow(QMainWindow):
         models.detectorModelChanged.connect(self.controller.set_detector_model)
         models.reidModelChanged.connect(self.controller.set_reid_model)
         models.modelsChanged.connect(
-            lambda: benchmark.set_models(models.detection_model_paths())
+            lambda: benchmark.set_models(
+                models.detection_model_paths(),
+                models.reid_model_paths(),
+            )
         )
         track_shot.modeChanged.connect(self.controller.set_track_shot_mode)
         track_shot.rearmRequested.connect(self.controller.rearm_track_shot)
@@ -316,7 +319,10 @@ class AIVisionDirectorMainWindow(QMainWindow):
         )
         self.controller.set_detector_model(str(models.detector_model.currentData() or ""))
         self.controller.set_reid_model(str(models.reid_model.currentData() or ""))
-        benchmark.set_models(models.detection_model_paths())
+        benchmark.set_models(
+            models.detection_model_paths(),
+            models.reid_model_paths(),
+        )
         database.find_threshold.setValue(
             self.controller.application.identity_manager.auto_reid_min_score
         )

@@ -195,6 +195,13 @@ class ModelsPanel(QWidget):
             if self.detector_model.itemData(index)
         ]
 
+    def reid_model_paths(self) -> list[Path]:
+        return [
+            Path(str(self.reid_model.itemData(index)))
+            for index in range(self.reid_model.count())
+            if self.reid_model.itemData(index)
+        ]
+
     def _populate(
         self, combo: QComboBox, paths, selected_path: str
     ) -> None:

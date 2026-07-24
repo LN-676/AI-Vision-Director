@@ -1,4 +1,4 @@
-# V2.2 Benchmark Center
+# V2.2.1 Benchmark Center
 
 ## Reproducibility boundary
 
@@ -13,6 +13,12 @@ race or recording session must remain in one train/validation/test split.
 
 ## Profiles
 
+- **Quick Auto · proxy**: requires only a video. For each selected Detection ×
+  ReID pair it enrolls a frozen, quality-gated feature gallery, excludes those
+  enrollment frames from scoring, runs one to five measured rounds, detects
+  hard cuts, and reports per-shot consistency plus real measured throughput.
+  These proxy values are never labeled mAP, HOTA, Rank-1, or false-reacquire
+  accuracy because they have no human-verified identity truth.
 - **Vision Core**: Detection, Tracking, and Realtime axes. This profile is
   produced by `model-benchmark` from a video, ground truth, model list, and
   tracker choice.
@@ -24,6 +30,21 @@ race or recording session must remain in one train/validation/test split.
 
 Profiles and dataset versions must match before scores are treated as directly
 comparable.
+
+Quick Auto defaults to 50 feature images and three measured rounds. A duration
+of zero processes the full file. A fixed live stream must first be recorded so
+every model pair sees identical frames; running pairs directly against a
+changing live source is not a valid comparison.
+
+For iPhone or another live source, use **Track Page → Record**, stop after the
+desired duration, then choose the generated `source.mp4` in Benchmark Center.
+The configured Benchmark duration applies to both an ordinary file and this
+recorded stream.
+
+The detailed result metadata contains every measured round and an aggregate for
+each automatically detected shot. A hard cut identifies a shot boundary, not a
+physical camera identity. Camera A/B/C labels still require source metadata or
+operator confirmation.
 
 ## Score
 

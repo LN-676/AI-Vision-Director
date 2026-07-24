@@ -1,4 +1,4 @@
-# AI Vision Director V2.2
+# AI Vision Director V2.2.1
 
 [中文](#中文) · [English](#english)
 
@@ -170,6 +170,14 @@ flowchart TD
 - Record 會保存 live／iPhone closed-loop session 的 source video 與 observations；必須補 ground truth 後才會用於準確度評分。
 - Desktop 與 iOS 顯示版本更新至 V2.2，iOS build 2201；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
 
+## Desktop V2.2.1 Benchmark 更新
+
+- Benchmark 預設改為不需註解檔的 Quick Auto 模式。
+- 可選擇最多五組 Detection × ReID 模型搭配。
+- 每組先建立最多 50 張的固定 Feature Gallery，再執行預設三輪正式測試。
+- 自動偵測 Shot／硬切鏡並輸出逐 Shot 結果、平均 FPS、標準差與 P50/P95/P99。
+- 無 Ground Truth 的指標明確標示為 proxy；Verified 模式仍保留標準 Detection／Tracking 評估。
+
 ## V2.1 更新內容
 
 - Playback 已整合到 Source 的 Video file 頁並移除獨立 Dock；新增保持按下狀態的 Loop，影片結束時從第 0 frame 重新播放。
@@ -326,6 +334,17 @@ The desktop diagram above maps these responsibilities:
 - Moved Detection and ReID selection into an independent Models page with external `.pt`/`.onnx` linking and model-folder access.
 - Record now captures live/iPhone closed-loop source video and observations; accuracy scoring remains disabled until ground truth is supplied.
 - Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
+
+## Desktop V2.2.1 benchmark update
+
+- Quick Auto is now the default and requires only a video.
+- Up to five Detection × ReID combinations can be compared sequentially.
+- Each pair enrolls a frozen gallery (50 features by default) before three
+  measured rounds.
+- Hard cuts are segmented into per-shot results with FPS mean/deviation and
+  P50/P95/P99 latency.
+- Annotation-free values are explicitly labeled as proxies; Verified mode
+  remains available for standard Detection/Tracking accuracy.
 
 ## V2.1 release highlights
 
