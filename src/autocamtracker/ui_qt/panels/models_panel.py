@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import QSettings, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QComboBox,
@@ -19,6 +19,10 @@ from PySide6.QtWidgets import (
 
 DETECTION_MODEL_SUFFIXES = (".pt", ".onnx")
 REID_MODEL_SUFFIXES = (".onnx",)
+LINKED_DETECTION_KEY = "models/linkedDetection"
+LINKED_REID_KEY = "models/linkedReid"
+SELECTED_DETECTION_KEY = "models/selectedDetection"
+SELECTED_REID_KEY = "models/selectedReid"
 
 
 class ModelsPanel(QWidget):
@@ -31,12 +35,18 @@ class ModelsPanel(QWidget):
         model_dir: Path,
         default_model: str,
         default_reid_model: str,
+        settings: QSettings | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.model_dir = Path(model_dir)
         self.default_model = str(self.model_dir / default_model)
         self.default_reid_model = str(self.model_dir / default_reid_model)
+        self.settings = settings
+        self.linked_detector_paths = set(
+            self._stored_paths(LINKED_DETECTION_KEY)
+        )
+        self.linked_reid_paths = set(self._stored_paths(LINKED_REID_KEY))
         self.detector_model = QComboBox()
         self.reid_model = QComboBox()
 
@@ -86,14 +96,10 @@ class ModelsPanel(QWidget):
         layout.addStretch(1)
 
         self.detector_model.currentIndexChanged.connect(
-            lambda _index: self.detectorModelChanged.emit(
-                str(self.detector_model.currentData() or "")
-            )
+            self._detector_selection_changed
         )
         self.reid_model.currentIndexChanged.connect(
-            lambda _index: self.reidModelChanged.emit(
-                str(self.reid_model.currentData() or "")
-            )
+            self._reid_selection_changed
         )
         self.refresh_models()
 
@@ -106,22 +112,34 @@ class ModelsPanel(QWidget):
         return row
 
     def refresh_models(self) -> None:
-        current_detector = str(self.detector_model.currentData() or self.default_model)
-        current_reid = str(self.reid_model.currentData() or self.default_reid_model)
-        detector_paths = sorted(
+        current_detector = str(
+            self.detector_model.currentData()
+            or self._stored_value(SELECTED_DETECTION_KEY)
+            or self.default_model
+        )
+        current_reid = str(
+            self.reid_model.currentData()
+            or self._stored_value(SELECTED_REID_KEY)
+            or self.default_reid_model
+        )
+        detector_paths = {
             path
             for path in self.model_dir.rglob("*")
             if path.is_file()
             and path.suffix.lower() in DETECTION_MODEL_SUFFIXES
             and "-reid" not in path.stem.lower()
+        }
+        detector_paths.update(
+            path for path in self.linked_detector_paths if path.is_file()
         )
-        reid_paths = sorted(
+        reid_paths = {
             path
             for path in self.model_dir.rglob("*")
             if path.is_file()
             and path.suffix.lower() in REID_MODEL_SUFFIXES
             and "-reid" in path.stem.lower()
-        )
+        }
+        reid_paths.update(path for path in self.linked_reid_paths if path.is_file())
         self._populate(self.detector_model, detector_paths, current_detector)
         self._populate(self.reid_model, reid_paths, current_reid)
         self.modelsChanged.emit()
@@ -134,9 +152,7 @@ class ModelsPanel(QWidget):
             "Detection models (*.pt *.onnx)",
         )
         if path:
-            self._select_external(self.detector_model, Path(path))
-            self.detectorModelChanged.emit(path)
-            self.modelsChanged.emit()
+            self.link_detector_path(Path(path))
 
     def choose_reid_model(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -146,9 +162,27 @@ class ModelsPanel(QWidget):
             "ReID models (*.onnx)",
         )
         if path:
-            self._select_external(self.reid_model, Path(path))
-            self.reidModelChanged.emit(path)
-            self.modelsChanged.emit()
+            self.link_reid_path(Path(path))
+
+    def link_detector_path(self, path: Path) -> None:
+        resolved = path.expanduser().resolve()
+        if resolved.suffix.lower() not in DETECTION_MODEL_SUFFIXES:
+            raise ValueError("Detection models must use .pt or .onnx")
+        self.linked_detector_paths.add(resolved)
+        self._save_paths(LINKED_DETECTION_KEY, self.linked_detector_paths)
+        self._select_external(self.detector_model, resolved)
+        self.detectorModelChanged.emit(str(resolved))
+        self.modelsChanged.emit()
+
+    def link_reid_path(self, path: Path) -> None:
+        resolved = path.expanduser().resolve()
+        if resolved.suffix.lower() not in REID_MODEL_SUFFIXES:
+            raise ValueError("ReID models must use .onnx")
+        self.linked_reid_paths.add(resolved)
+        self._save_paths(LINKED_REID_KEY, self.linked_reid_paths)
+        self._select_external(self.reid_model, resolved)
+        self.reidModelChanged.emit(str(resolved))
+        self.modelsChanged.emit()
 
     def open_model_folder(self) -> None:
         self.model_dir.mkdir(parents=True, exist_ok=True)
@@ -162,11 +196,11 @@ class ModelsPanel(QWidget):
         ]
 
     def _populate(
-        self, combo: QComboBox, paths: list[Path], selected_path: str
+        self, combo: QComboBox, paths, selected_path: str
     ) -> None:
         combo.blockSignals(True)
         combo.clear()
-        for path in paths:
+        for path in sorted(paths):
             try:
                 label = str(path.relative_to(self.model_dir))
             except ValueError:
@@ -186,3 +220,33 @@ class ModelsPanel(QWidget):
             combo.addItem(f"{path.name} (linked)", value)
             index = combo.count() - 1
         combo.setCurrentIndex(index)
+
+    def _detector_selection_changed(self, _index: int) -> None:
+        path = str(self.detector_model.currentData() or "")
+        self._save_value(SELECTED_DETECTION_KEY, path)
+        self.detectorModelChanged.emit(path)
+
+    def _reid_selection_changed(self, _index: int) -> None:
+        path = str(self.reid_model.currentData() or "")
+        self._save_value(SELECTED_REID_KEY, path)
+        self.reidModelChanged.emit(path)
+
+    def _stored_paths(self, key: str) -> list[Path]:
+        if self.settings is None:
+            return []
+        value = self.settings.value(key, [])
+        values = [value] if isinstance(value, str) else list(value or [])
+        return [Path(str(item)) for item in values if Path(str(item)).is_file()]
+
+    def _stored_value(self, key: str) -> str:
+        return str(self.settings.value(key, "")) if self.settings is not None else ""
+
+    def _save_paths(self, key: str, paths) -> None:
+        if self.settings is not None:
+            self.settings.setValue(key, [str(path) for path in sorted(paths)])
+            self.settings.sync()
+
+    def _save_value(self, key: str, value: str) -> None:
+        if self.settings is not None:
+            self.settings.setValue(key, value)
+            self.settings.sync()

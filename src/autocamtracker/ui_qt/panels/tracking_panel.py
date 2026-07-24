@@ -1,5 +1,12 @@
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QComboBox, QDoubleSpinBox, QHBoxLayout, QPushButton, QWidget
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDoubleSpinBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QWidget,
+)
 
 from autocamtracker.ui_qt.panels.base import FormPanel
 
@@ -14,6 +21,11 @@ class TrackingPanel(FormPanel):
         super().__init__(parent)
         self.profile = QComboBox()
         self.profile.addItems(["High FPS", "Balanced ID"])
+        self.profile.setToolTip(
+            "High FPS uses 640px detector input and disables tracker ReID. "
+            "Balanced ID uses the model's native input size and enables ReID for "
+            "BoT-SORT. The selected model and tracker do not change automatically."
+        )
         self.tracker = QComboBox()
         self.tracker.addItems(["ByteTrack", "BoT-SORT"])
         self.framing = QComboBox()
@@ -37,6 +49,13 @@ class TrackingPanel(FormPanel):
         self.form.addRow("Tracker", self.tracker)
         self.form.addRow("Framing", self.framing)
         self.form.addRow("Confidence", self.confidence)
+        profile_hint = QLabel(
+            "High FPS: 640px input, ReID off.  Balanced ID: native input, "
+            "BoT-SORT ReID on."
+        )
+        profile_hint.setWordWrap(True)
+        profile_hint.setStyleSheet("color: #687386;")
+        self.form.addRow(profile_hint)
         self.form.addRow(buttons)
         self.framing.currentTextChanged.connect(self.framingChanged)
         self.profile.currentTextChanged.connect(self._emit_configuration)

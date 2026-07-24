@@ -107,6 +107,7 @@ class AIVisionDirectorMainWindow(QMainWindow):
                 self.config.model_dir,
                 self.config.default_model,
                 self.config.default_reid_model,
+                self.settings,
             ),
             "track_shot": TrackShotPanel(),
             "vehicle_database": VehicleDatabasePanel(),
@@ -194,9 +195,36 @@ class AIVisionDirectorMainWindow(QMainWindow):
         toolbar = QToolBar("Pages", self)
         toolbar.setObjectName("toolbar.pages")
         toolbar.setMovable(False)
-        toolbar.addAction(self.docks["models"].toggleViewAction())
-        toolbar.addAction(self.docks["benchmark"].toggleViewAction())
+        self.navigation_actions: dict[str, QAction] = {}
+        for key, label in (
+            ("source", "Track Page"),
+            ("benchmark", "Benchmark"),
+        ):
+            action = QAction(label, self)
+            action.triggered.connect(
+                lambda checked=False, page=key: self.open_page(page)
+            )
+            toolbar.addAction(action)
+            self.navigation_actions[key] = action
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
+
+    def open_page(self, key: str) -> None:
+        workspace_by_page = {
+            "source": Workspace.TRACKING,
+            "tracking": Workspace.TRACKING,
+            "track_shot": Workspace.TRACKING,
+            "models": Workspace.TRACKING,
+            "vehicle_database": Workspace.IDENTITY,
+            "performance": Workspace.PERFORMANCE,
+            "diagnostics": Workspace.PERFORMANCE,
+            "benchmark": Workspace.BENCHMARK,
+        }
+        workspace = workspace_by_page.get(key)
+        if workspace is None or key not in self.docks:
+            return
+        self.apply_workspace(workspace)
+        self.docks[key].show()
+        self.docks[key].raise_()
 
     def _create_status_bar(self) -> None:
         self.status_label = QLabel("Status: idle")
@@ -370,6 +398,11 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.docks["performance"].hide()
             self.docks["benchmark"].hide()
             self.monitors.splitter.setSizes([1, 1])
+            self.resizeDocks(
+                [self.docks["source"]],
+                [360],
+                Qt.Orientation.Horizontal,
+            )
             self.docks["tracking"].raise_()
             self.docks["vehicle_database"].raise_()
         self.workspace_actions[workspace].setChecked(True)

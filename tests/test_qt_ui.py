@@ -95,6 +95,68 @@ class QtUITests(unittest.TestCase):
         finally:
             window.close()
 
+    def test_page_toolbar_lists_every_page_and_switches_workspace(self) -> None:
+        window = self._window()
+        try:
+            window.show()
+            self.qt_app.processEvents()
+            self.assertEqual(
+                [action.text() for action in window.navigation_actions.values()],
+                [
+                    "Track Page",
+                    "Benchmark",
+                ],
+            )
+
+            window.navigation_actions["benchmark"].trigger()
+            self.qt_app.processEvents()
+            self.assertFalse(window.monitors.isVisible())
+            self.assertTrue(window.docks["benchmark"].isVisible())
+            self.assertTrue(window.docks["models"].isVisible())
+
+            window.navigation_actions["source"].trigger()
+            self.qt_app.processEvents()
+            self.assertTrue(window.monitors.isVisible())
+            self.assertTrue(window.docks["source"].isVisible())
+            self.assertFalse(window.docks["benchmark"].isVisible())
+        finally:
+            window.close()
+
+    def test_source_content_can_shrink_without_forcing_dock_width(self) -> None:
+        window = self._window()
+        try:
+            window.show()
+            self.qt_app.processEvents()
+            source = window.panels["source"]
+            source.set_connection(
+                "iPhone server failed: " + "a very long connection error " * 30
+            )
+            self.qt_app.processEvents()
+
+            self.assertTrue(source.connection.wordWrap())
+            self.assertEqual(
+                source.connection.sizePolicy().horizontalPolicy(),
+                source.connection.sizePolicy().Policy.Ignored,
+            )
+            self.assertEqual(source.pages.minimumWidth(), 0)
+            self.assertLess(window.docks["source"].width(), window.width() * 0.6)
+            window.resizeDocks(
+                [window.docks["source"]],
+                [500],
+                Qt.Orientation.Horizontal,
+            )
+            self.qt_app.processEvents()
+            expanded_width = window.docks["source"].width()
+            window.resizeDocks(
+                [window.docks["source"]],
+                [280],
+                Qt.Orientation.Horizontal,
+            )
+            self.qt_app.processEvents()
+            self.assertGreater(expanded_width, window.docks["source"].width())
+        finally:
+            window.close()
+
     def test_workspace_state_restores_and_reset_returns_to_tracking(self) -> None:
         settings_path = self.root / "workspace.ini"
         first = self._window(settings_path)
@@ -322,6 +384,69 @@ class QtUITests(unittest.TestCase):
             self.assertEqual(
                 window.controller.input_config.model_path,
                 str(models.detector_model.currentData()),
+            )
+        finally:
+            window.close()
+
+    def test_linked_detection_model_persists_and_appears_in_benchmark(self) -> None:
+        settings_path = self.root / "linked-model.ini"
+        external_model = self.root / "custom-detector.onnx"
+        external_model.touch()
+        first = self._window(settings_path)
+        try:
+            first.panels["models"].link_detector_path(external_model)
+            self.qt_app.processEvents()
+            benchmark_paths = {
+                str(
+                    first.panels["benchmark"]
+                    .model_table.item(row, 1)
+                    .data(Qt.ItemDataRole.UserRole)
+                )
+                for row in range(first.panels["benchmark"].model_table.rowCount())
+            }
+            self.assertIn(str(external_model.resolve()), benchmark_paths)
+        finally:
+            first.close()
+            self.qt_app.processEvents()
+
+        second = self._window(settings_path)
+        try:
+            models = second.panels["models"]
+            self.assertGreaterEqual(
+                models.detector_model.findData(str(external_model.resolve())),
+                0,
+            )
+            self.assertEqual(
+                str(models.detector_model.currentData()),
+                str(external_model.resolve()),
+            )
+        finally:
+            second.close()
+
+    def test_benchmark_setup_is_a_two_by_two_grid(self) -> None:
+        window = self._window()
+        try:
+            grid = window.panels["benchmark"].setup_grid
+            self.assertEqual(grid.count(), 4)
+            self.assertIsNotNone(grid.itemAtPosition(0, 0))
+            self.assertIsNotNone(grid.itemAtPosition(0, 1))
+            self.assertIsNotNone(grid.itemAtPosition(1, 0))
+            self.assertIsNotNone(grid.itemAtPosition(1, 1))
+        finally:
+            window.close()
+
+    def test_tracking_help_matches_available_profiles_and_track_shot_modes(self) -> None:
+        window = self._window()
+        try:
+            tracking = window.panels["tracking"]
+            track_shot = window.panels["track_shot"]
+            self.assertIn("640px", tracking.profile.toolTip())
+            self.assertEqual(
+                [
+                    track_shot.mode.itemText(index)
+                    for index in range(track_shot.mode.count())
+                ],
+                ["AI Tracking", "Fixed Cut", "In/Out Auto"],
             )
         finally:
             window.close()

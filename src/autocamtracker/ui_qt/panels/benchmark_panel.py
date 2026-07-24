@@ -10,7 +10,7 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
-    QFormLayout,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -220,24 +220,56 @@ class BenchmarkPanel(QWidget):
         heading.addWidget(self.score_summary)
         layout.addLayout(heading)
 
-        setup = QFormLayout()
+        self.setup_grid = QGridLayout()
+        self.setup_grid.setHorizontalSpacing(16)
+        self.setup_grid.setVerticalSpacing(10)
+        self.setup_grid.setColumnStretch(0, 1)
+        self.setup_grid.setColumnStretch(1, 1)
         self.video_path = QLineEdit()
         self.annotation_path = QLineEdit()
-        setup.addRow("Golden video", self._path_row(self.video_path, self._choose_video))
-        setup.addRow(
-            "Ground truth JSONL",
-            self._path_row(self.annotation_path, self._choose_annotations),
+        self.setup_grid.addWidget(
+            self._setup_cell(
+                "Golden video",
+                self._path_row(self.video_path, self._choose_video),
+            ),
+            0,
+            0,
+        )
+        self.setup_grid.addWidget(
+            self._setup_cell(
+                "Ground truth JSONL",
+                self._path_row(self.annotation_path, self._choose_annotations),
+            ),
+            0,
+            1,
         )
         self.dataset_version = QLineEdit("local-golden-v1")
         self.tracker = QComboBox()
         self.tracker.addItem("ByteTrack", "bytetrack")
         self.tracker.addItem("BoT-SORT", "botsort")
         self.tracker.addItem("Deep OC-SORT", "deepocsort")
-        setup.addRow("Dataset version", self.dataset_version)
-        setup.addRow("Tracker", self.tracker)
-        layout.addLayout(setup)
+        self.setup_grid.addWidget(
+            self._setup_cell("Dataset version", self.dataset_version),
+            1,
+            0,
+        )
+        self.setup_grid.addWidget(
+            self._setup_cell("Tracker", self.tracker),
+            1,
+            1,
+        )
+        layout.addLayout(self.setup_grid)
+
+        usage_hint = QLabel(
+            "Choose a matching golden video and JSONL annotation, then select up to "
+            "five detection models."
+        )
+        usage_hint.setWordWrap(True)
+        usage_hint.setStyleSheet("color: #687386;")
+        layout.addWidget(usage_hint)
 
         self.model_table = QTableWidget(0, 2)
+        self.model_table.setMinimumHeight(145)
         self.model_table.setHorizontalHeaderLabels(("Compare", "Detection model"))
         self.model_table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
@@ -411,6 +443,16 @@ class BenchmarkPanel(QWidget):
         button.clicked.connect(callback)
         row.addWidget(field, 1)
         row.addWidget(button)
+        return widget
+
+    @staticmethod
+    def _setup_cell(label_text: str, field: QWidget) -> QWidget:
+        widget = QWidget()
+        column = QVBoxLayout(widget)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(4)
+        column.addWidget(QLabel(label_text))
+        column.addWidget(field)
         return widget
 
     def _choose_video(self) -> None:

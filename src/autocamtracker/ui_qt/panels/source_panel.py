@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QStackedWidget,
     QWidget,
@@ -33,13 +34,26 @@ class SourcePanel(FormPanel):
         self.source.addItem("Video URL", "video_url")
         self.source.addItem("Screen region", "screen_region")
         self.pages = QStackedWidget()
+        self.pages.setMinimumWidth(0)
+        self.pages.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Preferred,
+        )
 
         iphone_page = QWidget()
+        iphone_page.setMinimumWidth(0)
         iphone_form = QFormLayout(iphone_page)
         self.websocket_url = QLineEdit()
+        self.websocket_url.setMinimumWidth(0)
         self.websocket_url.setReadOnly(True)
         self.websocket_url.setPlaceholderText("Start the desktop link to show its URL")
         self.connection = QLabel("iPhone link: idle")
+        self.connection.setWordWrap(True)
+        self.connection.setMinimumWidth(0)
+        self.connection.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Preferred,
+        )
         copy_url = QPushButton("Copy WebSocket URL")
         test_button = QPushButton("Start / Test iPhone Connection")
         iphone_form.addRow("WebSocket URL", self.websocket_url)
