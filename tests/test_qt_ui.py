@@ -510,7 +510,7 @@ class QtUITests(unittest.TestCase):
             self.assertEqual(benchmark.mode.currentData(), "quick_auto")
             self.assertFalse(benchmark.annotation_path.isEnabled())
             self.assertEqual(benchmark.rounds.value(), 3)
-            self.assertEqual(benchmark.feature_limit.value(), 50)
+            self.assertEqual(benchmark.feature_limit.value(), 20)
             benchmark.output_dir = self.root / "benchmarks"
             recording = benchmark.output_dir / "live-test" / "source.mp4"
             recording.parent.mkdir(parents=True, exist_ok=True)

@@ -95,7 +95,7 @@ class AutoBenchmarkRequest:
     tracker: str = "botsort"
     dataset_version: str = "quick-auto-v1"
     rounds: int = 3
-    feature_limit: int = 50
+    feature_limit: int = 20
     duration_seconds: float = 0.0
     confidence_threshold: float = 0.25
     detector_imgsz: int | None = 640

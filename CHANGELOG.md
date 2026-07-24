@@ -8,6 +8,7 @@ This document records current releases. Complete historical source is available 
 
 ### 中文
 
+- Quick Auto 預設 Feature limit 從 50 降為 20，以縮短 Feature Gallery 建立時間。
 - Quick Auto 新增獨立進度彈窗，顯示目前模型、Feature Gallery 建立進度、測試輪次、已分析 frame 與完成百分比。
 - 新增已耗時間、預估剩餘時間與預計完成時間。
 - 新增 Pause／Resume 與 Stop；停止時會合作式中止並安全關閉 detector。
@@ -17,6 +18,7 @@ This document records current releases. Complete historical source is available 
 
 ### English
 
+- Reduced the default Quick Auto Feature limit from 50 to 20 to shorten feature-gallery enrollment.
 - Added a dedicated Quick Auto progress window showing the current model, feature-gallery enrollment, measured round, analyzed frames, and completion percentage.
 - Added elapsed time, estimated remaining time, and estimated finish time.
 - Added cooperative Pause/Resume and Stop controls with safe detector cleanup.

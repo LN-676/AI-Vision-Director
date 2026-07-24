@@ -472,7 +472,7 @@ class BenchmarkPanel(QWidget):
         self.rounds.setValue(3)
         self.feature_limit = QSpinBox()
         self.feature_limit.setRange(1, 500)
-        self.feature_limit.setValue(50)
+        self.feature_limit.setValue(20)
         self.duration_seconds = QSpinBox()
         self.duration_seconds.setRange(0, 86_400)
         self.duration_seconds.setValue(0)

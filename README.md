@@ -161,17 +161,19 @@ flowchart TD
 - 即時效能評估會分開統計來源序號缺口、iPhone send drop、Desktop latest-frame overwrite、decode failure 與影片主動跳幀，並顯示 latency percentile 與失追 frame 區間。
 - 一鍵診斷會彙整 source、decoder、detector、tracker、ReID、GMC、framing、SQLite、WebSocket、DockKit 與 motor control 的健康狀態及結構化事件。
 
-## V2.2 更新內容
+## Quick Auto 使用方式
 
-- 新增 Benchmark Center，可用按鈕或 `Ctrl+4` 開啟，最多選擇五個 Detection 模型依序比較，不會讓多個模型互搶 CPU/GPU。
-- 使用同一支 Golden video 與 ground-truth JSONL 計算 Detection、Tracking、ReID、Framing、Control 與 Realtime 六軸比例，以及顯示資料覆蓋率的 100 萬分制跑分。
-- 新增雷達比較圖、完整原始數值表、JSON 匯入／匯出、`model-benchmark` CLI、COCO 與 MOTChallenge 格式匯出。
-- Detection model 與 ReID model 已移至獨立 Models 頁；可連結外部 `.pt`／`.onnx` 檔案及直接開啟模型資料夾。
-- Record 會保存 live／iPhone closed-loop session 的 source video 與 observations；必須補 ground truth 後才會用於準確度評分。
-- Desktop 與 iOS 顯示版本更新至 V2.2，iOS build 2201；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
+1. 開啟 **Benchmark** 頁，選擇 Benchmark video 與一至五組 Detection × ReID 模型。
+2. `Quick Auto — no annotations` 不需要 ground-truth JSONL；預設執行三輪，Feature limit 為 20。
+3. 按下 **Run Selected Combinations** 後會開啟獨立進度視窗，顯示目前模型、Feature Gallery 建立數量、測試輪次、已分析 frame、完成百分比、已耗時間與 ETA。
+4. **Pause／Resume** 會合作式暫停或繼續逐幀處理；**Stop** 會中止工作並安全關閉 detector。
+5. 關閉或隱藏進度視窗後，可用同一排的 **Show Progress** 再次叫出。Run、Show Progress、Import Results 與 Export Comparison 四顆按鈕採等寬排列。
+
+Quick Auto 的分數是 annotation-free proxy，用於比較模型組合的一致性與效能，不代表 ground-truth 身份準確率。需要標準 Detection／Tracking accuracy 時請改用 Verified 模式並提供相符的 JSONL。
 
 ## Desktop V2.3 Quick Auto 進度更新
 
+- Quick Auto 的預設 Feature limit 從 50 降為 20，縮短 Feature Gallery 建立時間。
 - Quick Auto 新增獨立進度彈窗，逐幀顯示目前模型、Feature Gallery 建立進度、測試輪次與已分析 frame。
 - 新增完成百分比、已耗時間、預估剩餘時間與預計完成時間。
 - 新增 Pause／Resume 與 Stop 控制；停止時會合作式中止並安全關閉 detector。
@@ -186,6 +188,15 @@ flowchart TD
 - 每組先建立最多 50 張的固定 Feature Gallery，再執行預設三輪正式測試。
 - 自動偵測 Shot／硬切鏡並輸出逐 Shot 結果、平均 FPS、標準差與 P50/P95/P99。
 - 無 Ground Truth 的指標明確標示為 proxy；Verified 模式仍保留標準 Detection／Tracking 評估。
+
+## V2.2 更新內容
+
+- 新增 Benchmark Center，可用按鈕或 `Ctrl+4` 開啟，最多選擇五個 Detection 模型依序比較，不會讓多個模型互搶 CPU/GPU。
+- 使用同一支 Golden video 與 ground-truth JSONL 計算 Detection、Tracking、ReID、Framing、Control 與 Realtime 六軸比例，以及顯示資料覆蓋率的 100 萬分制跑分。
+- 新增雷達比較圖、完整原始數值表、JSON 匯入／匯出、`model-benchmark` CLI、COCO 與 MOTChallenge 格式匯出。
+- Detection model 與 ReID model 已移至獨立 Models 頁；可連結外部 `.pt`／`.onnx` 檔案及直接開啟模型資料夾。
+- Record 會保存 live／iPhone closed-loop session 的 source video 與 observations；必須補 ground truth 後才會用於準確度評分。
+- Desktop 與 iOS 顯示版本更新至 V2.2，iOS build 2201；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
 
 ## V2.1 更新內容
 
@@ -266,9 +277,9 @@ Mac 與 iPhone 必須位於可互相存取的同一區域網路。單純 USB 充
 ## 版本與歷史
 
 - 最新程式碼：`main`
-- 目前發布：`v2.2`
+- 目前發布：`v2.3`
 - 舊版封存：`v1.77` 與其他歷史 tags
-- Desktop 與 iOS 使用同一個 V2.2 產品版本，並維持 1.0 WebSocket contract 相容。
+- Desktop 為 V2.3，iOS 顯示版本維持 V2.2，兩端持續使用相容的 1.0 WebSocket contract。
 - 版本變更內容：[CHANGELOG.md](CHANGELOG.md)
 
 ---
@@ -335,17 +346,19 @@ The desktop diagram above maps these responsibilities:
 - Lost-target coasting, zoom hold/ramp, rate limits, acceleration limits, and timeout STOP.
 - Versioned calibration, GMC, timestamp pipeline, offline replay, and benchmark infrastructure.
 
-## V2.2 release highlights
+## Using Quick Auto
 
-- Added Benchmark Center with toolbar/`Ctrl+4` access and sequential comparison of up to five Detection models without accelerator contention.
-- Added a six-axis Detection, Tracking, ReID, Framing, Control, and Realtime ratio chart plus a coverage-aware one-million-point score.
-- Added raw metric tables, JSON import/export, the `model-benchmark` CLI, and COCO/MOTChallenge format exports.
-- Moved Detection and ReID selection into an independent Models page with external `.pt`/`.onnx` linking and model-folder access.
-- Record now captures live/iPhone closed-loop source video and observations; accuracy scoring remains disabled until ground truth is supplied.
-- Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
+1. Open **Benchmark**, choose a benchmark video, and select one to five Detection × ReID model pairs.
+2. `Quick Auto — no annotations` does not require a ground-truth JSONL file. It defaults to three measured rounds and a Feature limit of 20.
+3. Press **Run Selected Combinations** to open the progress window. It reports the current model, feature-gallery enrollment count, measured round, analyzed frames, completion percentage, elapsed time, and ETA.
+4. **Pause/Resume** cooperatively suspends or continues per-frame work. **Stop** cancels the run and safely closes the detector.
+5. If the progress window is closed or hidden, use **Show Progress** to reopen it. Run, Show Progress, Import Results, and Export Comparison share one evenly distributed action row.
+
+Quick Auto scores are annotation-free proxies for comparing model-pair consistency and performance; they are not ground-truth identity-accuracy claims. Use Verified mode with a matching JSONL file for standard Detection/Tracking accuracy.
 
 ## Desktop V2.3 Quick Auto progress update
 
+- Reduced the default Quick Auto Feature limit from 50 to 20 to shorten feature-gallery enrollment.
 - Added a dedicated Quick Auto progress window with per-frame model, feature-gallery enrollment, measured-round, and analyzed-frame status.
 - Added completion percentage, elapsed time, estimated remaining time, and estimated finish time.
 - Added cooperative Pause/Resume and Stop controls with safe detector cleanup.
@@ -363,6 +376,15 @@ The desktop diagram above maps these responsibilities:
   P50/P95/P99 latency.
 - Annotation-free values are explicitly labeled as proxies; Verified mode
   remains available for standard Detection/Tracking accuracy.
+
+## V2.2 release highlights
+
+- Added Benchmark Center with toolbar/`Ctrl+4` access and sequential comparison of up to five Detection models without accelerator contention.
+- Added a six-axis Detection, Tracking, ReID, Framing, Control, and Realtime ratio chart plus a coverage-aware one-million-point score.
+- Added raw metric tables, JSON import/export, the `model-benchmark` CLI, and COCO/MOTChallenge format exports.
+- Moved Detection and ReID selection into an independent Models page with external `.pt`/`.onnx` linking and model-folder access.
+- Record now captures live/iPhone closed-loop source video and observations; accuracy scoring remains disabled until ground truth is supplied.
+- Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
 
 ## V2.1 release highlights
 
@@ -423,7 +445,7 @@ The Mac and iPhone must have mutually reachable IP connectivity. A charging cabl
 ## Version history
 
 - Latest code: `main`
-- Current release: `v2.2`
+- Current release: `v2.3`
 - Archived releases: `v1.77` and earlier tags
-- Desktop and iOS share the V2.2 product version while retaining the compatible 1.0 WebSocket contract.
+- Desktop is V2.3 and the iOS display version remains V2.2; both retain the compatible 1.0 WebSocket contract.
 - Release notes: [CHANGELOG.md](CHANGELOG.md)
