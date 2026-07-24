@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from math import sqrt
 from pathlib import Path
 from statistics import fmean
+from threading import Condition
 from time import perf_counter
 from typing import Callable
 
@@ -28,6 +29,53 @@ from autocamtracker.vision.types import InputConfig
 
 
 ProgressCallback = Callable[[int, int, str], None]
+PROGRESS_UNITS_PER_PHASE = 1_000
+
+
+class BenchmarkCancelled(RuntimeError):
+    """Raised when the user stops a running benchmark."""
+
+
+class BenchmarkRunControl:
+    """Thread-safe cooperative pause and cancellation control."""
+
+    def __init__(self) -> None:
+        self._condition = Condition()
+        self._paused = False
+        self._cancelled = False
+
+    @property
+    def paused(self) -> bool:
+        with self._condition:
+            return self._paused
+
+    @property
+    def cancelled(self) -> bool:
+        with self._condition:
+            return self._cancelled
+
+    def pause(self) -> None:
+        with self._condition:
+            if not self._cancelled:
+                self._paused = True
+
+    def resume(self) -> None:
+        with self._condition:
+            self._paused = False
+            self._condition.notify_all()
+
+    def cancel(self) -> None:
+        with self._condition:
+            self._cancelled = True
+            self._paused = False
+            self._condition.notify_all()
+
+    def checkpoint(self) -> None:
+        with self._condition:
+            while self._paused and not self._cancelled:
+                self._condition.wait(timeout=0.25)
+            if self._cancelled:
+                raise BenchmarkCancelled("Benchmark stopped by user")
 
 
 @dataclass(frozen=True)
@@ -98,17 +146,21 @@ class AutoBenchmarkRunner:
         request: AutoBenchmarkRequest,
         *,
         progress: ProgressCallback | None = None,
+        control: BenchmarkRunControl | None = None,
     ) -> list[ModelBenchmarkResult]:
         request.validate()
-        total_steps = len(request.model_pairs) * (request.rounds + 1)
-        completed = 0
+        control = control or BenchmarkRunControl()
+        total_phases = len(request.model_pairs) * (request.rounds + 1)
+        total_progress = total_phases * PROGRESS_UNITS_PER_PHASE
+        completed_phases = 0
         states: dict[BenchmarkModelPair, dict] = {}
         for pair in request.model_pairs:
+            control.checkpoint()
             self._progress(
                 progress,
-                completed,
-                total_steps,
-                f"{pair.label}: enrolling {request.feature_limit} features",
+                completed_phases * PROGRESS_UNITS_PER_PHASE,
+                total_progress,
+                f"{pair.label}: preparing feature enrollment",
             )
             encoder = self.embedding_factory(
                 ReIDEmbeddingConfig(model_path=str(pair.reid_model))
@@ -118,14 +170,22 @@ class AutoBenchmarkRunner:
                     f"Unable to load ReID model {pair.reid_model.name}: "
                     f"{getattr(encoder, 'error', 'unknown error')}"
                 )
-            gallery, evaluation_start = self._enroll(request, pair, encoder)
+            gallery, evaluation_start = self._enroll(
+                request,
+                pair,
+                encoder,
+                phase_index=completed_phases,
+                total_progress=total_progress,
+                progress=progress,
+                control=control,
+            )
             states[pair] = {
                 "encoder": encoder,
                 "gallery": gallery,
                 "evaluation_start": evaluation_start,
                 "rounds": [],
             }
-            completed += 1
+            completed_phases += 1
         for round_index in range(request.rounds):
             ordered_pairs = (
                 request.model_pairs
@@ -133,11 +193,15 @@ class AutoBenchmarkRunner:
                 else tuple(reversed(request.model_pairs))
             )
             for pair in ordered_pairs:
+                control.checkpoint()
                 self._progress(
                     progress,
-                    completed,
-                    total_steps,
-                    f"{pair.label}: measured round {round_index + 1}/{request.rounds}",
+                    completed_phases * PROGRESS_UNITS_PER_PHASE,
+                    total_progress,
+                    (
+                        f"{pair.label}: preparing measured round "
+                        f"{round_index + 1}/{request.rounds}"
+                    ),
                 )
                 state = states[pair]
                 state["rounds"].append(
@@ -148,9 +212,14 @@ class AutoBenchmarkRunner:
                         state["gallery"],
                         state["evaluation_start"],
                         round_index + 1,
+                        phase_index=completed_phases,
+                        total_progress=total_progress,
+                        progress=progress,
+                        control=control,
                     )
                 )
-                completed += 1
+                completed_phases += 1
+        control.checkpoint()
         results = [
             self._result(
                 request,
@@ -160,12 +229,24 @@ class AutoBenchmarkRunner:
             )
             for pair in request.model_pairs
         ]
-        self._progress(progress, total_steps, total_steps, "Complete")
+        self._progress(progress, total_progress, total_progress, "Complete")
         return results
 
-    def _enroll(self, request, pair, encoder):
+    def _enroll(
+        self,
+        request,
+        pair,
+        encoder,
+        *,
+        phase_index,
+        total_progress,
+        progress,
+        control,
+    ):
         detector = self._detector(request, pair)
+        control.checkpoint()
         detector.load_model()
+        control.checkpoint()
         detector.open_source()
         gallery: list[list[float]] = []
         target_track_id = None
@@ -173,9 +254,15 @@ class AutoBenchmarkRunner:
         fps = float(detector.get_source_fps() or 30.0)
         sample_interval = max(1, round(fps / 5.0))
         max_frames = self._max_frames(request, fps)
+        source_frames = self._source_frame_count(detector)
+        enrollment_frame_limit = _bounded_frame_count(
+            source_frames,
+            max_frames,
+        )
         try:
             self._warm_up(detector, request.warmup_frames)
             while max_frames is None or frame_index + 1 < max_frames:
+                control.checkpoint()
                 frame = detector.read_frame()
                 if frame is None:
                     break
@@ -191,15 +278,51 @@ class AutoBenchmarkRunner:
                     ),
                     None,
                 )
+                extracted = []
                 if (
-                    target is None
-                    or frame_index % sample_interval
-                    or not self.quality_assessor.assess(frame, target.bbox).accepted
+                    target is not None
+                    and not frame_index % sample_interval
+                    and self.quality_assessor.assess(
+                        frame,
+                        target.bbox,
+                    ).accepted
                 ):
-                    continue
-                extracted = encoder.extract_batch(frame, [target.bbox]) or []
-                if extracted and extracted[0]:
-                    gallery.append(extracted[0])
+                    extracted = (
+                        encoder.extract_batch(frame, [target.bbox]) or []
+                    )
+                    if extracted and extracted[0]:
+                        gallery.append(extracted[0])
+                if (
+                    frame_index % 5 == 0
+                    or (extracted and extracted[0])
+                    or len(gallery) >= request.feature_limit
+                ):
+                    feature_ratio = len(gallery) / request.feature_limit
+                    frame_ratio = (
+                        (frame_index + 1) / enrollment_frame_limit
+                        if enrollment_frame_limit
+                        else 0.0
+                    )
+                    phase_ratio = min(
+                        0.99,
+                        max(feature_ratio, frame_ratio * 0.95),
+                    )
+                    frame_text = (
+                        f" • frame {frame_index + 1}/{enrollment_frame_limit}"
+                        if enrollment_frame_limit
+                        else f" • frame {frame_index + 1}"
+                    )
+                    self._phase_progress(
+                        progress,
+                        phase_index,
+                        phase_ratio,
+                        total_progress,
+                        (
+                            f"{pair.label}: enrolling feature gallery • "
+                            f"{len(gallery)}/{request.feature_limit} features"
+                            f"{frame_text}"
+                        ),
+                    )
                 if len(gallery) >= request.feature_limit:
                     break
         finally:
@@ -215,6 +338,13 @@ class AutoBenchmarkRunner:
                 f"{pair.label} filled the gallery at the end of the selected duration; "
                 "no frames remain for evaluation."
             )
+        self._phase_progress(
+            progress,
+            phase_index,
+            1.0,
+            total_progress,
+            f"{pair.label}: feature gallery ready",
+        )
         return gallery, evaluation_start
 
     def _measure_round(
@@ -225,12 +355,26 @@ class AutoBenchmarkRunner:
         gallery,
         evaluation_start,
         round_number,
+        *,
+        phase_index,
+        total_progress,
+        progress,
+        control,
     ):
         detector = self._detector(request, pair)
+        control.checkpoint()
         detector.load_model()
+        control.checkpoint()
         detector.open_source()
         fps_hint = float(detector.get_source_fps() or 30.0)
         max_frames = self._max_frames(request, fps_hint)
+        source_frames = self._source_frame_count(detector)
+        evaluation_end = _bounded_frame_count(source_frames, max_frames)
+        evaluation_frames = (
+            max(0, evaluation_end - evaluation_start)
+            if evaluation_end is not None
+            else None
+        )
         cut_detector = self.scene_cut_factory()
         frame_index = evaluation_start - 1
         processed = detection_frames = matched_frames = 0
@@ -248,9 +392,11 @@ class AutoBenchmarkRunner:
         try:
             if not detector.seek_video_frame(evaluation_start):
                 for _ in range(evaluation_start):
+                    control.checkpoint()
                     if detector.read_frame() is None:
                         break
             while max_frames is None or frame_index + 1 < max_frames:
+                control.checkpoint()
                 frame = detector.read_frame()
                 if frame is None:
                     break
@@ -278,6 +424,30 @@ class AutoBenchmarkRunner:
                     [item.bbox for item in detections],
                 ) or []
                 latencies.append((perf_counter() - inference_started) * 1000.0)
+                if processed % 5 == 0 or (
+                    evaluation_frames is not None
+                    and processed >= evaluation_frames
+                ):
+                    phase_ratio = (
+                        min(0.99, processed / evaluation_frames)
+                        if evaluation_frames
+                        else 0.0
+                    )
+                    frame_text = (
+                        f"{processed}/{evaluation_frames} frames"
+                        if evaluation_frames
+                        else f"{processed} frames"
+                    )
+                    self._phase_progress(
+                        progress,
+                        phase_index,
+                        phase_ratio,
+                        total_progress,
+                        (
+                            f"{pair.label}: measured round {round_number}/"
+                            f"{request.rounds} • analyzing {frame_text}"
+                        ),
+                    )
                 candidates = [
                     (_gallery_similarity(embedding, gallery), detection)
                     for detection, embedding in zip(detections, embeddings)
@@ -312,6 +482,16 @@ class AutoBenchmarkRunner:
         shots.append(shot)
         if processed == 0:
             raise ValueError(f"{pair.label} has no frames after enrollment")
+        self._phase_progress(
+            progress,
+            phase_index,
+            1.0,
+            total_progress,
+            (
+                f"{pair.label}: measured round {round_number}/"
+                f"{request.rounds} complete"
+            ),
+        )
         detection_coverage = detection_frames / processed
         match_coverage = matched_frames / processed
         mean_confidence = fmean(confidence_values) if confidence_values else 0.0
@@ -455,6 +635,36 @@ class AutoBenchmarkRunner:
         return max(1, round(request.duration_seconds * fps))
 
     @staticmethod
+    def _source_frame_count(detector) -> int | None:
+        getter = getattr(detector, "get_source_frame_count", None)
+        if getter is None:
+            return None
+        value = getter()
+        return int(value) if value and int(value) > 0 else None
+
+    @staticmethod
+    def _phase_progress(
+        progress,
+        phase_index,
+        phase_ratio,
+        total_progress,
+        text,
+    ) -> None:
+        current = round(
+            (
+                phase_index
+                + max(0.0, min(1.0, float(phase_ratio)))
+            )
+            * PROGRESS_UNITS_PER_PHASE
+        )
+        AutoBenchmarkRunner._progress(
+            progress,
+            current,
+            total_progress,
+            text,
+        )
+
+    @staticmethod
     def _progress(progress, current, total, text) -> None:
         if progress is not None:
             progress(current, total, text)
@@ -463,6 +673,17 @@ class AutoBenchmarkRunner:
 def _bbox_area(detection) -> float:
     x1, y1, x2, y2 = detection.bbox
     return max(0.0, x2 - x1) * max(0.0, y2 - y1)
+
+
+def _bounded_frame_count(
+    source_frames: int | None,
+    max_frames: int | None,
+) -> int | None:
+    if source_frames is None:
+        return max_frames
+    if max_frames is None:
+        return source_frames
+    return min(source_frames, max_frames)
 
 
 def _gallery_similarity(embedding, gallery) -> float:

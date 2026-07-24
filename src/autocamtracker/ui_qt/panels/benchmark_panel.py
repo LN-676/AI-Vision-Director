@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from pathlib import Path
+from time import perf_counter
 from typing import Iterable
 
-from PySide6.QtCore import QObject, QPointF, Qt, QThread, Signal, Slot
+from PySide6.QtCore import QObject, QPointF, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QDialog,
     QFileDialog,
     QGridLayout,
     QHBoxLayout,
@@ -19,6 +22,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QSplitter,
     QTableWidget,
@@ -36,7 +40,9 @@ from autocamtracker.evaluation.benchmark import (
 from autocamtracker.evaluation.auto_benchmark import (
     AutoBenchmarkRequest,
     AutoBenchmarkRunner,
+    BenchmarkCancelled,
     BenchmarkModelPair,
+    BenchmarkRunControl,
 )
 from autocamtracker.evaluation.vision_benchmark import (
     VisionBenchmarkRequest,
@@ -192,26 +198,196 @@ class BenchmarkRadarChart(QWidget):
 
 class _BenchmarkWorker(QObject):
     completed = Signal(object)
+    cancelled = Signal()
     failed = Signal(str)
     progressed = Signal(int, int, str)
 
-    def __init__(self, request, runner) -> None:
+    def __init__(self, request, runner, control=None) -> None:
         super().__init__()
         self.request = request
         self.runner = runner
+        self.control = control
 
     @Slot()
     def run(self) -> None:
         try:
-            results = self.runner.run(
-                self.request,
-                progress=lambda current, total, text: self.progressed.emit(
-                    current, total, text
-                ),
-            )
+            kwargs = {
+                "progress": (
+                    lambda current, total, text: self.progressed.emit(
+                        current,
+                        total,
+                        text,
+                    )
+                )
+            }
+            if self.control is not None:
+                kwargs["control"] = self.control
+            results = self.runner.run(self.request, **kwargs)
             self.completed.emit(results)
+        except BenchmarkCancelled:
+            self.cancelled.emit()
         except Exception as exc:
             self.failed.emit(str(exc))
+
+
+class BenchmarkProgressDialog(QDialog):
+    """Small non-modal progress window for a running Quick Auto benchmark."""
+
+    def __init__(
+        self,
+        control: BenchmarkRunControl,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self.control = control
+        self._started_at = perf_counter()
+        self._paused_at: float | None = None
+        self._paused_seconds = 0.0
+        self._current = 0
+        self._total = 1
+        self._finished = False
+
+        self.setWindowTitle("Quick Auto Progress")
+        self.setMinimumWidth(500)
+        self.setModal(False)
+        self.setWindowFlag(Qt.WindowType.Tool, True)
+
+        layout = QVBoxLayout(self)
+        title = QLabel("Quick Auto benchmark")
+        title.setStyleSheet("font-size: 17px; font-weight: 600;")
+        layout.addWidget(title)
+
+        self.task = QLabel("Preparing benchmark…")
+        self.task.setWordWrap(True)
+        self.task.setStyleSheet("font-size: 14px;")
+        layout.addWidget(self.task)
+
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 1)
+        self.progress.setValue(0)
+        self.progress.setTextVisible(False)
+        self.progress_percent = QLabel("0%")
+        self.progress_percent.setMinimumWidth(44)
+        self.progress_percent.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        progress_row = QHBoxLayout()
+        progress_row.addWidget(self.progress, 1)
+        progress_row.addWidget(self.progress_percent)
+        layout.addLayout(progress_row)
+
+        timing = QGridLayout()
+        timing.addWidget(QLabel("Elapsed"), 0, 0)
+        timing.addWidget(QLabel("Estimated remaining"), 1, 0)
+        timing.addWidget(QLabel("Estimated finish"), 2, 0)
+        self.elapsed = QLabel("0s")
+        self.remaining = QLabel("Calculating…")
+        self.finishes_at = QLabel("Calculating…")
+        timing.addWidget(self.elapsed, 0, 1)
+        timing.addWidget(self.remaining, 1, 1)
+        timing.addWidget(self.finishes_at, 2, 1)
+        timing.setColumnStretch(1, 1)
+        layout.addLayout(timing)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        self.pause_button = QPushButton("Pause")
+        self.stop_button = QPushButton("Stop")
+        self.pause_button.clicked.connect(self._toggle_pause)
+        self.stop_button.clicked.connect(self._stop)
+        buttons.addWidget(self.pause_button)
+        buttons.addWidget(self.stop_button)
+        layout.addLayout(buttons)
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(1_000)
+        self._timer.timeout.connect(self._refresh_timing)
+        self._timer.start()
+
+    def update_progress(self, current: int, total: int, text: str) -> None:
+        self._current = max(0, int(current))
+        self._total = max(1, int(total))
+        self.progress.setRange(0, self._total)
+        self.progress.setValue(min(self._current, self._total))
+        self.progress_percent.setText(
+            f"{min(100, round(self._current * 100 / self._total))}%"
+        )
+        self.task.setText(text)
+        self._refresh_timing()
+
+    def finish(self, text: str, *, successful: bool) -> None:
+        self._finished = True
+        self._timer.stop()
+        if successful:
+            self._current = self._total
+            self.progress.setValue(self.progress.maximum())
+            self.progress_percent.setText("100%")
+            self.remaining.setText("0s")
+            self.finishes_at.setText("Complete")
+        else:
+            self.remaining.setText("—")
+            self.finishes_at.setText("—")
+        self.task.setText(text)
+        self.pause_button.setEnabled(False)
+        self.stop_button.setText("Close")
+        self.stop_button.setEnabled(True)
+        try:
+            self.stop_button.clicked.disconnect(self._stop)
+        except (RuntimeError, TypeError):
+            pass
+        self.stop_button.clicked.connect(self.close)
+        self._refresh_timing()
+
+    @Slot()
+    def _toggle_pause(self) -> None:
+        if self.control.paused:
+            self.control.resume()
+            if self._paused_at is not None:
+                self._paused_seconds += perf_counter() - self._paused_at
+                self._paused_at = None
+            self.pause_button.setText("Pause")
+            self.task.setText(
+                self.task.text().removesuffix(" • paused")
+            )
+        else:
+            self.control.pause()
+            self._paused_at = perf_counter()
+            self.pause_button.setText("Resume")
+            self.task.setText(f"{self.task.text()} • paused")
+        self._refresh_timing()
+
+    @Slot()
+    def _stop(self) -> None:
+        self.control.cancel()
+        self.task.setText("Stopping Quick Auto safely…")
+        self.pause_button.setEnabled(False)
+        self.stop_button.setEnabled(False)
+
+    @Slot()
+    def _refresh_timing(self) -> None:
+        elapsed = self._active_elapsed()
+        self.elapsed.setText(_format_duration(elapsed))
+        if self._finished:
+            return
+        if self.control.paused:
+            self.remaining.setText("Paused")
+            self.finishes_at.setText("Paused")
+            return
+        if self._current <= 0 or elapsed < 1.0:
+            self.remaining.setText("Calculating…")
+            self.finishes_at.setText("Calculating…")
+            return
+        rate = self._current / elapsed
+        seconds = max(0.0, (self._total - self._current) / rate)
+        self.remaining.setText(f"About {_format_duration(seconds)}")
+        finish = datetime.now() + timedelta(seconds=seconds)
+        self.finishes_at.setText(finish.strftime("%H:%M:%S"))
+
+    def _active_elapsed(self) -> float:
+        paused = self._paused_seconds
+        if self._paused_at is not None:
+            paused += perf_counter() - self._paused_at
+        return max(0.0, perf_counter() - self._started_at - paused)
 
 
 class BenchmarkPanel(QWidget):
@@ -224,6 +400,8 @@ class BenchmarkPanel(QWidget):
         self.results: list[ModelBenchmarkResult] = []
         self._thread: QThread | None = None
         self._worker: _BenchmarkWorker | None = None
+        self._run_control: BenchmarkRunControl | None = None
+        self._progress_dialog: BenchmarkProgressDialog | None = None
         self._updating_checks = False
 
         layout = QVBoxLayout(self)
@@ -337,14 +515,25 @@ class BenchmarkPanel(QWidget):
 
         buttons = QHBoxLayout()
         self.run_button = QPushButton("Run Selected Combinations")
-        import_button = QPushButton("Import Results…")
-        export_button = QPushButton("Export Comparison…")
+        self.show_progress_button = QPushButton("Show Progress")
+        self.show_progress_button.setEnabled(False)
+        self.import_button = QPushButton("Import Results…")
+        self.export_button = QPushButton("Export Comparison…")
         self.run_button.clicked.connect(self.run_selected)
-        import_button.clicked.connect(self.import_results)
-        export_button.clicked.connect(self.export_results)
-        buttons.addWidget(self.run_button)
-        buttons.addWidget(import_button)
-        buttons.addWidget(export_button)
+        self.show_progress_button.clicked.connect(self.show_progress_dialog)
+        self.import_button.clicked.connect(self.import_results)
+        self.export_button.clicked.connect(self.export_results)
+        for button in (
+            self.run_button,
+            self.show_progress_button,
+            self.import_button,
+            self.export_button,
+        ):
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+            buttons.addWidget(button, 1)
         layout.addLayout(buttons)
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
@@ -535,19 +724,46 @@ class BenchmarkPanel(QWidget):
             return
         self.run_button.setEnabled(False)
         self.status.setText("Starting benchmark…")
+        quick_auto = self.mode.currentData() == "quick_auto"
+        self._run_control = BenchmarkRunControl() if quick_auto else None
+        if self._progress_dialog is not None:
+            self._progress_dialog.close()
+        self._progress_dialog = (
+            BenchmarkProgressDialog(self._run_control, self)
+            if self._run_control is not None
+            else None
+        )
+        if self._progress_dialog is not None:
+            self._progress_dialog.show()
+            self._progress_dialog.raise_()
+            self.show_progress_button.setEnabled(True)
         self._thread = QThread(self)
-        self._worker = _BenchmarkWorker(request, runner)
+        self._worker = _BenchmarkWorker(
+            request,
+            runner,
+            control=self._run_control,
+        )
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.progressed.connect(self._show_progress)
         self._worker.completed.connect(self._benchmark_complete)
+        self._worker.cancelled.connect(self._benchmark_cancelled)
         self._worker.failed.connect(self._benchmark_failed)
         self._worker.completed.connect(self._thread.quit)
+        self._worker.cancelled.connect(self._thread.quit)
         self._worker.failed.connect(self._thread.quit)
         self._thread.finished.connect(self._worker.deleteLater)
         self._thread.finished.connect(self._thread.deleteLater)
         self._thread.finished.connect(self._thread_finished)
         self._thread.start()
+
+    @Slot()
+    def show_progress_dialog(self) -> None:
+        if self._progress_dialog is None:
+            return
+        self._progress_dialog.show()
+        self._progress_dialog.raise_()
+        self._progress_dialog.activateWindow()
 
     def import_results(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -773,6 +989,8 @@ class BenchmarkPanel(QWidget):
         self.progress.setRange(0, max(1, total))
         self.progress.setValue(min(current, max(1, total)))
         self.status.setText(text)
+        if self._progress_dialog is not None:
+            self._progress_dialog.update_progress(current, total, text)
 
     @Slot(object)
     def _benchmark_complete(self, results) -> None:
@@ -794,17 +1012,38 @@ class BenchmarkPanel(QWidget):
                 "this dataset version."
             )
         )
+        if self._progress_dialog is not None:
+            self._progress_dialog.finish(
+                "Quick Auto complete. Results are ready.",
+                successful=True,
+            )
 
     @Slot(str)
     def _benchmark_failed(self, message: str) -> None:
         self.run_button.setEnabled(True)
         self.status.setText(f"Benchmark failed: {message}")
+        if self._progress_dialog is not None:
+            self._progress_dialog.finish(
+                f"Quick Auto failed: {message}",
+                successful=False,
+            )
         QMessageBox.warning(self, "Benchmark failed", message)
+
+    @Slot()
+    def _benchmark_cancelled(self) -> None:
+        self.run_button.setEnabled(True)
+        self.status.setText("Quick Auto stopped.")
+        if self._progress_dialog is not None:
+            self._progress_dialog.finish(
+                "Quick Auto stopped.",
+                successful=False,
+            )
 
     @Slot()
     def _thread_finished(self) -> None:
         self._worker = None
         self._thread = None
+        self._run_control = None
 
 
 def _format_metric(value, *, decimals: int = 3) -> str:
@@ -817,3 +1056,14 @@ def _format_metric(value, *, decimals: int = 3) -> str:
 
 def _format_ratio(value) -> str:
     return "—" if value is None else f"{float(value):.1%}"
+
+
+def _format_duration(seconds: float) -> str:
+    total = max(0, round(float(seconds)))
+    hours, remainder = divmod(total, 3_600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h {minutes}m"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"

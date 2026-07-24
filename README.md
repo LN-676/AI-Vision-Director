@@ -1,4 +1,4 @@
-# AI Vision Director V2.2.1
+# AI Vision Director V2.3
 
 [中文](#中文) · [English](#english)
 
@@ -12,17 +12,17 @@ AI Vision Director 是一套由 **Mac 桌面端**與 **iPhone 相機／DockKit �
 
 | 元件 | 正式名稱 | 主要責任 |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V2.2 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
+| Desktop | AI Vision Director Desktop V2.3 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
 | iOS | AI Vision Director Camera for iOS V2.2 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
 
-目前正式產品版本是 **V2.2**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
+目前 Desktop 正式版本是 **V2.3**，iOS 顯示版本維持 **V2.2**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
 
 ## 整體硬體與資料連接
 
 ```mermaid
 flowchart LR
     subgraph COMPUTER["Mac／電腦端"]
-        DESKTOP["AI Vision Director Desktop V2.2<br/>PySide6 Scheme A／Tkinter compatibility"]
+        DESKTOP["AI Vision Director Desktop V2.3<br/>PySide6 Scheme A／Tkinter compatibility"]
         SERVER["WebSocket Server<br/>ws://Mac.local:8765/ws/tracking"]
         AI["YOLO Detection<br/>Tracking · GID/ReID · Framing"]
         DB[("SQLite Identity DB<br/>本機持久化")]
@@ -170,6 +170,15 @@ flowchart TD
 - Record 會保存 live／iPhone closed-loop session 的 source video 與 observations；必須補 ground truth 後才會用於準確度評分。
 - Desktop 與 iOS 顯示版本更新至 V2.2，iOS build 2201；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
 
+## Desktop V2.3 Quick Auto 進度更新
+
+- Quick Auto 新增獨立進度彈窗，逐幀顯示目前模型、Feature Gallery 建立進度、測試輪次與已分析 frame。
+- 新增完成百分比、已耗時間、預估剩餘時間與預計完成時間。
+- 新增 Pause／Resume 與 Stop 控制；停止時會合作式中止並安全關閉 detector。
+- Benchmark 操作列新增 Show Progress，可隨時重新叫出進度視窗。
+- Run Selected Combinations、Show Progress、Import Results 與 Export Comparison 四顆按鈕改為同排等寬排列。
+- Desktop 顯示版本更新為 V2.3；1.0 WebSocket contract 與 iOS V2.2 保持不變。
+
 ## Desktop V2.2.1 Benchmark 更新
 
 - Benchmark 預設改為不需註解檔的 Quick Auto 模式。
@@ -203,7 +212,7 @@ flowchart TD
 
 ```text
 AI-Vision-Director/
-├── src/autocamtracker/       # Desktop V2.2 Python application and shared use cases
+├── src/autocamtracker/       # Desktop V2.3 Python application and shared use cases
 │   ├── ui_qt/                # PySide6 Scheme A workspace
 │   └── ui/                   # Preserved Tkinter compatibility UI
 ├── tests/                    # Desktop unit and integration tests
@@ -272,10 +281,10 @@ Both components are maintained in this monorepo because they share one versioned
 
 | Component | Product name | Responsibility |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V2.2 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
+| Desktop | AI Vision Director Desktop V2.3 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
 | iOS | AI Vision Director Camera for iOS V2.2 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
 
-The current product release is **V2.2**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
+The current Desktop release is **V2.3** and the iOS display version remains **V2.2**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
 
 ## End-to-end hardware and data flow
 
@@ -334,6 +343,15 @@ The desktop diagram above maps these responsibilities:
 - Moved Detection and ReID selection into an independent Models page with external `.pt`/`.onnx` linking and model-folder access.
 - Record now captures live/iPhone closed-loop source video and observations; accuracy scoring remains disabled until ground truth is supplied.
 - Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
+
+## Desktop V2.3 Quick Auto progress update
+
+- Added a dedicated Quick Auto progress window with per-frame model, feature-gallery enrollment, measured-round, and analyzed-frame status.
+- Added completion percentage, elapsed time, estimated remaining time, and estimated finish time.
+- Added cooperative Pause/Resume and Stop controls with safe detector cleanup.
+- Added Show Progress to reopen the progress window at any time.
+- Distributed Run Selected Combinations, Show Progress, Import Results, and Export Comparison evenly across one action row.
+- Updated the Desktop display version to V2.3 while preserving the 1.0 WebSocket contract and iOS V2.2.
 
 ## Desktop V2.2.1 benchmark update
 

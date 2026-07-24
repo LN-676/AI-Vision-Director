@@ -4,6 +4,26 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## V2.3 — 2026-07-24
+
+### 中文
+
+- Quick Auto 新增獨立進度彈窗，顯示目前模型、Feature Gallery 建立進度、測試輪次、已分析 frame 與完成百分比。
+- 新增已耗時間、預估剩餘時間與預計完成時間。
+- 新增 Pause／Resume 與 Stop；停止時會合作式中止並安全關閉 detector。
+- Benchmark 操作列新增 Show Progress，可重新叫出進度視窗。
+- Run、Show Progress、Import 與 Export 四顆按鈕改為同排等寬排列。
+- Desktop 顯示版本更新為 V2.3，套件版本更新為 2.3.0；1.0 WebSocket contract 與 iOS V2.2 保持不變。
+
+### English
+
+- Added a dedicated Quick Auto progress window showing the current model, feature-gallery enrollment, measured round, analyzed frames, and completion percentage.
+- Added elapsed time, estimated remaining time, and estimated finish time.
+- Added cooperative Pause/Resume and Stop controls with safe detector cleanup.
+- Added Show Progress to reopen the progress window.
+- Distributed Run, Show Progress, Import, and Export evenly across one action row.
+- Updated the Desktop display version to V2.3 and the package version to 2.3.0 while preserving the 1.0 WebSocket contract and iOS V2.2.
+
 ## V2.2 — 2026-07-24
 
 ### 中文

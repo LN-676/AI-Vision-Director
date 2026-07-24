@@ -20,7 +20,9 @@ from autocamtracker.evaluation.benchmark import (
 from autocamtracker.evaluation.auto_benchmark import (
     AutoBenchmarkRequest,
     AutoBenchmarkRunner,
+    BenchmarkCancelled,
     BenchmarkModelPair,
+    BenchmarkRunControl,
 )
 from autocamtracker.evaluation.live_capture import LiveBenchmarkRecorder
 from autocamtracker.evaluation.standard_formats import (
@@ -278,6 +280,7 @@ class BenchmarkTests(unittest.TestCase):
                 feature_limit=2,
                 warmup_frames=1,
             )
+            progress_updates = []
             result = AutoBenchmarkRunner(
                 detector_factory=FakeDetector,
                 embedding_factory=FakeEncoder,
@@ -285,7 +288,12 @@ class BenchmarkTests(unittest.TestCase):
                 quality_assessor=SimpleNamespace(
                     assess=lambda *_: SimpleNamespace(accepted=True)
                 ),
-            ).run(request)[0]
+            ).run(
+                request,
+                progress=lambda current, total, text: progress_updates.append(
+                    (current, total, text)
+                ),
+            )[0]
             output = root / "quick-auto.json"
             save_results(output, [result])
             reloaded = load_results(output)[0]
@@ -297,6 +305,27 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result.score.profile, "Quick Auto · proxy")
         self.assertAlmostEqual(result.score.coverage, 4 / 6)
         self.assertGreaterEqual(len(result.metadata["shots"]), 2)
+        self.assertEqual(progress_updates[-1], (4_000, 4_000, "Complete"))
+        self.assertTrue(
+            any(
+                0 < current < total and "features" in text
+                for current, total, text in progress_updates
+            )
+        )
+
+    def test_quick_auto_run_control_pauses_resumes_and_cancels(self) -> None:
+        control = BenchmarkRunControl()
+
+        control.pause()
+        self.assertTrue(control.paused)
+        control.resume()
+        self.assertFalse(control.paused)
+        control.checkpoint()
+
+        control.cancel()
+        self.assertTrue(control.cancelled)
+        with self.assertRaises(BenchmarkCancelled):
+            control.checkpoint()
 
 
 if __name__ == "__main__":

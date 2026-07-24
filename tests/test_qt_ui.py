@@ -19,11 +19,17 @@ from autocamtracker.ui_qt.controller import overlay_identity_label, video_sync_p
 from autocamtracker.ui_qt.bootstrap import BootstrappedQtDesktop
 from autocamtracker.ui_qt.main_window import AIVisionDirectorMainWindow
 from autocamtracker.ui_qt.panels.feature_manager_dialog import FeatureManagerDialog
+from autocamtracker.ui_qt.panels.benchmark_panel import (
+    BenchmarkPanel,
+    BenchmarkProgressDialog,
+    _format_duration,
+)
 from autocamtracker.ui_qt.panels.playback_panel import format_timecode
 from autocamtracker.ui_qt.panels.source_panel import SourcePanel
 from autocamtracker.ui_qt.panels.vehicle_database_panel import VehicleDatabasePanel
 from autocamtracker.ui_qt.state import LAYOUT_VERSION, VERSION_KEY, Workspace
 from autocamtracker.ui_qt.widgets.video_view import VideoView, qimage_from_bgr
+from autocamtracker.evaluation.auto_benchmark import BenchmarkRunControl
 
 
 class QtUITests(unittest.TestCase):
@@ -55,10 +61,67 @@ class QtUITests(unittest.TestCase):
         )
 
     def test_display_label_and_tk_class_aliases_preserve_protocol_version(self) -> None:
-        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.2.1")
+        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.3")
         self.assertEqual(VERSION, "1.0")
         self.assertIs(AIVisonDirectorApp, AIVisionDirectorApp)
         self.assertIs(AutoCamTrackerApp, AIVisionDirectorApp)
+
+    def test_quick_auto_progress_dialog_shows_task_eta_and_controls(self) -> None:
+        control = BenchmarkRunControl()
+        dialog = BenchmarkProgressDialog(control)
+        try:
+            dialog.update_progress(
+                500,
+                4_000,
+                "detector + reid: enrolling feature gallery • 25/50 features",
+            )
+            self.assertEqual(dialog.progress.value(), 500)
+            self.assertEqual(dialog.progress_percent.text(), "12%")
+            self.assertIn("25/50 features", dialog.task.text())
+            self.assertEqual(dialog.pause_button.text(), "Pause")
+
+            dialog.pause_button.click()
+            self.assertTrue(control.paused)
+            self.assertEqual(dialog.pause_button.text(), "Resume")
+
+            dialog.pause_button.click()
+            self.assertFalse(control.paused)
+            dialog.stop_button.click()
+            self.assertTrue(control.cancelled)
+            self.assertFalse(dialog.stop_button.isEnabled())
+            self.assertEqual(_format_duration(3_661), "1h 1m")
+        finally:
+            dialog.close()
+
+    def test_benchmark_action_row_is_equal_and_reopens_progress(self) -> None:
+        panel = BenchmarkPanel(self.root / "models", self.root / "output")
+        dialog = BenchmarkProgressDialog(BenchmarkRunControl(), panel)
+        try:
+            panel.resize(1_200, 800)
+            panel.show()
+            self.qt_app.processEvents()
+            buttons = (
+                panel.run_button,
+                panel.show_progress_button,
+                panel.import_button,
+                panel.export_button,
+            )
+            self.assertFalse(panel.show_progress_button.isEnabled())
+            self.assertLessEqual(
+                max(button.width() for button in buttons)
+                - min(button.width() for button in buttons),
+                1,
+            )
+
+            panel._progress_dialog = dialog
+            panel.show_progress_button.setEnabled(True)
+            dialog.hide()
+            panel.show_progress_button.click()
+            self.qt_app.processEvents()
+            self.assertTrue(dialog.isVisible())
+        finally:
+            dialog.close()
+            panel.close()
 
     def test_main_window_smoke_and_unique_docks(self) -> None:
         window = self._window()
