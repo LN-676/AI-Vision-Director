@@ -34,53 +34,6 @@ body {
   margin: 0;
 }
 
-.access-shell {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(71, 189, 255, 0.12), transparent 34%),
-    #070b12;
-}
-
-.access-card {
-  width: min(100%, 480px);
-  padding: 36px;
-  border: 1px solid #27354a;
-  border-radius: 20px;
-  background: #101722;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-}
-
-.access-kicker {
-  margin: 0;
-  color: #70e1b2;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-}
-
-.access-card h1 {
-  margin: 10px 0 12px;
-  font-size: clamp(2rem, 8vw, 3rem);
-}
-
-.access-card > p:not(.access-kicker) {
-  color: #aeb9c9;
-  line-height: 1.6;
-}
-
-.access-owner-link {
-  display: inline-flex;
-  margin-top: 18px;
-  padding: 11px 16px;
-  border: 1px solid #34445c;
-  border-radius: 10px;
-  color: #f3f6fb;
-  text-decoration: none;
-}
-
 button,
 input {
   font: inherit;

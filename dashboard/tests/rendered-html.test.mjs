@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-process.env.AIVD_OWNER_EMAIL = "nick0955466752@gmail.com";
-
 async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -11,13 +9,9 @@ async function render(path = "/") {
 
   return worker.fetch(
     new Request(`http://localhost${path}`, {
-      headers: {
-        accept: "text/html",
-        "oai-authenticated-user-email": "nick0955466752@gmail.com",
-      },
+      headers: { accept: "text/html" },
     }),
     {
-      AIVD_OWNER_EMAIL: "nick0955466752@gmail.com",
       ASSETS: {
         fetch: async () => new Response("Not found", { status: 404 }),
       },
@@ -130,22 +124,4 @@ test("remote tablet CSS prevents primary horizontal overflow", async () => {
   assert.match(css, /\.remote-shell[\s\S]*overflow-x:\s*hidden/);
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /\.remote-grid\s*\{\s*grid-template-columns:\s*1fr/);
-});
-
-test("one-time invite access is server-side and device-bound", async () => {
-  const access = await readFile(
-    new URL("../app/lib/site-access.ts", import.meta.url),
-    "utf8",
-  );
-  const claim = await readFile(
-    new URL("../app/access/claim/route.ts", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(access, /httpOnly|DEVICE_COOKIE/);
-  assert.match(access, /device_claims/);
-  assert.match(claim, /INSERT OR IGNORE INTO device_claims/);
-  assert.match(claim, /sameSite:\s*"strict"/);
-  assert.match(claim, /method="post"/);
-  assert.doesNotMatch(claim, /localStorage|sessionStorage/);
 });
