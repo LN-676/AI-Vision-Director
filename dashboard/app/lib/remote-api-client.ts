@@ -93,6 +93,11 @@ export class RemoteApi {
     );
   }
 
+  previewUrl(view: "before" | "after", revision: string): string {
+    const base = this.baseUrl.replace(/\/$/, "");
+    return `${base}/api/v3/edge/preview/${view}?v=${encodeURIComponent(revision)}`;
+  }
+
   private async request<T>(
     path: string,
     init?: RequestInit,

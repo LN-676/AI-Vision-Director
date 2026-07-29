@@ -28,6 +28,7 @@ struct ContentView: View {
             Task {
                 if newPhase == .active {
                     await cameraSession.start()
+                    await dockKitManager.restartListening()
                 } else {
                     await controlService.emergencyStop(reason: "app left foreground")
                     await cameraSession.stop()
@@ -340,7 +341,7 @@ struct ContentView: View {
             await controlService?.emergencyStop(reason: "V1.0 timeout or disconnect")
         }
         await cameraSession.start()
-        await dockKitManager.startListening()
+        await dockKitManager.restartListening()
         await networkClient.connect()
         await publishMotorStatus()
     }

@@ -38,6 +38,7 @@ fi
 
 export AIVD_EDGE_NODE_ID="${AIVD_EDGE_NODE_ID:-edge-mac-01}"
 export AIVD_EDGE_DEVICE_TOKEN="${AIVD_EDGE_DEVICE_TOKEN:-$(openssl rand -hex 24)}"
+export AIVD_EDGE_PREVIEW_DIR="${AIVD_EDGE_PREVIEW_DIR:-${PROJECT_DIR}/outputs/edge-preview}"
 export AIVD_CONTROL_API_URL="http://127.0.0.1:8080"
 export AIVD_CORS_ALLOW_ORIGINS="http://${LAN_IP}:3000,http://127.0.0.1:3000"
 export NEXT_PUBLIC_AIVD_API_BASE_URL="http://${LAN_IP}:8080"

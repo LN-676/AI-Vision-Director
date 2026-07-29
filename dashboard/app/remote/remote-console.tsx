@@ -195,6 +195,44 @@ export function RemoteConsole() {
             </div>
           ) : null}
 
+          <section className="remote-monitor-section" aria-label="Live monitors">
+            <div className="remote-monitor-heading">
+              <div>
+                <span className="eyebrow">LIVE VISION</span>
+                <h2>Before / After Monitors</h2>
+              </div>
+              <span>{online ? "1 FPS tablet preview" : "Waiting for Edge Mac"}</span>
+            </div>
+            <div className="remote-monitor-grid">
+              <figure className="remote-monitor">
+                <figcaption>
+                  <strong>BEFORE</strong>
+                  <span>Detection + identity overlay</span>
+                </figcaption>
+                <div className="remote-monitor-screen">
+                  <img
+                    alt="Before detection monitor"
+                    src={api.previewUrl("before", node.last_heartbeat)}
+                  />
+                  <span className="remote-monitor-corner">INPUT</span>
+                </div>
+              </figure>
+              <figure className="remote-monitor">
+                <figcaption>
+                  <strong>AFTER</strong>
+                  <span>AI reframed output</span>
+                </figcaption>
+                <div className="remote-monitor-screen">
+                  <img
+                    alt="After reframed monitor"
+                    src={api.previewUrl("after", node.last_heartbeat)}
+                  />
+                  <span className="remote-monitor-corner">PROGRAM</span>
+                </div>
+              </figure>
+            </div>
+          </section>
+
           <div className="remote-grid">
             <section className="remote-card remote-target">
               <div className="remote-card-heading">

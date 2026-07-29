@@ -34,6 +34,11 @@ struct StatusPanelView: View {
             }
 
             HStack {
+                Button("重新偵測 DockKit") {
+                    Task { await manager.restartListening() }
+                }
+                .buttonStyle(.bordered)
+
                 Button("Enter Manual Mode") {
                     Task { await manager.disableSystemTracking() }
                 }

@@ -7,18 +7,21 @@ import unittest
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+import numpy as np
 
 from autocamtracker.api.app import ApiSettings, create_app
 from autocamtracker.edge_control.agent import EdgeAgent
 from autocamtracker.edge_control.api import EdgeControlSettings
 from autocamtracker.edge_control.control_port import SimulatedControlPort
 from autocamtracker.edge_control.models import CommandStatus, CommandType
+from autocamtracker.edge_control.previews import EdgePreviewPublisher
 
 
 class EdgeControlApiTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = TemporaryDirectory()
         root = Path(self.temporary.name)
+        self.preview_directory = root / "preview"
         self.client = TestClient(
             create_app(
                 ApiSettings(
@@ -26,6 +29,7 @@ class EdgeControlApiTests(unittest.TestCase):
                     telemetry_dir=root / "telemetry",
                     edge_control=EdgeControlSettings(
                         database_path=root / "control.sqlite3",
+                        preview_directory=self.preview_directory,
                         device_token="test-device-token",
                         offline_after_seconds=5,
                         lease_seconds=10,
@@ -87,6 +91,25 @@ class EdgeControlApiTests(unittest.TestCase):
         self.assertEqual(first.json()["command_id"], second.json()["command_id"])
         self.assertEqual(self.claim().json()["command_id"], command_id)
         self.assertIsNone(self.claim().json())
+
+    def test_before_and_after_preview_endpoints_are_no_store(self) -> None:
+        self.preview_directory.mkdir()
+        before = b"\xff\xd8before\xff\xd9"
+        after = b"\xff\xd8after\xff\xd9"
+        (self.preview_directory / "before.jpg").write_bytes(before)
+        (self.preview_directory / "after.jpg").write_bytes(after)
+
+        before_response = self.client.get("/api/v3/edge/preview/before")
+        after_response = self.client.get("/api/v3/edge/preview/after")
+
+        self.assertEqual(before_response.status_code, 200)
+        self.assertEqual(before_response.content, before)
+        self.assertEqual(after_response.content, after)
+        self.assertEqual(before_response.headers["cache-control"], "no-store, max-age=0")
+        self.assertEqual(
+            self.client.get("/api/v3/edge/preview/unknown").status_code,
+            404,
+        )
 
     def test_unknown_command_and_extra_fields_are_rejected(self) -> None:
         unknown = self.command("motor_velocity")
@@ -193,6 +216,23 @@ class EdgeControlApiTests(unittest.TestCase):
             headers=headers,
         )
         self.assertEqual(succeeded.json()["status"], "succeeded")
+
+
+class EdgePreviewPublisherTests(unittest.TestCase):
+    def test_publishes_both_frames_atomically_and_rate_limits(self) -> None:
+        with TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            publisher = EdgePreviewPublisher(directory, interval_seconds=0.2)
+            frame = np.zeros((18, 32, 3), dtype=np.uint8)
+
+            self.assertTrue(publisher.publish(frame, frame, now=1.0))
+            self.assertTrue(
+                (directory / "before.jpg").read_bytes().startswith(b"\xff\xd8")
+            )
+            self.assertTrue(
+                (directory / "after.jpg").read_bytes().startswith(b"\xff\xd8")
+            )
+            self.assertFalse(publisher.publish(frame, frame, now=1.1))
 
 
 class FakeAgentClient:

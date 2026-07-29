@@ -141,7 +141,9 @@ TCP/IP, then set `AIVD_LAN_IP` before launching.
 - `/ws/control-state` already exposes the compatible read-only state envelope;
   the MVP UI deliberately keeps one-second polling for tomorrow's lower-risk
   demonstration.
-- No live video preview is included.
+- The tablet Remote Console includes rate-limited Before and After JPEG
+  monitors. Frames stay on the private LAN and are published only while the
+  local MVP Edge token is active.
 - The standalone Edge Agent CLI is useful for explicitly labeled `--demo`
   telemetry. Real Desktop control uses the agent embedded by the MVP launcher.
 - If the local control plane fails, use the Desktop controls. Never interpret

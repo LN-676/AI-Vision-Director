@@ -17,11 +17,17 @@ This document records current releases. Complete historical source is available 
   Monitoring email routing, and a benchmark failure policy.
 - Added long-term BigQuery telemetry storage with daily partitioning and tenant
   and event-type clustering.
+- Added live Before/After monitors to the tablet Remote Console.
+- Added resilient DockKit rediscovery on foreground entry and a manual
+  rediscovery control in the iOS app.
 
 ### 中文
 
 - 建立上網部署 Phase 0 邊界：`Repository`、`SystemStatusQuery`、
   `VehicleQuery`／`VehicleCommand` 與 `EventSink`。
+- 平板 Remote Console 新增即時 Before／After 雙監看畫面。
+- iOS App 新增回到前景自動重建 DockKit 探索，以及手動「重新偵測
+  DockKit」操作。
 - 新增 OpenAPI 3.1 schema，定義 status、vehicle query/command 與 event
   delivery，所有 mutation 使用 idempotency key。
 - 新增一對一、衝突即拒絕的 `(node_id, local_id) <-> cloud_id` mapping

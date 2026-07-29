@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 from time import monotonic
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 from autocamtracker.evaluation.live_capture import LiveBenchmarkRecorder
+from autocamtracker.edge_control.previews import EdgePreviewPublisher
 
 
 @dataclass(frozen=True)
@@ -95,6 +97,17 @@ class QtRuntimeController(QObject):
         self._next_video_request_at = 0.0
         self._video_lag_ms = 0.0
         self._last_metrics_emit = 0.0
+        self._edge_preview_publisher = (
+            EdgePreviewPublisher(
+                Path(
+                    os.environ.get(
+                        "AIVD_EDGE_PREVIEW_DIR", "outputs/edge-preview"
+                    )
+                )
+            )
+            if os.environ.get("AIVD_EDGE_DEVICE_TOKEN")
+            else None
+        )
         self._last_received_count: int | None = None
         self._last_received_at = monotonic()
         self._observed_source_fps = 0.0
@@ -552,6 +565,11 @@ class QtRuntimeController(QObject):
             self._run_auto_feature_sampling(result.raw_frame)
             before = getattr(result.frame_data, "before_frame", result.raw_frame)
             after = getattr(result.frame_data, "after_frame", result.raw_frame)
+            if self._edge_preview_publisher is not None:
+                try:
+                    self._edge_preview_publisher.publish(before, after, now=now)
+                except (OSError, ValueError):
+                    pass
             self.beforeFrameReady.emit(before)
             self.afterFrameReady.emit(after)
             self.inferenceChanged.emit(result.inference_time_ms)

@@ -19,6 +19,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+from fastapi.responses import FileResponse
 
 from autocamtracker.edge_control.models import (
     CommandAck,
@@ -36,6 +37,7 @@ from autocamtracker.edge_control.repository import (
 @dataclass(frozen=True, slots=True)
 class EdgeControlSettings:
     database_path: Path = Path("outputs/edge-control.sqlite3")
+    preview_directory: Path = Path("outputs/edge-preview")
     device_token: str = ""
     offline_after_seconds: int = 6
     lease_seconds: int = 10
@@ -47,6 +49,9 @@ class EdgeControlSettings:
                 os.environ.get(
                     "AIVD_EDGE_CONTROL_DB", "outputs/edge-control.sqlite3"
                 )
+            ),
+            preview_directory=Path(
+                os.environ.get("AIVD_EDGE_PREVIEW_DIR", "outputs/edge-preview")
             ),
             device_token=os.environ.get("AIVD_EDGE_DEVICE_TOKEN", ""),
         )
@@ -86,6 +91,23 @@ def install_edge_control_routes(
         if state is None:
             raise HTTPException(status_code=404, detail="edge node not found")
         return state
+
+    @app.get(
+        "/api/v3/edge/preview/{view_name}",
+        response_class=FileResponse,
+        tags=["edge"],
+    )
+    def preview_frame(view_name: str) -> FileResponse:
+        if view_name not in {"before", "after"}:
+            raise HTTPException(status_code=404, detail="preview not found")
+        path = config.preview_directory / f"{view_name}.jpg"
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="preview not ready")
+        return FileResponse(
+            path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
 
     @app.post(
         "/api/v3/edge/nodes/{node_id}/commands",

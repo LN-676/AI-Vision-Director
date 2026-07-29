@@ -64,6 +64,7 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         accessoryStatus = .connecting
         logger.log(.info, "Starting DockAccessoryManager.accessoryStateChanges listener.")
         listeningTask = Task { @MainActor [weak self] in
+            defer { self?.listeningTask = nil }
             do {
                 for await stateChange in try DockAccessoryManager.shared.accessoryStateChanges {
                     guard !Task.isCancelled else { return }
@@ -76,6 +77,27 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
                 self?.recordError(api: "accessoryStateChanges", error: error)
             }
         }
+#endif
+    }
+
+    func restartListening() async {
+#if targetEnvironment(simulator)
+        await startListening()
+#else
+        let previousTask = listeningTask
+        previousTask?.cancel()
+        if let previousTask {
+            await previousTask.value
+        }
+        listeningTask = nil
+        accessory = nil
+        accessoryStatus = .connecting
+        accessoryName = nil
+        isSystemTrackingEnabled = nil
+        trackingButtonEnabled = nil
+        lastError = nil
+        logger.log(.info, "Restarting DockKit accessory discovery.")
+        await startListening()
 #endif
     }
 

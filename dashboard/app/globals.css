@@ -230,6 +230,91 @@ nav .nav-link:hover {
 .remote-dot.ready { background: var(--green); box-shadow: 0 0 12px rgba(85,217,154,.65); }
 .remote-dot.unavailable { background: var(--red); }
 
+.remote-monitor-section {
+  background: #05090d;
+  border: 1px solid #233140;
+  border-radius: 12px;
+  padding: clamp(16px, 2vw, 24px);
+}
+
+.remote-monitor-heading {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.remote-monitor-heading h2 {
+  font-size: clamp(20px, 2.4vw, 28px);
+  margin: 4px 0 0;
+}
+
+.remote-monitor-heading > span {
+  color: var(--muted);
+  font: 600 11px ui-monospace, monospace;
+}
+
+.remote-monitor-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.remote-monitor {
+  background: #0b1118;
+  border: 1px solid #283746;
+  margin: 0;
+  min-width: 0;
+  padding: 10px;
+}
+
+.remote-monitor figcaption {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 2px 9px;
+}
+
+.remote-monitor figcaption strong {
+  color: var(--cyan);
+  font: 800 12px ui-monospace, monospace;
+  letter-spacing: .12em;
+}
+
+.remote-monitor figcaption span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.remote-monitor-screen {
+  aspect-ratio: 16 / 9;
+  background:
+    linear-gradient(rgba(70, 195, 255, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(70, 195, 255, .035) 1px, transparent 1px),
+    #020406;
+  background-size: 32px 32px;
+  overflow: hidden;
+  position: relative;
+}
+
+.remote-monitor-screen img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.remote-monitor-corner {
+  background: rgba(0, 0, 0, .72);
+  bottom: 8px;
+  color: var(--green);
+  font: 700 10px ui-monospace, monospace;
+  letter-spacing: .1em;
+  padding: 4px 6px;
+  position: absolute;
+  right: 8px;
+}
+
 .remote-grid {
   display: grid;
   gap: 18px;
@@ -1096,6 +1181,9 @@ footer {
   .remote-status-strip > :nth-last-child(-n+3) { border-bottom: 1px solid var(--line); }
   .remote-status-strip > :nth-last-child(-n+2) { border-bottom: 0; }
   .remote-mode-grid { grid-template-columns: 1fr; }
+  .remote-monitor-grid { grid-template-columns: 1fr; }
+  .remote-monitor-heading { align-items: start; flex-direction: column; gap: 6px; }
+  .remote-monitor figcaption span { display: none; }
   .remote-events article { grid-template-columns: auto 1fr auto; }
   .remote-events time { display: none; }
 }
