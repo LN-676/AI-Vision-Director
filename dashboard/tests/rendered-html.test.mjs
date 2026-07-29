@@ -40,13 +40,16 @@ test("server-renders the Mission Control shell", async () => {
   assert.doesNotMatch(html, /Your site is taking shape|Building your site/i);
 });
 
-test("server-renders the tablet Remote Console route", async () => {
+test("public Remote Console route redirects to the read-only dashboard", async () => {
   const response = await render("/remote");
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /Remote Console · AI Vision Director/);
-  assert.match(html, /AI Vision Director Remote Console/);
-  assert.match(html, /Connecting to Edge control plane/);
+  assert.equal(response.status, 307);
+  assert.equal(new URL(response.headers.get("location")).pathname, "/");
+
+  const dashboard = await readFile(
+    new URL("../app/vision-dashboard.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(dashboard, /href=["']\/remote["']/);
 });
 
 test("typed client keeps the read-only API boundary explicit", async () => {

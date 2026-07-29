@@ -307,10 +307,6 @@ export function VisionDashboard() {
               {item.label}
             </button>
           ))}
-          <a className="nav-link" href="/remote">
-            <span>RC</span>
-            Remote
-          </a>
         </nav>
         <div className="sidebar-status">
           <p>EDGE NETWORK</p>
