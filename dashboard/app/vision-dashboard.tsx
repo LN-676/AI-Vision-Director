@@ -388,7 +388,7 @@ export function VisionDashboard() {
         </div>
         <footer>
           <span>
-            AI-Vision-Director V3.0.0a1 ·{" "}
+            AI-Vision-Director V3.0.0b1 ·{" "}
             {api.mode === "demo" ? "Preview mode" : "Live mode"}
           </span>
           <span>Read-only dashboard</span>

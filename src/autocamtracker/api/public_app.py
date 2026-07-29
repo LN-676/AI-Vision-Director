@@ -141,7 +141,7 @@ def create_public_app(
             "Authenticated V3 write API. Firebase token verification, RBAC, "
             "distributed rate limiting, optimistic concurrency, and audit are mandatory."
         ),
-        version="3.0.0a1",
+        version="3.0.0b1",
     )
     app.add_middleware(
         CORSMiddleware,

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "AI-Vision-Director"
-version = "3.0.0a1"
+version = "3.0.0b1"
 description = "AI vision direction, vehicle tracking, and digital reframing tool"
 readme = "README.md"
 requires-python = ">=3.10"

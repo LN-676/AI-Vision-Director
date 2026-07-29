@@ -4,6 +4,35 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## V3.0.0b1 — 2026-07-30
+
+### 中文
+
+- 新增手機熱點與有線 iPad Remote Console 啟動器，自動偵測、顯示並複製
+  當次可用的數字 IP 網址。
+- Desktop Source → iPhone 頁面新增 Tablet Remote URL，並與 WebSocket
+  位址同步更新。
+- 新增 Desktop 馬達輸出安全控制，只有 iPhone 輸入、追蹤啟用且
+  DockKit ready 時才發布追蹤命令。
+- iOS 新增相機校正資訊、自訂 DockKit 追蹤節奏、Flow 2 Pro 連線指引與
+  自動重新監聽。
+- 強化 Qt 工作區儲存、還原與預設版面重設。
+- iOS Marketing Version 維持 `3.0.0`，build 更新為 `3002`；套件與顯示
+  版本更新為 `V3.0.0b1`。
+
+### English
+
+- Added wired and Personal Hotspot iPad Remote Console launchers that detect,
+  display, and copy the current numeric-IP URL.
+- Added a synchronized Tablet Remote URL to Desktop Source → iPhone.
+- Added guarded Desktop motor output that publishes tracking commands only
+  while iPhone input, tracking, and DockKit readiness are all active.
+- Added camera calibration, custom DockKit tracking cadence, Flow 2 Pro
+  connection guidance, and automatic listener recovery on iOS.
+- Improved Qt workspace persistence, restoration, and default-layout reset.
+- Kept the iOS Marketing Version at `3.0.0`, incremented the build to `3002`,
+  and updated package and display versions to `V3.0.0b1`.
+
 ## V3.0.0a1 — 2026-07-29
 
 ### Phase 6 advanced cloud
