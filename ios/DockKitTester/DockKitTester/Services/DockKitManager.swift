@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AVFoundation
 #if canImport(DockKit)
 import DockKit
 import Spatial
@@ -8,6 +9,7 @@ import Spatial
 @MainActor
 protocol DockKitMotorControlling: AnyObject {
     func setAngularVelocity(yaw: Double, pitch: Double, roll: Double) async
+    func track(_ command: TrackingCommand) async
     func stop() async
     func recenter() async
     func setHome() async
@@ -33,12 +35,21 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
 
 #if !targetEnvironment(simulator)
     private var accessory: DockAccessory?
+    private var motionStateTask: Task<Void, Never>?
+    private var accessoryPreparationTask: Task<Void, Never>?
+    private var accessorySessionPrepared = false
     private var motorControlMode: MotorControlMode = .unknown
     private var activeOrientationProgress: Progress?
     private var orientationCommandInFlight = false
     private var currentOffset = Vector3D()
     private var homeOffset: Vector3D?
     private var lastVelocityUpdateAt: Date?
+    private var customTrackingTask: Task<Void, Never>?
+    private var latestTrackingCommand: TrackingCommand?
+    private var latestTrackingCommandAt: Date?
+    private var customTrackingGeneration = 0
+    private var cameraCalibration: DockKitCameraCalibration?
+    private var lastCustomTrackingLogAt = Date.distantPast
 #endif
 
     init(logger: AppLogger) {
@@ -49,6 +60,11 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         listeningTask?.cancel()
         retryTask?.cancel()
         discoveryWatchdogTask?.cancel()
+#if !targetEnvironment(simulator)
+        customTrackingTask?.cancel()
+        motionStateTask?.cancel()
+        accessoryPreparationTask?.cancel()
+#endif
     }
 
     var isDocked: Bool {
@@ -101,6 +117,11 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             await previousTask.value
         }
         listeningTask = nil
+        motionStateTask?.cancel()
+        motionStateTask = nil
+        accessoryPreparationTask?.cancel()
+        accessoryPreparationTask = nil
+        accessorySessionPrepared = false
         accessory = nil
         discoveryWatchdogTask?.cancel()
         discoveryWatchdogTask = nil
@@ -274,16 +295,188 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
 #endif
     }
 
+    func track(_ command: TrackingCommand) async {
+#if targetEnvironment(simulator)
+        logSimulatorFailure(api: "track observations")
+#else
+        guard let accessory else {
+            logMissingAccessory(api: "track observations")
+            return
+        }
+        guard isManualControlReady else {
+            let message = "Custom tracking blocked: disable System Tracking first."
+            lastError = message
+            logger.log(.error, message)
+            return
+        }
+        guard command.targetLocked,
+              command.targetId != nil,
+              let targetX = command.targetX,
+              let targetY = command.targetY,
+              let bboxWidth = command.bboxWidth,
+              let bboxHeight = command.bboxHeight,
+              targetX.isFinite,
+              targetY.isFinite,
+              bboxWidth.isFinite,
+              bboxHeight.isFinite,
+              bboxWidth > 0,
+              bboxHeight > 0 else {
+            cancelCustomTrackingCadence()
+            await stopCustomTracking(accessory: accessory)
+            return
+        }
+
+        latestTrackingCommand = command
+        latestTrackingCommandAt = Date()
+        startCustomTrackingCadence(accessory: accessory)
+#endif
+    }
+
+    func updateCameraCalibration(_ calibration: DockKitCameraCalibration) {
+        cameraCalibration = calibration
+        logger.log(
+            .success,
+            String(
+                format: "DockKit camera calibration ready: %@ %.0fx%.0f.",
+                calibration.captureDevice.rawValue,
+                calibration.referenceDimensions.width,
+                calibration.referenceDimensions.height
+            )
+        )
+    }
+
+#if !targetEnvironment(simulator)
+    private func startCustomTrackingCadence(accessory: DockAccessory) {
+        guard customTrackingTask == nil else { return }
+        customTrackingGeneration += 1
+        let generation = customTrackingGeneration
+        logger.log(.info, "Starting custom DockKit tracking cadence at 15 Hz.")
+        customTrackingTask = Task { @MainActor [weak self, weak accessory] in
+            guard let self, let accessory else { return }
+            do {
+                try await accessory.setFramingMode(.center)
+                try await accessory.setRegionOfInterest(
+                    CGRect(x: 0, y: 0, width: 1, height: 1)
+                )
+                self.logger.log(
+                    .success,
+                    "Custom DockKit framing prepared: center mode, full-frame ROI."
+                )
+            } catch {
+                self.recordError(api: "custom tracking framing setup", error: error)
+            }
+            while !Task.isCancelled {
+                guard let command = self.latestTrackingCommand,
+                      let receivedAt = self.latestTrackingCommandAt,
+                      Date().timeIntervalSince(receivedAt) <= 0.30 else {
+                    await self.stopCustomTracking(accessory: accessory)
+                    break
+                }
+                await self.publishCustomTracking(command, accessory: accessory)
+                try? await Task.sleep(for: .milliseconds(67))
+            }
+            if self.customTrackingGeneration == generation {
+                self.customTrackingTask = nil
+            }
+        }
+    }
+
+    private func publishCustomTracking(_ command: TrackingCommand, accessory: DockAccessory) async {
+        guard command.targetLocked,
+              let targetId = command.targetId,
+              let targetX = command.targetX,
+              let targetY = command.targetY,
+              let bboxWidth = command.bboxWidth,
+              let bboxHeight = command.bboxHeight else {
+            return
+        }
+        let width = min(1.0, max(0.001, bboxWidth))
+        let height = min(1.0, max(0.001, bboxHeight))
+        let originX = min(1.0 - width, max(0.0, targetX - width / 2))
+        // Desktop detection uses a top-left image origin. DockKit's `.corrected`
+        // observation coordinates use a bottom-left origin, matching Vision.
+        let originY = min(1.0 - height, max(0.0, 1.0 - targetY - height / 2))
+        let observation = DockAccessory.Observation(
+            identifier: targetId,
+            type: .object,
+            rect: CGRect(x: originX, y: originY, width: width, height: height)
+        )
+        let calibration = cameraCalibration
+        let cameraInformation = DockAccessory.CameraInformation(
+            captureDevice: calibration?.captureDevice ?? Self.preferredRearCameraDeviceType(),
+            cameraPosition: .back,
+            orientation: .corrected,
+            cameraIntrinsics: calibration?.intrinsics,
+            referenceDimensions: calibration?.referenceDimensions
+        )
+        do {
+            try await accessory.track(
+                [observation],
+                cameraInformation: cameraInformation
+            )
+            motorControlMode = .customTracking
+            lastError = nil
+            let now = Date()
+            if now.timeIntervalSince(lastCustomTrackingLogAt) >= 1.0 {
+                lastCustomTrackingLogAt = now
+                logger.log(
+                    .success,
+                    String(
+                        format: "Custom DockKit tracking: target=%d rect=(%.3f, %.3f, %.3f, %.3f).",
+                        targetId,
+                        originX,
+                        originY,
+                        width,
+                        height
+                    )
+                )
+            }
+        } catch {
+            recordError(api: "custom DockKit track observations", error: error)
+        }
+    }
+
+    private func cancelCustomTrackingCadence() {
+        customTrackingGeneration += 1
+        customTrackingTask?.cancel()
+        customTrackingTask = nil
+        latestTrackingCommand = nil
+        latestTrackingCommandAt = nil
+    }
+
+    private static func preferredRearCameraDeviceType() -> AVCaptureDevice.DeviceType {
+        let priority: [AVCaptureDevice.DeviceType] = [
+            .builtInTripleCamera,
+            .builtInDualWideCamera,
+            .builtInDualCamera,
+            .builtInWideAngleCamera,
+        ]
+        let discovery = AVCaptureDevice.DiscoverySession(
+            deviceTypes: priority,
+            mediaType: .video,
+            position: .back
+        )
+        return priority.first { type in
+            discovery.devices.contains(where: { $0.deviceType == type })
+        } ?? .builtInWideAngleCamera
+    }
+#endif
+
     func stop() async {
 #if targetEnvironment(simulator)
         logSimulatorFailure(api: "stop / setAngularVelocity(0, 0, 0)")
 #else
+        cancelCustomTrackingCadence()
         guard let accessory else {
             logger.log(.warning, "Stop requested with no DockKit accessory connected.")
             return
         }
         guard isSystemTrackingEnabled == false else {
             logger.log(.info, "STOP skipped: System Tracking owns the motors and no manual velocity is active.")
+            return
+        }
+        if motorControlMode == .customTracking {
+            await stopCustomTracking(accessory: accessory)
             return
         }
         if motorControlMode == .relativeOrientation {
@@ -301,6 +494,9 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             try await accessory.setAngularVelocity(Vector3D())
             lastError = nil
             logger.log(.success, "STOP succeeded: all angular velocities are zero.")
+        } catch DockKitError.notSupportedByDevice {
+            motorControlMode = .unknown
+            recordError(api: "stop / setAngularVelocity(0, 0, 0)", error: DockKitError.notSupportedByDevice)
         } catch {
             recordError(api: "stop / setAngularVelocity(0, 0, 0)", error: error)
         }
@@ -461,7 +657,6 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
     private func handle(_ stateChange: DockAccessory.StateChange) {
         discoveryWatchdogTask?.cancel()
         discoveryWatchdogTask = nil
-        let previousTracking = isSystemTrackingEnabled
         trackingButtonEnabled = stateChange.trackingButtonEnabled
         let currentTracking = DockAccessoryManager.shared.isSystemTrackingEnabled
         logger.log(
@@ -469,7 +664,28 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             "DockKit state change: state=\(String(describing: stateChange.state)), accessoryPresent=\(stateChange.accessory != nil), trackingButton=\(stateChange.trackingButtonEnabled), systemTracking=\(currentTracking)."
         )
         if stateChange.state == .docked, let newAccessory = stateChange.accessory {
+            if let currentAccessory = accessory, currentAccessory == newAccessory {
+                // Tracking-mode and button changes also emit docked state
+                // events. Keep the existing session instead of resetting the
+                // accessory and its motor-control state on every event.
+                accessoryStatus = .docked
+                isSystemTrackingEnabled = currentTracking
+                if currentTracking,
+                   accessorySessionPrepared,
+                   !isManualModeTransitioning {
+                    logger.log(.warning, "Physical tracking button restored System Tracking; turning it OFF again.")
+                    Task { @MainActor [weak self] in
+                        _ = await self?.enterManualMode()
+                    }
+                }
+                return
+            }
+
             accessory = newAccessory
+            startMotionStateMonitoring(for: newAccessory)
+            accessoryPreparationTask?.cancel()
+            accessoryPreparationTask = nil
+            accessorySessionPrepared = false
             motorControlMode = .unknown
             activeOrientationProgress = nil
             orientationCommandInFlight = false
@@ -486,16 +702,17 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
                 .success,
                 "Accessory docked: \(accessoryName ?? model); firmware: \(newAccessory.firmwareVersion ?? "unknown")."
             )
-            if currentTracking, !isManualModeTransitioning {
-                logger.log(.info, "AI Vision Director disables iPhone System Tracking so only computer tracking is used.")
-                Task { @MainActor [weak self] in
-                    _ = await self?.enterManualMode()
-                }
-            }
-            if previousTracking == false, currentTracking {
-                logger.log(.warning, "Physical tracking button restored System Tracking; turning it OFF again.")
+            accessoryPreparationTask = Task { @MainActor [weak self, weak newAccessory] in
+                guard let self, let newAccessory else { return }
+                await self.prepareAccessorySession(newAccessory)
             }
         } else {
+            accessoryPreparationTask?.cancel()
+            accessoryPreparationTask = nil
+            accessorySessionPrepared = false
+            motionStateTask?.cancel()
+            motionStateTask = nil
+            cancelCustomTrackingCadence()
             accessory = nil
             motorControlMode = .unknown
             activeOrientationProgress = nil
@@ -509,6 +726,77 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             isSystemTrackingEnabled = nil
             trackingButtonEnabled = nil
             logger.log(.warning, "DockKit accessory undocked or unavailable; motor commands are disabled.")
+        }
+    }
+
+    private func prepareAccessorySession(_ expectedAccessory: DockAccessory) async {
+        guard accessory == expectedAccessory, !isManualModeTransitioning else { return }
+        isManualModeTransitioning = true
+        defer {
+            isManualModeTransitioning = false
+            accessoryPreparationTask = nil
+        }
+
+        do {
+            // Match Apple's current sample lifecycle: explicitly initialize
+            // the newly docked accessory in System Tracking before changing
+            // it to custom/manual motor control.
+            logger.log(.info, "Initializing DockKit session with System Tracking ON.")
+            try await DockAccessoryManager.shared.setSystemTrackingEnabled(true)
+            guard await waitForSystemTracking(expected: true) else {
+                throw ManualModeError.trackingStateDidNotChange(expected: true)
+            }
+            try await Task.sleep(for: .milliseconds(250))
+            guard accessory == expectedAccessory, !Task.isCancelled else { return }
+
+            logger.log(.info, "DockKit session initialized; switching to Manual Mode.")
+            try await DockAccessoryManager.shared.setSystemTrackingEnabled(false)
+            guard await waitForSystemTracking(expected: false) else {
+                throw ManualModeError.trackingStateDidNotChange(expected: false)
+            }
+            accessorySessionPrepared = true
+            motorControlMode = .unknown
+            lastError = nil
+            logger.log(.success, "DockKit session prepared once; Manual Mode is ready.")
+        } catch is CancellationError {
+            return
+        } catch {
+            accessorySessionPrepared = false
+            recordError(api: "DockKit accessory session preparation", error: error)
+        }
+    }
+
+    private func startMotionStateMonitoring(for accessory: DockAccessory) {
+        motionStateTask?.cancel()
+        do {
+            let states = try accessory.motionStates
+            motionStateTask = Task { @MainActor [weak self] in
+                var lastLogAt = Date.distantPast
+                for await state in states {
+                    guard !Task.isCancelled else { return }
+                    let now = Date()
+                    guard now.timeIntervalSince(lastLogAt) >= 0.5 else { continue }
+                    lastLogAt = now
+                    if let error = state.error {
+                        self?.logger.log(.error, "DockKit motion state error: \(error.localizedDescription)")
+                    } else {
+                        self?.logger.log(
+                            .info,
+                            String(
+                                format: "DockKit actual motion: position=(pitch %.4f, yaw %.4f, roll %.4f) velocity=(pitch %.4f, yaw %.4f, roll %.4f).",
+                                state.angularPositions.x,
+                                state.angularPositions.y,
+                                state.angularPositions.z,
+                                state.angularVelocities.x,
+                                state.angularVelocities.y,
+                                state.angularVelocities.z
+                            )
+                        )
+                    }
+                }
+            }
+        } catch {
+            recordError(api: "motionStates subscription", error: error)
         }
     }
 
@@ -573,6 +861,29 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         }
     }
 
+    private func stopCustomTracking(accessory: DockAccessory) async {
+        let cameraInformation = DockAccessory.CameraInformation(
+            captureDevice: .builtInWideAngleCamera,
+            cameraPosition: .back,
+            orientation: .corrected,
+            cameraIntrinsics: nil,
+            referenceDimensions: nil
+        )
+        do {
+            let observations: [DockAccessory.Observation] = []
+            try await accessory.track(
+                observations,
+                cameraInformation: cameraInformation
+            )
+            motorControlMode = .customTracking
+            lastVelocityUpdateAt = nil
+            lastError = nil
+            logger.log(.success, "STOP succeeded: custom DockKit observations cleared.")
+        } catch {
+            recordError(api: "stop custom DockKit tracking", error: error)
+        }
+    }
+
     private func integrateAngularVelocity(yaw: Double, pitch: Double, roll: Double) {
         let now = Date()
         defer { lastVelocityUpdateAt = now }
@@ -609,6 +920,7 @@ private enum MotorControlMode {
     case unknown
     case angularVelocity
     case relativeOrientation
+    case customTracking
 }
 
 private enum ManualModeError: LocalizedError {

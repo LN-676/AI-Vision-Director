@@ -9,6 +9,7 @@ from time import monotonic
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
+from autocamtracker.core.track_shot_plan import should_publish_motor_tracking
 from autocamtracker.evaluation.live_capture import LiveBenchmarkRecorder
 from autocamtracker.edge_control.previews import EdgePreviewPublisher
 
@@ -111,6 +112,8 @@ class QtRuntimeController(QObject):
         self._last_received_count: int | None = None
         self._last_received_at = monotonic()
         self._observed_source_fps = 0.0
+        self._motor_tracking_armed = False
+        self._motor_output_was_active = False
         self._timer = QTimer(self)
         self._timer.setInterval(min(5, max(1, int(config.update_interval_ms))))
         self._timer.timeout.connect(self._poll)
@@ -253,6 +256,8 @@ class QtRuntimeController(QObject):
     def stop(self) -> None:
         self.running = False
         self.dependencies.tracking_server.publish_stop()
+        self._motor_tracking_armed = False
+        self._motor_output_was_active = False
         self.session.stop()
         self._next_video_request_at = 0.0
         self.application.identity_manager.reset()
@@ -329,6 +334,7 @@ class QtRuntimeController(QObject):
         self.application.identity_manager.select_detection(
             detection, self.last_raw_frame, persist=False
         )
+        self._motor_tracking_armed = self.input_config.source_type == "iphone"
         self.statusChanged.emit(f"Selected LID {detection.track_id}")
 
     @Slot()
@@ -345,6 +351,7 @@ class QtRuntimeController(QObject):
             self.application.identity_manager.select_detection(
                 detection, self.last_raw_frame, persist=False
             )
+            self._motor_tracking_armed = self.input_config.source_type == "iphone"
             self.statusChanged.emit(f"Auto Track selected LID {detection.track_id}")
 
     @Slot()
@@ -352,6 +359,9 @@ class QtRuntimeController(QObject):
         self.application.identity_manager.reset()
         self.application.auto_feature_sampler.stop()
         self._selected_detection = None
+        self._motor_tracking_armed = False
+        self._motor_output_was_active = False
+        self.dependencies.tracking_server.publish_stop()
         self.statusChanged.emit("Selection cleared")
 
     @Slot()
@@ -423,6 +433,8 @@ class QtRuntimeController(QObject):
             self.last_raw_frame,
             min_score=self.application.identity_manager.auto_reid_min_score,
         )
+        if identity is not None:
+            self._motor_tracking_armed = self.input_config.source_type == "iphone"
         self.statusChanged.emit(
             f"Find GID {gid}: score {score:.2f}"
             if identity is not None
@@ -560,6 +572,10 @@ class QtRuntimeController(QObject):
             self.last_raw_frame = result.raw_frame
             self.last_frame_data = result.frame_data
             self.last_inference_ms = result.inference_time_ms
+            self._publish_tracking_output(
+                result.frame_data,
+                result.raw_frame.shape,
+            )
             if self.recording:
                 self.live_benchmark_recorder.record(result.raw_frame, result.frame_data)
             self._run_auto_feature_sampling(result.raw_frame)
@@ -623,6 +639,24 @@ class QtRuntimeController(QObject):
             self._emit_metrics(now)
         if self.running and now >= self._next_video_request_at:
             self.session.request_frame()
+
+    def _publish_tracking_output(self, frame_data, frame_shape) -> None:
+        """Bridge Qt frame results to the shared, safety-gated iPhone command path."""
+
+        shot_decision = self.dependencies.track_shot_controller.evaluate(
+            frame_data, frame_shape
+        )
+        output_active = should_publish_motor_tracking(
+            self.input_config.source_type,
+            self._motor_tracking_armed,
+            self.dependencies.tracking_server.motor_ready,
+            shot_decision,
+        )
+        if output_active:
+            self.dependencies.tracking_server.publish_frame(frame_data, frame_shape)
+        elif self._motor_output_was_active:
+            self.dependencies.tracking_server.publish_stop()
+        self._motor_output_was_active = output_active
 
     def _update_fps(self) -> None:
         self._frames_since_fps += 1

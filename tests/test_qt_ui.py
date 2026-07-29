@@ -245,6 +245,20 @@ class QtUITests(unittest.TestCase):
             self.assertTrue(
                 second.workspace_actions[Workspace.TRACKING].isChecked()
             )
+            self.assertEqual(
+                second.dockWidgetArea(second.docks["diagnostics"]),
+                Qt.DockWidgetArea.BottomDockWidgetArea,
+            )
+            self.assertEqual(
+                second.dockWidgetArea(second.docks["vehicle_database"]),
+                Qt.DockWidgetArea.RightDockWidgetArea,
+            )
+            self.assertIn(
+                second.docks["models"],
+                second.tabifiedDockWidgets(second.docks["source"]),
+            )
+            self.assertFalse(second.docks["performance"].isVisible())
+            self.assertFalse(second.docks["benchmark"].isVisible())
         finally:
             second.close()
 

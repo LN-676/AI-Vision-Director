@@ -200,11 +200,9 @@ final class GimbalControlService: ObservableObject {
             )
         )
 
-        await dockKitManager.setAngularVelocity(
-            yaw: velocity.yaw,
-            pitch: velocity.pitch,
-            roll: velocity.roll
-        )
+        // DockKit generates the accessory tracking vectors from the selected
+        // target rectangle at the manager's fixed 15 Hz observation cadence.
+        await dockKitManager.track(trackingCommand)
         if generation != commandGeneration {
             await dockKitManager.stop()
         }

@@ -1,25 +1,38 @@
 import SwiftUI
 
 struct ContentView: View {
+    private enum AppTab: Hashable {
+        case camera
+        case gimbal
+        case connection
+        case log
+    }
+
     @ObservedObject var dockKitManager: DockKitManager
     @ObservedObject var cameraSession: CameraSessionService
     @ObservedObject var controlService: GimbalControlService
     @ObservedObject var networkClient: V13NetworkClient
     @ObservedObject var logger: AppLogger
     @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab: AppTab = .camera
+    @State private var isPreparingNFCPairing = false
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             cameraTab
+                .tag(AppTab.camera)
                 .tabItem { Label("相機", systemImage: "camera.fill") }
 
             gimbalTab
+                .tag(AppTab.gimbal)
                 .tabItem { Label("雲台", systemImage: "move.3d") }
 
             connectionTab
+                .tag(AppTab.connection)
                 .tabItem { Label("連線", systemImage: "network") }
 
             logTab
+                .tag(AppTab.log)
                 .tabItem { Label("紀錄", systemImage: "list.bullet.rectangle") }
         }
         .tint(.yellow)
@@ -27,8 +40,15 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             Task {
                 if newPhase == .active {
+                    // Camera capture is independent from DockKit. Returning to
+                    // the app always restores the camera, even when the Dock
+                    // Bluetooth profile is unavailable.
                     await cameraSession.start()
-                    await dockKitManager.startListening()
+                    if isPreparingNFCPairing {
+                        await dockKitManager.restartListening()
+                    } else {
+                        await dockKitManager.startListening()
+                    }
                 } else {
                     await controlService.emergencyStop(reason: "app left foreground")
                     await cameraSession.stop()
@@ -40,6 +60,7 @@ struct ContentView: View {
                 if !isDocked {
                     await controlService.emergencyStop(reason: "DockKit undocked; motor tracking paused")
                 } else {
+                    isPreparingNFCPairing = false
                     await dockKitManager.startListening()
                 }
                 await publishMotorStatus()
@@ -79,6 +100,7 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    gimbalConnectionPanel
                     safetyNotice
                     StatusPanelView(
                         manager: dockKitManager,
@@ -97,6 +119,73 @@ struct ContentView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("雲台控制")
         }
+    }
+
+    private var gimbalConnectionPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(
+                dockKitManager.isDocked ? "Flow 2 Pro 已連線" : "Flow 2 Pro 連線",
+                systemImage: dockKitManager.isDocked ? "checkmark.circle.fill" : "iphone.radiowaves.left.and.right"
+            )
+            .font(.headline)
+            .foregroundStyle(dockKitManager.isDocked ? .green : .primary)
+
+            if dockKitManager.isDocked {
+                Text(dockKitManager.accessoryName ?? "DockKit accessory")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if isPreparingNFCPairing {
+                Text("現在請讓 Flow 2 Pro 完全展開並開機、開啟藍牙與網路，回到 iPhone 主畫面後將手機頂部靠近雲台 NFC 標誌，再點系統的「連接」。完成後回到本 App，相機會立即恢復，頁面也會自動檢查 DockKit。")
+                    .font(.subheadline)
+
+                Label(
+                    "iOS 不允許第三方 App 在 App 內取代 Insta360 的系統 NFC 配對視窗。",
+                    systemImage: "info.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                HStack {
+                    Button("回來後重新檢查") {
+                        Task { await dockKitManager.restartListening() }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("取消") {
+                        isPreparingNFCPairing = false
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                Text("NFC 只用於第一次建立系統配對；之後只要展開雲台、開啟藍牙並裝上 iPhone，App 會透過 DockKit 自動重連。")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Button("準備首次 NFC 配對") {
+                        isPreparingNFCPairing = true
+                        Task {
+                            await controlService.emergencyStop(reason: "preparing Flow NFC pairing")
+                            await dockKitManager.restartListening()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("重新偵測已配對雲台") {
+                        Task { await dockKitManager.restartListening() }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            if !dockKitManager.isDocked, let error = dockKitManager.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .textSelection(.enabled)
+            }
+        }
+        .panelStyle()
     }
 
     private var connectionTab: some View {
@@ -305,6 +394,11 @@ struct ContentView: View {
 
     private func prepareServices() async {
         networkClient.setTrackingTimeout(seconds: controlService.calibration.clampedLostCommandTimeout)
+        cameraSession.onDockKitCalibration = { [weak dockKitManager] calibration in
+            Task { @MainActor in
+                dockKitManager?.updateCameraCalibration(calibration)
+            }
+        }
         cameraSession.onJPEGFrame = { [weak networkClient, weak dockKitManager, weak controlService, weak cameraSession] data in
             Task { @MainActor in
                 guard let networkClient else { return }

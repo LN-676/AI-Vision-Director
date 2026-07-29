@@ -1,0 +1,686 @@
+{"kind":"deck","id":"pr/8vdyex","name":"Deck"}
+{"kind":"layout","layoutId":"/ppt/slideMasters/slideMaster1.xml","name":"","type":"master","placeholders":[{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout1.xml","name":"RACING","placeholders":[{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout2.xml","name":"TITLE","type":"title"}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout3.xml","name":"DEFAULT"}
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"AI Vision Director V2.3","textShapes":6}
+{"kind":"shape","id":"sh/e94v2hon","slide":1,"name":"Google Shape;23;p1","bbox":[0,0,1279.97,720]}
+{"kind":"shape","id":"sh/90ve1w7q","slide":1,"name":"Google Shape;24;p1","bbox":[-76.8,556.8,230.4,17.28]}
+{"kind":"shape","id":"sh/ozmd8r65","slide":1,"name":"Google Shape;25;p1","bbox":[76.8,549.12,230.4,17.28]}
+{"kind":"shape","id":"sh/nydczmpk","slide":1,"name":"Google Shape;26;p1","bbox":[230.4,541.44,230.4,17.28]}
+{"kind":"shape","id":"sh/mx4v6hoz","slide":1,"name":"Google Shape;27;p1","bbox":[384,533.76,230.4,17.28]}
+{"kind":"shape","id":"sh/p4bu5s76","slide":1,"name":"Google Shape;28;p1","bbox":[537.6,526.08,230.4,17.28]}
+{"kind":"shape","id":"sh/432dwn6l","slide":1,"name":"Google Shape;29;p1","bbox":[691.2,518.4,230.4,17.28]}
+{"kind":"shape","id":"sh/uxgjq907","slide":1,"name":"Google Shape;30;p1","bbox":[844.8,510.72,230.4,17.28]}
+{"kind":"shape","id":"sh/vyp0je1s","slide":1,"name":"Google Shape;31;p1","bbox":[998.4,503.04,230.4,17.28]}
+{"kind":"shape","id":"sh/wzy1szid","slide":1,"name":"Google Shape;32;p1","bbox":[1152,495.36,230.39,17.29]}
+{"kind":"textbox","id":"sh/h072l4jy","slide":1,"name":"Google Shape;33;p1","text":"AI Vision Director V2.3","textPreview":"AI Vision Director V2.3","textChars":23,"textLines":1,"bbox":[81.6,216,1123.2,78.72]}
+{"kind":"textbox","id":"sh/i1gje90j","slide":1,"name":"Google Shape;34;p1","text":"組員｜林恩、游浩淼、許子沛、陳翰威","textPreview":"組員｜林恩、游浩淼、許子沛、陳翰威","textChars":17,"textLines":1,"bbox":[86.4,314.88,720,33.6]}
+{"kind":"textbox","id":"sh/j2pkne14","slide":1,"name":"Google Shape;35;p1","text":"V2.3 專案提報","textPreview":"V2.3 專案提報","textChars":9,"textLines":1,"bbox":[86.4,384,192,26.88]}
+{"kind":"textbox","id":"sh/43y1gji9","slide":1,"name":"Google Shape;36;p1","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"textbox","id":"sh/y5wjip0z","slide":1,"name":"Google Shape;38;p1","text":"指導老師：Joseph老師、Alan老師、鮪魚老師","textPreview":"指導老師：Joseph老師、Alan老師、鮪魚老師","textChars":25,"textLines":1,"bbox":[901.19,670.72,471.4,45.26]}
+{"kind":"textbox","id":"sh/z650ba1k","slide":1,"name":"Google Shape;39;p1","text":"開發者：林恩","textPreview":"開發者：林恩","textChars":6,"textLines":1,"bbox":[0,677.6,471.4,45.26]}
+{"kind":"image","id":"im/43elgf2p","slide":1,"name":"Google Shape;37;p1","bbox":[0.32,146.78,1279.32,426.44]}
+{"kind":"notes","id":"nt/y90nupkv","slide":1,"text":"開場：這是一個從攝影師工作現場痛點出發的個人化 AI 拍攝助理，不是要取代攝影師，而是把追車這類高重複、高疲勞的工作交給機器。"}
+{"kind":"slide","id":"sl/hwbqtkby","slide":2,"title":"01 ORIGIN","textShapes":10}
+{"kind":"shape","id":"sh/exgvmlcv","slide":2,"name":"Google Shape;45;p2","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/107uh0v6","slide":2,"name":"Google Shape;46;p2","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/gzydovul","slide":2,"name":"Google Shape;47;p2","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/v2lc36dw","slide":2,"name":"Google Shape;48;p2","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/a1cba1wb","slide":2,"name":"Google Shape;49;p2","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/0vq1o36x","slide":2,"name":"Google Shape;50;p2","text":"01 ORIGIN","textPreview":"01 ORIGIN","textChars":9,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/1wzix87i","slide":2,"name":"Google Shape;51;p2","text":"發想起點：讓 AI 接手最疲勞的追車動作","textPreview":"發想起點：讓 AI 接手最疲勞的追車動作","textChars":20,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"shape","id":"sh/et8zmto7","slide":2,"name":"Google Shape;52;p2","bbox":[34.56,161.81,387.97,464.54]}
+{"kind":"textbox","id":"sh/zuh0vypc","slide":2,"name":"Google Shape;53;p2","text":"真實工作現場","textPreview":"真實工作現場","textChars":6,"textLines":1,"bbox":[57.02,184.27,343.02,28.6]}
+{"kind":"shape","id":"sh/c76hk361","slide":2,"name":"Google Shape;54;p2","bbox":[57.02,225.11,63.31,5.1]}
+{"kind":"textbox","id":"sh/d8zit87m","slide":2,"name":"Google Shape;55;p2","text":"攝影師長時間追車、盯畫面、操作穩定器，本質上是高度重複、體力消耗大的工作。","textPreview":"攝影師長時間追車、盯畫面、操作穩定器，本質上是高度重複、體力消耗大的工作。","textChars":37,"textLines":1,"bbox":[43.74,248.59,369.61,102.17]}
+{"kind":"shape","id":"sh/q5ozitov","slide":2,"name":"Google Shape;56;p2","bbox":[446,161.81,387.97,464.54]}
+{"kind":"textbox","id":"sh/r6x0rypg","slide":2,"name":"Google Shape;57;p2","text":"初步嘗試","textPreview":"初步嘗試","textChars":4,"textLines":1,"bbox":[468.46,184.27,343.02,28.6]}
+{"kind":"shape","id":"sh/w3a1wn65","slide":2,"name":"Google Shape;58;p2","bbox":[468.46,225.11,63.31,5.1]}
+{"kind":"textbox","id":"sh/xoji5s7q","slide":2,"name":"Google Shape;59;p2","text":"曾經使用 DJI RS4 的遙控拍攝功能，希望可以坐著控制機器拍攝，但實際上車輛追蹤效果不穩，常常追不到車。","textPreview":"曾經使用 DJI RS4 的遙控拍攝功能，希望可以坐著控制機器拍攝，但實際上車輛追蹤效果不穩，常常追不到車。","textChars":54,"textLines":1,"bbox":[455.18,244.67,387.97,102.17]}
+{"kind":"shape","id":"sh/5kfipszu","slide":2,"name":"Google Shape;60;p2","bbox":[857.44,161.81,387.97,464.54]}
+{"kind":"textbox","id":"sh/kj6hgny9","slide":2,"name":"Google Shape;61;p2","text":"專案問題意識","textPreview":"專案問題意識","textChars":6,"textLines":1,"bbox":[879.9,184.27,343.02,28.6]}
+{"kind":"shape","id":"sh/jix0niho","slide":2,"name":"Google Shape;62;p2","bbox":[879.9,225.11,63.31,5.1]}
+{"kind":"textbox","id":"sh/ihozedgj","slide":2,"name":"Google Shape;63;p2","text":"如果攝影師只負責架設、監看與判斷，AI Vision Director 就能由 Desktop 與 iPhone 協作，自動完成追車、構圖與雲台控制。","textPreview":"如果攝影師只負責架設、監看與判斷，AI Vision Director 就能由 Desktop 與 iPhone 協作，自動完成追車、構圖與雲台控制。","textChars":75,"textLines":1,"bbox":[879.9,248.59,343.02,362.43]}
+{"kind":"textbox","id":"sh/xgfil8zy","slide":2,"name":"Google Shape;64;p2","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"textbox","id":"sh/9svih8zm","slide":2,"name":"Google Shape;68;p2","text":"Desktop AI + iPhone / DockKit","textPreview":"Desktop AI + iPhone / DockKit","textChars":29,"textLines":1,"bbox":[873.22,353.63,323.31,31.5]}
+{"kind":"image","id":"im/r6l0rexo","slide":2,"name":"Google Shape;65;p2","bbox":[503.96,361.28,245.92,244.36]}
+{"kind":"image","id":"im/90b2dcz6","slide":2,"name":"Google Shape;66;p2","bbox":[66.88,359.26,323.31,229.93]}
+{"kind":"image","id":"im/8z2l47yl","slide":2,"name":"Google Shape;67;p2","bbox":[872.47,400.45,357.9,205.19]}
+{"kind":"notes","id":"nt/hwbqtkby","slide":2,"text":"這頁用故事打開，不要先講技術。重點是：這個專案不是憑空想像，是從實際拍攝痛點開始。"}
+{"kind":"slide","id":"sl/ofy9wn61","slide":3,"title":"02 INDUSTRY","textShapes":11}
+{"kind":"shape","id":"sh/xg3ihwna","slide":3,"name":"Google Shape;74;p3","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/wfahormp","slide":3,"name":"Google Shape;75;p3","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/ve10fm54","slide":3,"name":"Google Shape;76;p3","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/adszm14j","slide":3,"name":"Google Shape;77;p3","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/dkzy5cn6","slide":3,"name":"Google Shape;78;p3","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/cjqhc7ml","slide":3,"name":"Google Shape;79;p3","text":"02 INDUSTRY","textPreview":"02 INDUSTRY","textChars":11,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/436lcve1","slide":3,"name":"Google Shape;80;p3","text":"產業現況：多機直播品質高，但高度依賴人力","textPreview":"產業現況：多機直播品質高，但高度依賴人力","textChars":20,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"textbox","id":"sh/54fm50vm","slide":3,"name":"Google Shape;81;p3","text":"賽事與活動直播通常需要多機位、導播、攝影師與攝助共同運作。當機位增加，畫面更完整，但持續追蹤的人力與協調成本也同步上升。","textPreview":"賽事與活動直播通常需要多機位、導播、攝影師與攝助共同運作。當機位增加，畫面更完整，但持續追蹤的人力與協調成本也同步上升。","textChars":60,"textLines":1,"bbox":[59.52,127.68,1197.04,49.92]}
+{"kind":"shape","id":"sh/ih43alwv","slide":3,"name":"Google Shape;82;p3","bbox":[23.42,231.6,390.24,390.24]}
+{"kind":"textbox","id":"sh/3id43qdg","slide":3,"name":"Google Shape;83;p3","text":"多機直播是主流需求","textPreview":"多機直播是主流需求","textChars":9,"textLines":1,"bbox":[46.32,254.5,344.44,29.13]}
+{"kind":"shape","id":"sh/gfml8ve5","slide":3,"name":"Google Shape;84;p3","bbox":[46.32,296.12,64.5,5.2]}
+{"kind":"textbox","id":"sh/hgvm1gvq","slide":3,"name":"Google Shape;85;p3","text":"賽車、運動賽事、活動、拍賣直播都需要多角度畫面。\n特寫、全景、移動鏡位與導播切換，會直接影響觀眾體驗。","textPreview":"賽車、運動賽事、活動、拍賣直播都需要多角度畫面。 | 特寫、全景、移動鏡位與導播切換，會直接影響觀眾體驗。","textChars":51,"textLines":2,"bbox":[46.32,320.05,344.44,286.17]}
+{"kind":"shape","id":"sh/ud436lwz","slide":3,"name":"Google Shape;86;p3","bbox":[444.87,231.6,390.24,390.24]}
+{"kind":"textbox","id":"sh/ved4zqdk","slide":3,"name":"Google Shape;87;p3","text":"市場費用隨機位上升","textPreview":"市場費用隨機位上升","textChars":9,"textLines":1,"bbox":[467.76,254.5,344.44,29.13]}
+{"kind":"shape","id":"sh/0bq5kfu9","slide":3,"name":"Google Shape;88;p3","bbox":[467.76,296.12,64.5,5.2]}
+{"kind":"textbox","id":"sh/1czmdkvu","slide":3,"name":"Google Shape;89;p3","text":"台灣公開直播服務資料顯示，三機直播常見費用可落在約 4–7 萬元；三機以上的大型轉播可從約 8 萬元起跳。","textPreview":"台灣公開直播服務資料顯示，三機直播常見費用可落在約 4–7 萬元；三機以上的大型轉播可從約 8 萬元起跳。","textChars":53,"textLines":1,"bbox":[467.76,320.05,344.44,286.17]}
+{"kind":"shape","id":"sh/b61o3exw","slide":3,"name":"Google Shape;90;p3","bbox":[866.31,231.6,390.24,390.24]}
+{"kind":"textbox","id":"sh/a5s7a9gb","slide":3,"name":"Google Shape;91;p3","text":"問題在於「人」很貴","textPreview":"問題在於「人」很貴","textChars":9,"textLines":1,"bbox":[889.2,254.5,344.44,29.13]}
+{"kind":"shape","id":"sh/x8jq5of2","slide":3,"name":"Google Shape;92;p3","bbox":[889.2,296.12,64.5,5.2]}
+{"kind":"textbox","id":"sh/w7apcjyh","slide":3,"name":"Google Shape;93;p3","text":"攝影師必須持續追焦、跟車、保持構圖，工時拉長，穩定度下降與失誤率提高，導播也需要承擔更多補救壓力。","textPreview":"攝影師必須持續追焦、跟車、保持構圖，工時拉長，穩定度下降與失誤率提高，導播也需要承擔更多補救壓力。","textChars":49,"textLines":1,"bbox":[889.2,320.05,344.44,286.17]}
+{"kind":"textbox","id":"sh/jul87yx8","slide":3,"name":"Google Shape;94;p3","text":"資料依據：台灣公開直播服務方案與市場頁面；三機直播與大型多機直播費用範圍用於簡報估算。","textPreview":"資料依據：台灣公開直播服務方案與市場頁面；三機直播與大型多機直播費用範圍用於簡報估算。","textChars":43,"textLines":1,"bbox":[59.52,675.84,979.2,17.28]}
+{"kind":"textbox","id":"sh/ytc7etwn","slide":3,"name":"Google Shape;95;p3","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"image","id":"im/idkzmhgb","slide":3,"name":"Google Shape;96;p3","bbox":[129.75,437.21,177.57,177.57]}
+{"kind":"image","id":"im/jetgv2hw","slide":3,"name":"Google Shape;97;p3","bbox":[547.47,434.37,183.25,183.25]}
+{"kind":"image","id":"im/4b6h0byl","slide":3,"name":"Google Shape;98;p3","bbox":[991.6,456.18,139.64,139.64]}
+{"kind":"notes","id":"nt/ofy9wn61","slide":3,"text":"這頁補上產業現況：多機直播需求存在，但人力、成本與穩定度是痛點。資料可引用公開服務頁面，避免只憑感覺。"}
+{"kind":"slide","id":"sl/jyx0ra1s","slide":4,"title":"03 PAIN POINTS","textShapes":14}
+{"kind":"shape","id":"sh/ah0byt4b","slide":4,"name":"Google Shape;104;p4","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/bi9s7ylw","slide":4,"name":"Google Shape;105;p4","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/wjit0jmh","slide":4,"name":"Google Shape;106;p4","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/xkra9o3m","slide":4,"name":"Google Shape;107;p4","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/udkbadkf","slide":4,"name":"Google Shape;108;p4","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/vedcjil0","slide":4,"name":"Google Shape;109;p4","text":"03 PAIN POINTS","textPreview":"03 PAIN POINTS","textChars":14,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/58fe9cn2","slide":4,"name":"Google Shape;110;p4","text":"AI 拍攝系統要解決的三個現場痛點","textPreview":"AI 拍攝系統要解決的三個現場痛點","textChars":17,"textLines":1,"bbox":[57.6,69.12,1113.61,46.08]}
+{"kind":"textbox","id":"sh/476d076h","slide":4,"name":"Google Shape;111;p4","text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[49.36,165.14,461.01,79.18]}
+{"kind":"textbox","id":"sh/36xw7m5c","slide":4,"name":"Google Shape;112;p4","text":"攝影師長時間拍攝穩定度下降","textPreview":"攝影師長時間拍攝穩定度下降","textChars":13,"textLines":1,"bbox":[49.36,247.25,461.01,40.31]}
+{"kind":"textbox","id":"sh/i5ovyhor","slide":4,"name":"Google Shape;113;p4","text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[407.48,165.14,461.01,79.18]}
+{"kind":"textbox","id":"sh/h4ve5cn6","slide":4,"name":"Google Shape;114;p4","text":"缺工潮難負擔多位人力","textPreview":"缺工潮難負擔多位人力","textChars":10,"textLines":1,"bbox":[407.48,247.25,461.01,40.31]}
+{"kind":"textbox","id":"sh/g3mdw76l","slide":4,"name":"Google Shape;115;p4","text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[759.3,165.14,461.01,79.18]}
+{"kind":"textbox","id":"sh/v2dw3250","slide":4,"name":"Google Shape;116;p4","text":"人力成本日益上升","textPreview":"人力成本日益上升","textChars":8,"textLines":1,"bbox":[759.3,247.25,461.01,40.31]}
+{"kind":"shape","id":"sh/mtor6d8b","slide":4,"name":"Google Shape;117;p4","bbox":[124.8,430.86,1027.21,0]}
+{"kind":"textbox","id":"sh/10zehwna","slide":4,"name":"Google Shape;118;p4","text":"這些問題不是「畫質」問題，而是「現場人力配置與持續操作穩定度」問題。","textPreview":"這些問題不是「畫質」問題，而是「現場人力配置與持續操作穩定度」問題。","textChars":34,"textLines":1,"bbox":[166.77,526.28,957.61,70.33]}
+{"kind":"textbox","id":"sh/0zqd8rmp","slide":4,"name":"Google Shape;119;p4","text":"AI Vision Director 不取代攝影師，而是把最疲勞、最重複、最容易失誤的追車與構圖控制自動化。","textPreview":"AI Vision Director 不取代攝影師，而是把最疲勞、最重複、最容易失誤的追車與構圖控制自動化。","textChars":54,"textLines":1,"bbox":[129.27,575.52,1032.6,70.33]}
+{"kind":"textbox","id":"sh/kfip0zyd","slide":4,"name":"Google Shape;120;p4","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"textbox","id":"sh/lgr6t4zy","slide":4,"name":"Google Shape;121;p4","text":"疲勞","textPreview":"疲勞","textChars":2,"textLines":1,"bbox":[235.86,437.52,78.71,28.13]}
+{"kind":"textbox","id":"sh/ytg7ypg7","slide":4,"name":"Google Shape;122;p4","text":"人力","textPreview":"人力","textChars":2,"textLines":1,"bbox":[606.21,437.52,78.71,28.13]}
+{"kind":"textbox","id":"sh/je9oruhs","slide":4,"name":"Google Shape;123;p4","text":"成本","textPreview":"成本","textChars":2,"textLines":1,"bbox":[955.62,437.52,78.71,28.13]}
+{"kind":"image","id":"im/2543epon","slide":4,"name":"Google Shape;124;p4","bbox":[224.74,299.78,110.25,110.25]}
+{"kind":"image","id":"im/p8fmp4ne","slide":4,"name":"Google Shape;125;p4","bbox":[582.57,296.22,125.99,125.99]}
+{"kind":"image","id":"im/o76lgz6t","slide":4,"name":"Google Shape;126;p4","bbox":[936.22,294.26,117.51,117.51]}
+{"kind":"notes","id":"nt/jyx0ra1s","slide":4,"text":"承接前面：這裡明確提出痛點。強調問題在於長時間的人力穩定度與成本，而不是攝影師技術不夠。"}
+{"kind":"slide","id":"sl/i107q5of","slide":5,"title":"04 POSITIONING","textShapes":9}
+{"kind":"textbox","id":"sh/9gjmtwvi","slide":5,"name":"Google Shape;132;p5","text":"04 POSITIONING","textPreview":"04 POSITIONING","textChars":14,"textLines":1,"bbox":[52.8,26.88,172.8,24]}
+{"kind":"textbox","id":"sh/8fql0rux","slide":5,"name":"Google Shape;133;p5","text":"專案定位：Desktop 與 iPhone 組成同一套拍攝助理","textPreview":"專案定位：Desktop 與 iPhone 組成同一套拍攝助理","textChars":31,"textLines":1,"bbox":[52.8,61.44,940.79,45.89]}
+{"kind":"shape","id":"sh/zahkn2dg","slide":5,"name":"Google Shape;134;p5","bbox":[892.8,36.48,115.2,3.36]}
+{"kind":"shape","id":"sh/y983uxcv","slide":5,"name":"Google Shape;135;p5","bbox":[936,45.12,129.6,3.36]}
+{"kind":"shape","id":"sh/lcz2pcvm","slide":5,"name":"Google Shape;136;p5","bbox":[984,53.76,110.4,3.36]}
+{"kind":"shape","id":"sh/kbqlw7u1","slide":5,"name":"Google Shape;137;p5","bbox":[1029.12,62.4,96,3.36]}
+{"kind":"shape","id":"sh/j614z6dk","slide":5,"name":"Google Shape;138;p5","bbox":[76.8,129.6,532.79,494.39]}
+{"kind":"textbox","id":"sh/i5s361cz","slide":5,"name":"Google Shape;139;p5","text":"人負責：判斷與品質把關","textPreview":"人負責：判斷與品質把關","textChars":11,"textLines":1,"bbox":[115.12,158.4,470.39,36.19]}
+{"kind":"textbox","id":"sh/qt87u5sj","slide":5,"name":"Google Shape;140;p5","text":"• 架設設備與確認拍攝位置\n• 判斷畫面美感與直播節奏\n• 處理突發事件與整體品質把關\n• 決定追蹤目標與切換時機","textPreview":"• 架設設備與確認拍攝位置 | • 判斷畫面美感與直播節奏 | • 處理突發事件與整體品質把關 | • 決定追蹤目標與切換時機","textChars":57,"textLines":4,"bbox":[115.12,206.4,470.39,107.31]}
+{"kind":"textbox","id":"sh/ru1onq9o","slide":5,"name":"Google Shape;141;p5","text":"創意、臨場反應、整體控場仍由人主導","textPreview":"創意、臨場反應、整體控場仍由人主導","textChars":17,"textLines":1,"bbox":[105.6,552.96,475.21,32.98]}
+{"kind":"shape","id":"sh/sfapwva9","slide":5,"name":"Google Shape;142;p5","bbox":[667.2,129.6,532.8,494.4]}
+{"kind":"textbox","id":"sh/dgj6p0ru","slide":5,"name":"Google Shape;143;p5","text":"機器負責：重複追蹤與控制","textPreview":"機器負責：重複追蹤與控制","textChars":12,"textLines":1,"bbox":[707.43,158.4,470.39,36.19]}
+{"kind":"textbox","id":"sh/ip87qls7","slide":5,"name":"Google Shape;144;p5","text":"• Desktop 執行偵測、追蹤與 GID / ReID\n• Framing Engine 產生構圖與 zoom 目標\n• iPhone 提供相機影像與實體倍率\n• DockKit 執行 yaw / pitch / roll 與 Home","textPreview":"• Desktop 執行偵測、追蹤與 GID / ReID | • Framing Engine 產生構圖與 zoom 目標 | • iPhone 提供相機影像與實體倍率 | • DockKit 執行 yaw / pitch / roll 與 Home","textChars":120,"textLines":4,"bbox":[707.43,206.4,470.39,112.64]}
+{"kind":"textbox","id":"sh/3qhojq9s","slide":5,"name":"Google Shape;145;p5","text":"高疲勞、高重複動作改由系統執行","textPreview":"高疲勞、高重複動作改由系統執行","textChars":15,"textLines":1,"bbox":[696,552.96,475.21,32.98]}
+{"kind":"shape","id":"sh/4rqpsvad","slide":5,"name":"Google Shape;146;p5","bbox":[264.67,653.18,744.28,36.19]}
+{"kind":"textbox","id":"sh/5sz6l0ry","slide":5,"name":"Google Shape;147;p5","text":"核心價值：讓攝影師從持續操作，轉為監看、判斷與品質把關","textPreview":"核心價值：讓攝影師從持續操作，轉為監看、判斷與品質把關","textChars":27,"textLines":1,"bbox":[271.02,653.18,744.28,36.16]}
+{"kind":"image","id":"im/ripcr6l8","slide":5,"name":"Google Shape;148;p5","bbox":[115.12,341.52,456.12,182.4]}
+{"kind":"image","id":"im/6hgbylkn","slide":5,"name":"Google Shape;149;p5","bbox":[762.92,333.93,331.48,198.81]}
+{"kind":"notes","id":"nt/i107q5of","slide":5,"text":"這頁要把目標講清楚，避免觀眾誤解成替代攝影師。人做創意、判斷、控場；機器做重複追蹤。"}
+{"kind":"slide","id":"sl/x8f69ofe","slide":6,"title":"05 V2.3 SYSTEM FLOW","textShapes":22}
+{"kind":"shape","id":"sh/nud0vep4","slide":6,"name":"Google Shape;155;p6","bbox":[107.99,176,414.02,460]}
+{"kind":"shape","id":"sh/ovmh4j69","slide":6,"name":"Google Shape;156;p6","bbox":[757.98,176,466.02,460]}
+{"kind":"textbox","id":"sh/9wfixo7u","slide":6,"name":"Google Shape;157;p6","text":"05 V2.3 SYSTEM FLOW","textPreview":"05 V2.3 SYSTEM FLOW","textChars":19,"textLines":1,"bbox":[58,34,220,26.02]}
+{"kind":"textbox","id":"sh/6p8jeton","slide":6,"name":"Google Shape;158;p6","text":"雙端閉環：iPhone ↔ Desktop ↔ DockKit","textPreview":"雙端閉環：iPhone ↔ Desktop ↔ DockKit","textChars":31,"textLines":1,"bbox":[58,68,767.12,58.02]}
+{"kind":"textbox","id":"sh/7qh07yp8","slide":6,"name":"Google Shape;159;p6","text":"Bonjour 找到 Desktop；安全握手後，才以 WebSocket 交換影像與控制資料。","textPreview":"Bonjour 找到 Desktop；安全握手後，才以 WebSocket 交換影像與控制資料。","textChars":48,"textLines":1,"bbox":[60,124,759.97,34.02]}
+{"kind":"textbox","id":"sh/jypoj618","slide":6,"name":"Google Shape;160;p6","text":"iPhone Camera + DockKit","textPreview":"iPhone Camera + DockKit","textChars":23,"textLines":1,"bbox":[155.99,196.03,260,38.02]}
+{"kind":"shape","id":"sh/ixgna10n","slide":6,"name":"Google Shape;161;p6","bbox":[155.99,250,312.03,128]}
+{"kind":"textbox","id":"sh/5kr6lgje","slide":6,"name":"Google Shape;162;p6","text":"1. iOS Camera","textPreview":"1. iOS Camera","textChars":13,"textLines":1,"bbox":[209.35,261.5,290.02,38.02]}
+{"kind":"textbox","id":"sh/4ji5cbit","slide":6,"name":"Google Shape;163;p6","text":"JPEG latest-frame\n最高約 30 FPS","textPreview":"JPEG latest-frame | 最高約 30 FPS","textChars":28,"textLines":2,"bbox":[171.84,305.35,288,40]}
+{"kind":"shape","id":"sh/rm9on61k","slide":6,"name":"Google Shape;164;p6","bbox":[155.99,456,312.03,128]}
+{"kind":"textbox","id":"sh/6l0ne10z","slide":6,"name":"Google Shape;165;p6","text":"4. DockKit","textPreview":"4. DockKit","textChars":10,"textLines":1,"bbox":[219.34,472.61,290.02,38.02]}
+{"kind":"textbox","id":"sh/tor6pgja","slide":6,"name":"Google Shape;166;p6","text":"關閉 System Tracking\nyaw / pitch / roll / Home / zoom","textPreview":"關閉 System Tracking | yaw / pitch / roll / Home / zoom","textChars":51,"textLines":2,"bbox":[171.84,520.63,288,40]}
+{"kind":"shape","id":"sh/snipgbi5","slide":6,"name":"Google Shape;167;p6","bbox":[789.98,250,386.02,128]}
+{"kind":"textbox","id":"sh/fq9orq1g","slide":6,"name":"Google Shape;168;p6","text":"2. Desktop V2.3","textPreview":"2. Desktop V2.3","textChars":15,"textLines":1,"bbox":[866.04,266.93,290.02,38.02]}
+{"kind":"textbox","id":"sh/ep07il0v","slide":6,"name":"Google Shape;169;p6","text":"YOLO26 + Tracker Adapter\nGID / ReID + Feature Gallery + Framing","textPreview":"YOLO26 + Tracker Adapter | GID / ReID + Feature Gallery + Framing","textChars":63,"textLines":2,"bbox":[800.58,313.06,369.54,75.46]}
+{"kind":"shape","id":"sh/cv258vy9","slide":6,"name":"Google Shape;170;p6","bbox":[789.98,456,386.02,128]}
+{"kind":"textbox","id":"sh/xgb610fu","slide":6,"name":"Google Shape;171;p6","text":"3. Control Policy","textPreview":"3. Control Policy","textChars":17,"textLines":1,"bbox":[865.98,473.58,290.02,38.02]}
+{"kind":"textbox","id":"sh/atkn6lg3","slide":6,"name":"Google Shape;172;p6","text":"dead zone / hysteresis / rate limits\nerror / confidence / zoom / state","textPreview":"dead zone / hysteresis / rate limits | error / confidence / zoom / state","textChars":70,"textLines":2,"bbox":[840.8,520.63,300.5,40]}
+{"kind":"shape","id":"sh/y907a90b","slide":6,"name":"Google Shape;173;p6","bbox":[541.24,263.94,206.87,1.8]}
+{"kind":"shape","id":"sh/ja9oje1w","slide":6,"name":"Google Shape;174;p6","bbox":[1025.97,378,0,78.02]}
+{"kind":"textbox","id":"sh/psbmxgzi","slide":6,"name":"Google Shape;175;p6","text":"Bonjour 探索 + 安全握手","textPreview":"Bonjour 探索 + 安全握手","textChars":17,"textLines":1,"bbox":[520.63,216.67,234.99,34.02]}
+{"kind":"textbox","id":"sh/2p0n2lg7","slide":6,"name":"Google Shape;176;p6","text":"_autocamtracker._tcp / 4 s deadline","textPreview":"_autocamtracker._tcp / 4 s deadline","textChars":35,"textLines":1,"bbox":[512.5,270.02,264.35,28]}
+{"kind":"textbox","id":"sh/nqt4v6hs","slide":6,"name":"Google Shape;177;p6","text":"WebSocket 雙向資料","textPreview":"WebSocket 雙向資料","textChars":14,"textLines":1,"bbox":[527.18,317.35,234.99,32]}
+{"kind":"textbox","id":"sh/0ni50by1","slide":6,"name":"Google Shape;178;p6","text":"上行 JPEG / 下行 JSON tracking","textPreview":"上行 JPEG / 下行 JSON tracking","textChars":26,"textLines":1,"bbox":[532.17,382.79,225.01,24]}
+{"kind":"textbox","id":"sh/1ormtgzm","slide":6,"name":"Google Shape;179;p6","text":"身份 + 構圖 + policy → 控制命令","textPreview":"身份 + 構圖 + policy → 控制命令","textChars":23,"textLines":1,"bbox":[731.62,399.04,360.09,34.02]}
+{"kind":"textbox","id":"sh/twfmts36","slide":6,"name":"Google Shape;180;p6","text":"NFC 只用於首次配對；持續資料走區域網路 WebSocket，iPhone 再透過 Apple DockKit 控制穩定器。","textPreview":"NFC 只用於首次配對；持續資料走區域網路 WebSocket，iPhone 再透過 Apple DockKit 控制穩定器。","textChars":63,"textLines":1,"bbox":[84,656,959.97,28]}
+{"kind":"textbox","id":"sh/sb6l0nm1","slide":6,"name":"Google Shape;181;p6","text":"AI Vision Director Desktop V2.3","textPreview":"AI Vision Director Desktop V2.3","textChars":31,"textLines":1,"bbox":[1081.97,656,144,26.02]}
+{"kind":"shape","id":"sh/7ax4rilg","slide":6,"name":"Google Shape;182;p6","bbox":[33.93,239.75,180.53,386.42]}
+{"kind":"shape","id":"sh/6943yd4v","slide":6,"name":"Google Shape;183;p6","bbox":[1056.61,37.58,211.18,168.18]}
+{"kind":"shape","id":"sh/h0fmxc3i","slide":6,"name":"Google Shape;184;p6","bbox":[1071.39,37.58,181.53,102.44]}
+{"kind":"shape","id":"sh/orel0ve9","slide":6,"name":"Google Shape;185;p6","bbox":[546.85,370.53,188.91,1.92]}
+{"kind":"shape","id":"sh/9cn2t0fu","slide":6,"name":"Google Shape;186;p6","bbox":[368.54,383.52,0.76,66.96]}
+{"kind":"textbox","id":"sh/uxo32x4r","slide":6,"name":"Google Shape;187;p6","text":"Mac / Desktop 軟體內部","textPreview":"Mac / Desktop 軟體內部","textChars":18,"textLines":1,"bbox":[789.98,196.03,250.02,38.02]}
+{"kind":"textbox","id":"sh/p4zm1c3e","slide":6,"name":"Google Shape;188;p6","text":"NFC 配對","textPreview":"NFC 配對","textChars":6,"textLines":1,"bbox":[345.42,390.42,144,56.98]}
+{"kind":"textbox","id":"sh/43ql872t","slide":6,"name":"Google Shape;189;p6","text":"Apple DockKit\n 控制","textPreview":"Apple DockKit |  控制","textChars":17,"textLines":2,"bbox":[171.84,376.04,220,56.98]}
+{"kind":"notes","id":"nt/x8f69ofe","slide":6,"text":"[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/gnmp4jqx","slide":7,"title":"06 IOS SOFTWARE","textShapes":31}
+{"kind":"shape","id":"sh/dkbelsv6","slide":7,"name":"Google Shape;195;p7","bbox":[278.39,156.8,432,296]}
+{"kind":"textbox","id":"sh/qh0vaxwv","slide":7,"name":"Google Shape;196;p7","text":"06 IOS SOFTWARE","textPreview":"06 IOS SOFTWARE","textChars":15,"textLines":1,"bbox":[48,27.2,256,22.39]}
+{"kind":"textbox","id":"sh/bitcj2dg","slide":7,"name":"Google Shape;197;p7","text":"手機軟體：AI Vision Director iOS App","textPreview":"手機軟體：AI Vision Director iOS App","textChars":31,"textLines":1,"bbox":[48,54.4,783.97,56]}
+{"kind":"textbox","id":"sh/ofid8nep","slide":7,"name":"Google Shape;198;p7","text":"相機、連線、控制與安全都由 iOS App 負責，並與 Desktop 共用同一套版本化資料契約。","textPreview":"相機、連線、控制與安全都由 iOS App 負責，並與 Desktop 共用同一套版本化資料契約。","textChars":49,"textLines":1,"bbox":[49.6,113.6,991.97,28.79]}
+{"kind":"shape","id":"sh/pgruhsva","slide":7,"name":"Google Shape;199;p7","bbox":[43.2,156.8,216,296]}
+{"kind":"textbox","id":"sh/cj2lo3id","slide":7,"name":"Google Shape;200;p7","text":"Camera&Preview","textPreview":"Camera&Preview","textChars":14,"textLines":1,"bbox":[59.2,171.2,184,46.43]}
+{"kind":"textbox","id":"sh/dkb2h8ji","slide":7,"name":"Google Shape;201;p7","text":"Discovery & Network","textPreview":"Discovery & Network","textChars":19,"textLines":1,"bbox":[294.39,171.2,392,46.43]}
+{"kind":"shape","id":"sh/qhk3mtk7","slide":7,"name":"Google Shape;202;p7","bbox":[729.58,156.8,216,296]}
+{"kind":"textbox","id":"sh/ritkfy1s","slide":7,"name":"Google Shape;203;p7","text":"Command & Safety","textPreview":"Command & Safety","textChars":16,"textLines":1,"bbox":[738.63,171.2,199.34,46.43]}
+{"kind":"shape","id":"sh/0n2lsni9","slide":7,"name":"Google Shape;204;p7","bbox":[964.77,156.8,272,296]}
+{"kind":"textbox","id":"sh/1ov2lsju","slide":7,"name":"Google Shape;205;p7","text":"DockKit Execution","textPreview":"DockKit Execution","textChars":17,"textLines":1,"bbox":[979.97,171.2,240,33.61]}
+{"kind":"shape","id":"sh/elk3qd03","slide":7,"name":"Google Shape;206;p7","bbox":[67.2,249.6,167.97,158.93]}
+{"kind":"textbox","id":"sh/zmtkji1o","slide":7,"name":"Google Shape;207;p7","text":"1","textPreview":"1","textChars":1,"textLines":1,"bbox":[80,268.8,33.61,33.61]}
+{"kind":"textbox","id":"sh/8rmlwni5","slide":7,"name":"Google Shape;208;p7","text":"相機擷取","textPreview":"相機擷取","textChars":4,"textLines":1,"bbox":[121.6,267.2,102.39,38.39]}
+{"kind":"textbox","id":"sh/9sv2psjq","slide":7,"name":"Google Shape;209;p7","text":"Capture\nPreview\nJPEG / zoom","textPreview":"Capture | Preview | JPEG / zoom","textChars":27,"textLines":3,"bbox":[79.98,309.06,163.21,72]}
+{"kind":"shape","id":"sh/jmxofml8","slide":7,"name":"Google Shape;210;p7","bbox":[302.39,249.6,184,185.64]}
+{"kind":"textbox","id":"sh/ilonmhkn","slide":7,"name":"Google Shape;211;p7","text":"2","textPreview":"2","textChars":1,"textLines":1,"bbox":[315.19,268.8,38.39,38.39]}
+{"kind":"textbox","id":"sh/58z6hw3y","slide":7,"name":"Google Shape;212;p7","text":"自動探索","textPreview":"自動探索","textChars":4,"textLines":1,"bbox":[366.39,267.2,105.61,38.39]}
+{"kind":"textbox","id":"sh/k765or2d","slide":7,"name":"Google Shape;213;p7","text":"Bonjour .local\n舊 IP 修正\n自動重連","textPreview":"Bonjour .local | 舊 IP 修正 | 自動重連","textChars":27,"textLines":3,"bbox":[311.97,315.21,177.61,72]}
+{"kind":"shape","id":"sh/vix4bmlw","slide":7,"name":"Google Shape;214;p7","bbox":[502.39,249.6,184,185.64]}
+{"kind":"textbox","id":"sh/ahonihkb","slide":7,"name":"Google Shape;215;p7","text":"3","textPreview":"3","textChars":1,"textLines":1,"bbox":[515.19,268.8,38.39,38.39]}
+{"kind":"textbox","id":"sh/xkf6dc32","slide":7,"name":"Google Shape;216;p7","text":"命令驗證","textPreview":"命令驗證","textChars":4,"textLines":1,"bbox":[566.38,267.2,105.61,38.39]}
+{"kind":"textbox","id":"sh/wj65kr2h","slide":7,"name":"Google Shape;217;p7","text":"V1.0 JSON\nsequence validation\ntarget state","textPreview":"V1.0 JSON | sequence validation | target state","textChars":42,"textLines":3,"bbox":[506.52,318.4,194.14,72]}
+{"kind":"shape","id":"sh/fehon6l0","slide":7,"name":"Google Shape;218;p7","bbox":[753.58,249.6,184,185.64]}
+{"kind":"textbox","id":"sh/ud8nu1kv","slide":7,"name":"Google Shape;219;p7","text":"4","textPreview":"4","textChars":1,"textLines":1,"bbox":[766.38,268.8,33.61,33.61]}
+{"kind":"textbox","id":"sh/q9crm543","slide":7,"name":"Google Shape;220;p7","text":"安全閘","textPreview":"安全閘","textChars":3,"textLines":1,"bbox":[807.98,267.2,123.81,46.43]}
+{"kind":"textbox","id":"sh/ral8va58","slide":7,"name":"Google Shape;221;p7","text":"4 s handshake\n500 ms timeout\ninvalid → STOP","textPreview":"4 s handshake | 500 ms timeout | invalid → STOP","textChars":43,"textLines":3,"bbox":[747.18,322.41,184,72]}
+{"kind":"shape","id":"sh/cbu9ofmt","slide":7,"name":"Google Shape;222;p7","bbox":[991.97,212.8,216,112]}
+{"kind":"textbox","id":"sh/dw3qhkne","slide":7,"name":"Google Shape;223;p7","text":"5","textPreview":"5","textChars":1,"textLines":1,"bbox":[1004.77,228.42,38.39,38.39]}
+{"kind":"textbox","id":"sh/excrqp4z","slide":7,"name":"Google Shape;224;p7","text":"雲台計算","textPreview":"雲台計算","textChars":4,"textLines":1,"bbox":[1055.97,227.71,137.61,38.39]}
+{"kind":"textbox","id":"sh/zy58ju5k","slide":7,"name":"Google Shape;225;p7","text":"smoothing\nrate limits","textPreview":"smoothing | rate limits","textChars":21,"textLines":2,"bbox":[1008.7,267.37,212.06,46.43]}
+{"kind":"shape","id":"sh/0ze9szm5","slide":7,"name":"Google Shape;226;p7","bbox":[991.97,345.6,216,100.82]}
+{"kind":"textbox","id":"sh/10nqlknq","slide":7,"name":"Google Shape;227;p7","text":"6","textPreview":"6","textChars":1,"textLines":1,"bbox":[1004.77,360.32,38.39,38.39]}
+{"kind":"textbox","id":"sh/u1s7el4v","slide":7,"name":"Google Shape;228;p7","text":"DockKit","textPreview":"DockKit","textChars":7,"textLines":1,"bbox":[1062.24,359.62,137.61,38.39]}
+{"kind":"textbox","id":"sh/f218nq5g","slide":7,"name":"Google Shape;229;p7","text":"Manual\nYaw / Pitch / Roll","textPreview":"Manual | Yaw / Pitch / Roll","textChars":25,"textLines":2,"bbox":[1008.7,396,194.14,28.79]}
+{"kind":"shape","id":"sh/4fedo3ih","slide":7,"name":"Google Shape;230;p7","bbox":[235.17,329.07,67.21,13.35]}
+{"kind":"shape","id":"sh/gbyxg72p","slide":7,"name":"Google Shape;231;p7","bbox":[486.39,342.42,16,0]}
+{"kind":"shape","id":"sh/1crepc3a","slide":7,"name":"Google Shape;232;p7","bbox":[686.39,342.42,67.18,0]}
+{"kind":"shape","id":"sh/e9gfexkj","slide":7,"name":"Google Shape;233;p7","bbox":[937.58,268.81,54.39,73.61]}
+{"kind":"shape","id":"sh/fapwn2l4","slide":7,"name":"Google Shape;234;p7","bbox":[1099.97,324.8,0,20.79]}
+{"kind":"shape","id":"sh/kzito369","slide":7,"name":"Google Shape;235;p7","bbox":[67.2,475.2,560,190.43]}
+{"kind":"textbox","id":"sh/jy9cvypo","slide":7,"name":"Google Shape;236;p7","text":"使用者看得到的手機功能","textPreview":"使用者看得到的手機功能","textChars":11,"textLines":1,"bbox":[81.6,499.2,505.57,33.61]}
+{"kind":"textbox","id":"sh/ixgbmto3","slide":7,"name":"Google Shape;237;p7","text":"• 相機：即時預覽、倍率與影格統計\n• 雲台：方向鍵、STOP、速度與校正參數\n• 連線：Bonjour 狀態、Server URL、重連\n• 紀錄：DockKit、網路與安全事件 log","textPreview":"• 相機：即時預覽、倍率與影格統計 | • 雲台：方向鍵、STOP、速度與校正參數 | • 連線：Bonjour 狀態、Server URL、重連 | • 紀錄：DockKit、網路與安全事件 log","textChars":94,"textLines":4,"bbox":[125.62,539.97,486.39,100.82]}
+{"kind":"shape","id":"sh/14nal47q","slide":7,"name":"Google Shape;238;p7","bbox":[652.78,475.2,560,190.43]}
+{"kind":"textbox","id":"sh/03etcz65","slide":7,"name":"Google Shape;239;p7","text":"現場可靠性設計","textPreview":"現場可靠性設計","textChars":7,"textLines":1,"bbox":[679.99,499.2,505.57,33.61]}
+{"kind":"textbox","id":"sh/ov65gbup","slide":7,"name":"Google Shape;240;p7","text":"• 握手成功前不送 frame、motor status 或 control\n• latest-frame backpressure：忙碌時保留最新影格\n• 斷線、逾時、失追、倒序或無效 JSON 立即 STOP\n• App 退到背景或穩定器脫離時也會安全停止","textPreview":"• 握手成功前不送 frame、motor status 或 control | • latest-frame backpressure：忙碌時保留最新影格 | • 斷線、逾時、失追、倒序或無效 JSON 立即 STOP | • App 退到背景或穩定器脫離時也會安全停止","textChars":130,"textLines":4,"bbox":[711.98,542.45,486.39,100.82]}
+{"kind":"shape","id":"sh/7ax83u9w","slide":7,"name":"Google Shape;241;p7","bbox":[955.17,171.2,0,270.43]}
+{"kind":"textbox","id":"sh/2t4ne1cz","slide":7,"name":"Google Shape;242;p7","text":"手機 App 不是單純遙控器，而是相機來源、網路客戶端、DockKit 執行器與最後一道安全閘。","textPreview":"手機 App 不是單純遙控器，而是相機來源、網路客戶端、DockKit 執行器與最後一道安全閘。","textChars":48,"textLines":1,"bbox":[65.6,680,1023.97,25.61]}
+{"kind":"textbox","id":"sh/3uxo76dk","slide":7,"name":"Google Shape;243;p7","text":"AI Vision Director Camera for iOS V2.2","textPreview":"AI Vision Director Camera for iOS V2.2","textChars":38,"textLines":1,"bbox":[1094.37,680,126.39,22.39]}
+{"kind":"notes","id":"nt/gnmp4jqx","slide":7,"text":"[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/fu1gfa1s","slide":8,"title":"07 KEY PROBLEM","textShapes":8}
+{"kind":"shape","id":"sh/8ruhszy9","slide":8,"name":"Google Shape;249;p8","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/qdovm1wr","slide":8,"name":"Google Shape;250;p8","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/rexcv6dc","slide":8,"name":"Google Shape;251;p8","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/sz6dorex","slide":8,"name":"Google Shape;252;p8","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/d0fexwvi","slide":8,"name":"Google Shape;253;p8","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/e18vq1w3","slide":8,"name":"Google Shape;254;p8","text":"07 KEY PROBLEM","textPreview":"07 KEY PROBLEM","textChars":14,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/f2hwz6do","slide":8,"name":"Google Shape;255;p8","text":"核心困難：偵測得到車，不代表長期認得同一台車","textPreview":"核心困難：偵測得到車，不代表長期認得同一台車","textChars":22,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"shape","id":"sh/03qdsbet","slide":8,"name":"Google Shape;256;p8","bbox":[81.6,139.2,523.2,460.8]}
+{"kind":"textbox","id":"sh/14ze1gve","slide":8,"name":"Google Shape;257;p8","text":"只有 Detector / Tracker 時","textPreview":"只有 Detector / Tracker 時","textChars":23,"textLines":1,"bbox":[105.91,170.88,460.79,28.79]}
+{"kind":"textbox","id":"sh/258vulwz","slide":8,"name":"Google Shape;258;p8","text":"知道畫面中有車與 bbox 位置\n產生當前片段的短期 LID\n能維持連續幀內的 track continuity\n但離框、遮擋或切鏡後，LID 仍可能改變","textPreview":"知道畫面中有車與 bbox 位置 | 產生當前片段的短期 LID | 能維持連續幀內的 track continuity | 但離框、遮擋或切鏡後，LID 仍可能改變","textChars":77,"textLines":4,"bbox":[110.71,213.06,446.39,100.85]}
+{"kind":"shape","id":"sh/n6hw3qdk","slide":8,"name":"Google Shape;259;p8","bbox":[672,139.2,523.2,460.8]}
+{"kind":"textbox","id":"sh/za1cbqts","slide":8,"name":"Google Shape;260;p8","text":"加入 GID / ReID Identity Pipeline 後","textPreview":"加入 GID / ReID Identity Pipeline 後","textChars":33,"textLines":1,"bbox":[699.41,170.88,460.79,28.79]}
+{"kind":"textbox","id":"sh/y9svilc7","slide":8,"name":"Google Shape;261;p8","text":"把選定車輛保存成長期 GID\nFeature Gallery 保存高品質身份特徵\n短失追先 coasting，之後可 search / reacquire\nSQLite 保存 metadata 與 feature provenance\n追蹤的是指定身份，而不只是當下 bbox","textPreview":"把選定車輛保存成長期 GID | Feature Gallery 保存高品質身份特徵 | 短失追先 coasting，之後可 search / reacquire | SQLite 保存 metadata 與 feature provenance | 追蹤的是指定身份，而不...","textChars":138,"textLines":5,"bbox":[704.21,213.06,480.44,100.85]}
+{"kind":"shape","id":"sh/lwjudgbi","slide":8,"name":"Google Shape;262;p8","bbox":[211.34,635.23,857.29,38.61]}
+{"kind":"textbox","id":"sh/kbadkvad","slide":8,"name":"Google Shape;263;p8","text":"Detector 找候選；GID / ReID 身份層才負責長期認車與找回","textPreview":"Detector 找候選；GID / ReID 身份層才負責長期認車與找回","textChars":37,"textLines":1,"bbox":[221,644.87,837.95,19.34]}
+{"kind":"textbox","id":"sh/b6hc76tg","slide":8,"name":"Google Shape;264;p8","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"image","id":"im/byhonyxs","slide":8,"name":"Google Shape;265;p8","bbox":[122.48,338.43,422.85,215.78]}
+{"kind":"image","id":"im/czq5w3ed","slide":8,"name":"Google Shape;266;p8","bbox":[718.38,338.43,422.85,222.59]}
+{"kind":"notes","id":"nt/fu1gfa1s","slide":8,"text":"這頁要用簡單語言講：YOLO 不差，它是偵測器；但專案真正的 know-how 是跨場景找回同一台車。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/udsvah03","slide":9,"title":"08 IDENTITY DATABASE","textShapes":16}
+{"kind":"shape","id":"sh/y9cj294r","slide":9,"name":"Google Shape;272;p9","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/zalkbu5c","slide":9,"name":"Google Shape;273;p9","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/c7u10zml","slide":9,"name":"Google Shape;274;p9","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/x83294n6","slide":9,"name":"Google Shape;275;p9","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/a5sjyp4v","slide":9,"name":"Google Shape;276;p9","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/b61k7u50","slide":9,"name":"Google Shape;277;p9","text":"08 IDENTITY DATABASE","textPreview":"08 IDENTITY DATABASE","textChars":20,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/w3elcjm5","slide":9,"name":"Google Shape;278;p9","text":"解法：以 GID + Feature Gallery 建立長期身份","textPreview":"解法：以 GID + Feature Gallery 建立長期身份","textChars":33,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"shape","id":"sh/h4n25onq","slide":9,"name":"Google Shape;279;p9","bbox":[81.6,172.08,235.21,129.61]}
+{"kind":"textbox","id":"sh/p47y50vu","slide":9,"name":"Google Shape;280;p9","text":"點選車輛 bbox","textPreview":"點選車輛 bbox","textChars":9,"textLines":1,"bbox":[96,189.36,206.39,24.94]}
+{"kind":"textbox","id":"sh/43yxcve9","slide":9,"name":"Google Shape;281;p9","text":"使用者選定要追蹤的車","textPreview":"使用者選定要追蹤的車","textChars":10,"textLines":1,"bbox":[86.9,233.77,224.6,48]}
+{"kind":"shape","id":"sh/29cfep4b","slide":9,"name":"Google Shape;282;p9","bbox":[318.72,237.36,60.47,0]}
+{"kind":"shape","id":"sh/21gfalw3","slide":9,"name":"Google Shape;283;p9","bbox":[382.08,172.08,235.21,129.61]}
+{"kind":"textbox","id":"sh/d8ry90v6","slide":9,"name":"Google Shape;284;p9","text":"建立 GID 與身份 metadata","textPreview":"建立 GID 與身份 metadata","textChars":19,"textLines":1,"bbox":[367.48,186.09,264.41,31.5]}
+{"kind":"textbox","id":"sh/c7ixgfel","slide":9,"name":"Google Shape;285;p9","text":"SQLite \n保存長期身份與狀態","textPreview":"SQLite  | 保存長期身份與狀態","textChars":17,"textLines":2,"bbox":[398.88,233.77,211.21,48]}
+{"kind":"shape","id":"sh/t8jy1k7u","slide":9,"name":"Google Shape;286;p9","bbox":[619.2,237.36,60.47,0]}
+{"kind":"shape","id":"sh/q50fe5wf","slide":9,"name":"Google Shape;287;p9","bbox":[682.56,172.08,235.21,129.61]}
+{"kind":"textbox","id":"sh/tcnexgfm","slide":9,"name":"Google Shape;288;p9","text":"通過品質門檻後寫入特徵","textPreview":"通過品質門檻後寫入特徵","textChars":11,"textLines":1,"bbox":[672.28,189.36,255.78,24.94]}
+{"kind":"textbox","id":"sh/sbex4be1","slide":9,"name":"Google Shape;289;p9","text":"CropQuality → Encoder \n→ Policy → Index\n形成可稽核的 Master feature","textPreview":"CropQuality → Encoder  | → Policy → Index | 形成可稽核的 Master feature","textChars":61,"textLines":3,"bbox":[690.72,223.97,217.92,67.59]}
+{"kind":"shape","id":"sh/1w3i547q","slide":9,"name":"Google Shape;290;p9","bbox":[919.68,237.36,60.47,0]}
+{"kind":"shape","id":"sh/jilc7mtk","slide":9,"name":"Google Shape;291;p9","bbox":[983.04,172.08,235.21,129.61]}
+{"kind":"textbox","id":"sh/kjudgru5","slide":9,"name":"Google Shape;292;p9","text":"Find GID / Auto Reacquire","textPreview":"Find GID / Auto Reacquire","textChars":25,"textLines":1,"bbox":[980.35,189.36,243.87,24.94]}
+{"kind":"textbox","id":"sh/lk3u9wbq","slide":9,"name":"Google Shape;293;p9","text":"依 identity decision 找回指定目標","textPreview":"依 identity decision 找回指定目標","textChars":26,"textLines":1,"bbox":[989.99,233.77,224.6,48]}
+{"kind":"shape","id":"sh/6lcvihcv","slide":9,"name":"Google Shape;294;p9","bbox":[103.68,580.73,1075.21,72.38]}
+{"kind":"textbox","id":"sh/765cbmtg","slide":9,"name":"Google Shape;295;p9","text":"系統把車輛轉成可保存、可驗證、可搜尋的身份資料，並避免低品質樣本污染 Master Gallery。","textPreview":"系統把車輛轉成可保存、可驗證、可搜尋的身份資料，並避免低品質樣本污染 Master Gallery。","textChars":50,"textLines":1,"bbox":[139.2,600.65,1039.69,31.5]}
+{"kind":"textbox","id":"sh/s7edkru1","slide":9,"name":"Google Shape;296;p9","text":"依據：AI Vision Director V2.3 README、identity / feature gallery / SQLite architecture。","textPreview":"依據：AI Vision Director V2.3 README、identity / feature gallery / SQLite architecture。","textChars":83,"textLines":1,"bbox":[59.52,675.84,979.2,17.28]}
+{"kind":"textbox","id":"sh/t8nudwbm","slide":9,"name":"Google Shape;297;p9","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"textbox","id":"sh/na1cz2dc","slide":9,"name":"Google Shape;299;p9","text":"bbox","textPreview":"bbox","textChars":4,"textLines":1,"bbox":[52.52,396.51,314.96,69.48]}
+{"kind":"textbox","id":"sh/6d8vmlk3","slide":9,"name":"Google Shape;302;p9","text":"GID / metadata","textPreview":"GID / metadata","textChars":14,"textLines":1,"bbox":[302.39,330.43,314.96,47.18]}
+{"kind":"shape","id":"sh/rehcfqlo","slide":9,"name":"Google Shape;303;p9","bbox":[404.22,406.36,458.71,24.94]}
+{"kind":"shape","id":"sh/g3adsv25","slide":9,"name":"Google Shape;304;p9","bbox":[533.18,372.7,50.17,129.61]}
+{"kind":"textbox","id":"sh/14jel03q","slide":9,"name":"Google Shape;305;p9","text":"Master features","textPreview":"Master features","textChars":15,"textLines":1,"bbox":[533.18,330.43,264.41,47.18]}
+{"kind":"image","id":"im/zm1ovyx4","slide":9,"name":"Google Shape;298;p9","bbox":[83.52,327.64,283.96,227.13]}
+{"kind":"image","id":"im/yls72twj","slide":9,"name":"Google Shape;300;p9","bbox":[402.14,374.5,460.8,133.42]}
+{"kind":"image","id":"im/wrmlwve1","slide":9,"name":"Google Shape;301;p9","bbox":[897.6,363.2,330.21,175.95]}
+{"kind":"notes","id":"nt/udsvah03","slide":9,"text":"這頁把操作流程講成解決方案，讓評審知道 ReID 不是抽象名詞，而是有 UI 流程與資料庫。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/m90b6t0r","slide":10,"title":"09 IDENTITY LOGIC","textShapes":11}
+{"kind":"shape","id":"sh/qlwbi9sr","slide":10,"name":"Google Shape;311;p10","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/d8nutor2","slide":10,"name":"Google Shape;312;p10","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/c7etkjax","slide":10,"name":"Google Shape;313;p10","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/3ilcne90","slide":10,"name":"Google Shape;314;p10","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/2hcbe9sf","slide":10,"name":"Google Shape;315;p10","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/pknup4r6","slide":10,"name":"Google Shape;316;p10","text":"09 IDENTITY LOGIC","textPreview":"09 IDENTITY LOGIC","textChars":17,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/ojutgjal","slide":10,"name":"Google Shape;317;p10","text":"LID / GID：把短期 tracker identity 接到長期車輛身份","textPreview":"LID / GID：把短期 tracker identity 接到長期車輛身份","textChars":39,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"shape","id":"sh/felsju94","slide":10,"name":"Google Shape;318;p10","bbox":[115.2,187.2,288,158.4]}
+{"kind":"textbox","id":"sh/edcbapsj","slide":10,"name":"Google Shape;319;p10","text":"LID","textPreview":"LID","textChars":3,"textLines":1,"bbox":[129.6,208.4,259.21,24.94]}
+{"kind":"textbox","id":"sh/i9sv2pcb","slide":10,"name":"Google Shape;320;p10","text":"Local ID\nTracker Adapter 產生\n短期，只在當前連續片段有效","textPreview":"Local ID | Tracker Adapter 產生 | 短期，只在當前連續片段有效","textChars":41,"textLines":3,"bbox":[123.85,235.81,270.71,105.61]}
+{"kind":"shape","id":"sh/ja1cvudw","slide":10,"name":"Google Shape;321;p10","bbox":[877.44,190.08,288,158.39]}
+{"kind":"textbox","id":"sh/4bad4zuh","slide":10,"name":"Google Shape;322;p10","text":"GID","textPreview":"GID","textChars":3,"textLines":1,"bbox":[892.8,208.4,259.21,24.94]}
+{"kind":"textbox","id":"sh/5c3ux4v2","slide":10,"name":"Google Shape;323;p10","text":"Global ID\nIdentity Pipeline + SQLite 保存\n長期，可跨片段搜尋與找回","textPreview":"Global ID | Identity Pipeline + SQLite 保存 | 長期，可跨片段搜尋與找回","textChars":52,"textLines":3,"bbox":[886.09,248.75,275.53,92.66]}
+{"kind":"shape","id":"sh/tsvi1gfu","slide":10,"name":"Google Shape;324;p10","bbox":[405.12,264,470.4,0]}
+{"kind":"textbox","id":"sh/relczeds","slide":10,"name":"Google Shape;325;p10","text":"進入 Identity Pipeline","textPreview":"進入 Identity Pipeline","textChars":20,"textLines":1,"bbox":[413.76,187.2,444.47,79.12]}
+{"kind":"shape","id":"sh/sfud8zud","slide":10,"name":"Google Shape;326;p10","bbox":[279.57,588.06,703.65,87.78]}
+{"kind":"textbox","id":"sh/tg3u14vy","slide":10,"name":"Google Shape;327;p10","text":"LID 是 tracker 的臨時編號；GID 是系統保存的車輛身份。\nLID 可以改變，GID 才是跨片段延續的關鍵。","textPreview":"LID 是 tracker 的臨時編號；GID 是系統保存的車輛身份。 | LID 可以改變，GID 才是跨片段延續的關鍵。","textChars":60,"textLines":2,"bbox":[279.09,613.79,722.46,36.31]}
+{"kind":"textbox","id":"sh/ehcva9cj","slide":10,"name":"Google Shape;328;p10","text":"依據：AI Vision Director V2.3 domain contracts 與 identity architecture。","textPreview":"依據：AI Vision Director V2.3 domain contracts 與 identity architecture。","textChars":68,"textLines":1,"bbox":[59.52,675.84,979.2,17.28]}
+{"kind":"textbox","id":"sh/filc3et4","slide":10,"name":"Google Shape;329;p10","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"shape","id":"sh/x4juto3a","slide":10,"name":"Google Shape;331;p10","bbox":[447.51,459.06,394.36,0]}
+{"kind":"textbox","id":"sh/29wfydwv","slide":10,"name":"Google Shape;333;p10","text":"LID","textPreview":"LID","textChars":3,"textLines":1,"bbox":[101.72,358.38,314.96,54.93]}
+{"kind":"image","id":"im/p4bipsny","slide":10,"name":"Google Shape;330;p10","bbox":[95.72,358.38,340.96,188.52]}
+{"kind":"image","id":"im/ux0zad4b","slide":10,"name":"Google Shape;332;p10","bbox":[852.71,368.36,340.96,181.39]}
+{"kind":"notes","id":"nt/m90b6t0r","slide":10,"text":"這是技術簡報很重要的一頁，建議上台時一定要停一下講清楚。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/jetc3ut0","slide":11,"title":"10 FEATURE GALLERY","textShapes":9}
+{"kind":"textbox","id":"sh/0baxcnmh","slide":11,"name":"Google Shape;339;p11","text":"10 FEATURE GALLERY","textPreview":"10 FEATURE GALLERY","textChars":18,"textLines":1,"bbox":[52.8,26.88,172.8,24]}
+{"kind":"textbox","id":"sh/8fy5cnmx","slide":11,"name":"Google Shape;340;p11","text":"Feature Gallery：品質、編碼、政策與持久化各自解耦","textPreview":"Feature Gallery：品質、編碼、政策與持久化各自解耦","textChars":32,"textLines":1,"bbox":[52.8,61.44,940.79,45.89]}
+{"kind":"shape","id":"sh/tg7m5sni","slide":11,"name":"Google Shape;341;p11","bbox":[892.8,36.48,115.2,3.36]}
+{"kind":"shape","id":"sh/6tgnado7","slide":11,"name":"Google Shape;342;p11","bbox":[936,45.12,129.6,3.36]}
+{"kind":"shape","id":"sh/7ep43i5c","slide":11,"name":"Google Shape;343;p11","bbox":[984,53.76,110.4,3.36]}
+{"kind":"shape","id":"sh/gji5gnm9","slide":11,"name":"Google Shape;344;p11","bbox":[1029.12,62.4,96,3.36]}
+{"kind":"shape","id":"sh/hkrm9snu","slide":11,"name":"Google Shape;345;p11","bbox":[62.4,139.2,360,475.21]}
+{"kind":"textbox","id":"sh/uhgnex43","slide":11,"name":"Google Shape;346;p11","text":"特徵品質與編碼","textPreview":"特徵品質與編碼","textChars":7,"textLines":1,"bbox":[146.8,163.2,244.79,34.58]}
+{"kind":"textbox","id":"sh/vip47i5o","slide":11,"name":"Google Shape;347;p11","text":"CropQualityAssessor 先檢查尺寸、清晰度與有效性\nEmbeddingEncoder 產生身份向量\nMaster feature 保存可追溯的身份記憶","textPreview":"CropQualityAssessor 先檢查尺寸、清晰度與有效性 | EmbeddingEncoder 產生身份向量 | Master feature 保存可追溯的身份記憶","textChars":83,"textLines":3,"bbox":[79.67,212.87,329.26,119.09]}
+{"kind":"shape","id":"sh/4ni5k7m5","slide":11,"name":"Google Shape;348;p11","bbox":[460.8,139.2,360,475.21]}
+{"kind":"textbox","id":"sh/5or6dcnq","slide":11,"name":"Google Shape;349;p11","text":"政策、索引與持久化","textPreview":"政策、索引與持久化","textChars":9,"textLines":1,"bbox":[535.68,163.2,244.79,34.58]}
+{"kind":"textbox","id":"sh/fid836ps","slide":11,"name":"Google Shape;350;p11","text":"GalleryPolicy 決定是否接受新樣本\nVectorIndex 負責近鄰搜尋\n\nSQLiteWorker 以單一 owner thread 持久化","textPreview":"GalleryPolicy 決定是否接受新樣本 | VectorIndex 負責近鄰搜尋 |  | SQLiteWorker 以單一 owner thread 持久化","textChars":77,"textLines":4,"bbox":[460.8,215.3,360,114.24]}
+{"kind":"shape","id":"sh/ehk7a1o7","slide":11,"name":"Google Shape;351;p11","bbox":[859.2,139.2,360,475.2]}
+{"kind":"textbox","id":"sh/14vq5g7y","slide":11,"name":"Google Shape;352;p11","text":"寫入防護與稽核","textPreview":"寫入防護與稽核","textChars":7,"textLines":1,"bbox":[941.7,163.2,244.79,34.58]}
+{"kind":"textbox","id":"sh/03mpcb6d","slide":11,"name":"Google Shape;353;p11","text":"class / ReID / quality / duplicate 全通過才寫入\n\n保留 provenance 與 decision reason\n疑似污染可隔離或撤銷","textPreview":"class / ReID / quality / duplicate 全通過才寫入 |  | 保留 provenance 與 decision reason | 疑似污染可隔離或撤銷","textChars":85,"textLines":4,"bbox":[864.46,218.06,354.74,99.84]}
+{"kind":"shape","id":"sh/ret8zmpw","slide":11,"name":"Google Shape;354;p11","bbox":[255.32,632.9,805.51,48]}
+{"kind":"textbox","id":"sh/qdk76h8b","slide":11,"name":"Google Shape;355;p11","text":"Gallery 越乾淨、決策越可追溯，GID reacquire 就越可靠","textPreview":"Gallery 越乾淨、決策越可追溯，GID reacquire 就越可靠","textChars":37,"textLines":1,"bbox":[182.45,640.8,965.57,34.3]}
+{"kind":"image","id":"im/03e1cbu9","slide":11,"name":"Google Shape;356;p11","bbox":[94.91,154.06,48,48]}
+{"kind":"image","id":"im/14nilgvu","slide":11,"name":"Google Shape;357;p11","bbox":[487.68,158.88,40.32,40.32]}
+{"kind":"image","id":"im/qdcz61c7","slide":11,"name":"Google Shape;358;p11","bbox":[890.01,158.88,48,48]}
+{"kind":"image","id":"im/rel0f6dc","slide":11,"name":"Google Shape;359;p11","bbox":[63.21,376.63,359.19,179.59]}
+{"kind":"image","id":"im/v6horyp8","slide":11,"name":"Google Shape;360;p11","bbox":[460.8,376.62,360,197.54]}
+{"kind":"image","id":"im/u587yton","slide":11,"name":"Google Shape;361;p11","bbox":[859.2,376.62,359.19,197.55]}
+{"kind":"notes","id":"nt/jetc3ut0","slide":11,"text":"這頁深入但不要太硬。重點是：ReID 資料庫不是亂存照片，而是要防止錯車資料污染。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/8f2psfyx","slide":12,"title":"‹#›","textShapes":7}
+{"kind":"shape","id":"sh/hwn6h8nu","slide":12,"name":"Google Shape;367;p12","bbox":[897.6,57.6,211.21,11.53]}
+{"kind":"shape","id":"sh/axsnu9of","slide":12,"name":"Google Shape;368;p12","bbox":[945.6,69.12,211.21,11.53]}
+{"kind":"shape","id":"sh/byl43e5k","slide":12,"name":"Google Shape;369;p12","bbox":[993.6,80.64,211.21,11.53]}
+{"kind":"shape","id":"sh/dcrq9c72","slide":12,"name":"Google Shape;370;p12","bbox":[1041.6,92.16,211.21,11.53]}
+{"kind":"shape","id":"sh/sbi9076x","slide":12,"name":"Google Shape;371;p12","bbox":[1089.6,103.68,211.21,11.53]}
+{"kind":"textbox","id":"sh/rq9872pc","slide":12,"name":"Google Shape;372;p12","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,84,31.5]}
+{"kind":"shape","id":"sh/qp07yhor","slide":12,"name":"Google Shape;373;p12","bbox":[134.21,71.88,1011.55,584.19]}
+{"kind":"shape","id":"sh/1gbqdw7e","slide":12,"name":"Google Shape;374;p12","bbox":[134.21,71.88,221.83,163.59]}
+{"kind":"shape","id":"sh/0fi94r6t","slide":12,"name":"Google Shape;375;p12","bbox":[134.21,55.47,221.84,179.97]}
+{"kind":"shape","id":"sh/fe98bmp8","slide":12,"name":"Google Shape;376;p12","bbox":[356.03,71.88,367.43,163.59]}
+{"kind":"shape","id":"sh/ed0r2hon","slide":12,"name":"Google Shape;377;p12","bbox":[356.03,55.47,367.39,179.97]}
+{"kind":"shape","id":"sh/hk7q1s7a","slide":12,"name":"Google Shape;378;p12","bbox":[723.45,71.88,219.58,163.59]}
+{"kind":"shape","id":"sh/gjypsn6p","slide":12,"name":"Google Shape;379;p12","bbox":[723.45,55.47,219.56,179.97]}
+{"kind":"shape","id":"sh/8jedsvy5","slide":12,"name":"Google Shape;380;p12","bbox":[941.98,71.88,203.14,583.84]}
+{"kind":"shape","id":"sh/9knu1gfq","slide":12,"name":"Google Shape;381;p12","bbox":[941.98,55.47,203.13,600.28]}
+{"kind":"textbox","id":"sh/mhcv6lgz","slide":12,"name":"Google Shape;382;p12","text":"來源選擇","textPreview":"來源選擇","textChars":4,"textLines":1,"bbox":[141.39,17.68,207.45,43.03]}
+{"kind":"textbox","id":"sh/nilczqxk","slide":12,"name":"Google Shape;383;p12","text":"即時追蹤","textPreview":"即時追蹤","textChars":4,"textLines":1,"bbox":[467,17.68,138.3,43.03]}
+{"kind":"textbox","id":"sh/0fud4by9","slide":12,"name":"Google Shape;384;p12","text":"構圖預覽","textPreview":"構圖預覽","textChars":4,"textLines":1,"bbox":[764.09,17.68,138.3,43.03]}
+{"kind":"textbox","id":"sh/lg3uxgfu","slide":12,"name":"Google Shape;385;p12","text":"GID / ReID","textPreview":"GID / ReID","textChars":10,"textLines":1,"bbox":[976.15,17.68,134.79,43.03]}
+{"kind":"shape","id":"sh/ydcv21g3","slide":12,"name":"Google Shape;386;p12","bbox":[134.21,283.86,405.55,371.86]}
+{"kind":"shape","id":"sh/zelcv6xo","slide":12,"name":"Google Shape;387;p12","bbox":[134.21,267.45,405.59,388.27]}
+{"kind":"textbox","id":"sh/kbyd0fyd","slide":12,"name":"Google Shape;388;p12","text":"選定目標前畫面","textPreview":"選定目標前畫面","textChars":7,"textLines":1,"bbox":[155.82,666.08,380.32,43.03]}
+{"kind":"textbox","id":"sh/5c7e90fy","slide":12,"name":"Google Shape;389;p12","text":"追蹤與構圖輸出","textPreview":"追蹤與構圖輸出","textChars":7,"textLines":1,"bbox":[660.36,666.08,172.87,86.05]}
+{"kind":"shape","id":"sh/f69gzeh0","slide":12,"name":"Google Shape;390;p12","bbox":[547.63,283.86,398.36,371.86]}
+{"kind":"shape","id":"sh/u50f690f","slide":12,"name":"Google Shape;391;p12","bbox":[547.63,267.44,398.4,388.27]}
+{"kind":"notes","id":"nt/8f2psfyx","slide":12,"text":"Demo 頁：這裡留給你放圖或影片。建議不要只播影片，要搭配右側流程讓觀眾知道該看什麼。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/hgzapcr6","slide":13,"title":"11 DESKTOP DEMO","textShapes":7}
+{"kind":"shape","id":"sh/cjut07m1","slide":13,"name":"Google Shape;398;p13","bbox":[897.6,57.6,211.21,11.53]}
+{"kind":"shape","id":"sh/dk3u9c3m","slide":13,"name":"Google Shape;399;p13","bbox":[945.6,69.12,211.21,11.53]}
+{"kind":"shape","id":"sh/43up8725","slide":13,"name":"Google Shape;400;p13","bbox":[993.6,80.64,211.21,11.53]}
+{"kind":"shape","id":"sh/5436hc3q","slide":13,"name":"Google Shape;401;p13","bbox":[1041.6,92.16,211.21,11.53]}
+{"kind":"shape","id":"sh/i1c76hkf","slide":13,"name":"Google Shape;402;p13","bbox":[1089.6,103.68,211.21,11.53]}
+{"kind":"textbox","id":"sh/j2lofml0","slide":13,"name":"Google Shape;403;p13","text":"11 DESKTOP DEMO","textPreview":"11 DESKTOP DEMO","textChars":15,"textLines":1,"bbox":[59.52,41.28,460.79,22.08]}
+{"kind":"textbox","id":"sh/s7epcr2h","slide":13,"name":"Google Shape;404;p13","text":"Demo：Desktop 的目標建立與追蹤流程","textPreview":"Demo：Desktop 的目標建立與追蹤流程","textChars":23,"textLines":1,"bbox":[57.6,69.12,1113.61,46.08]}
+{"kind":"textbox","id":"sh/t8n6lwj2","slide":13,"name":"Google Shape;405;p13","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,84,31.5]}
+{"kind":"textbox","id":"sh/65w7ahkb","slide":13,"name":"Google Shape;406;p13","text":"1. 選模型，啟動追蹤","textPreview":"1. 選模型，啟動追蹤","textChars":11,"textLines":1,"bbox":[195.54,506.9,314.96,51.72]}
+{"kind":"shape","id":"sh/r65ojm1w","slide":13,"name":"Google Shape;407;p13","bbox":[814.62,279.84,342.18,19.61]}
+{"kind":"shape","id":"sh/gbepgr2d","slide":13,"name":"Google Shape;408;p13","bbox":[814.62,267.97,342.19,31.5]}
+{"kind":"textbox","id":"sh/1wnqpwjy","slide":13,"name":"Google Shape;409;p13","text":"2. 點 bbox 建立 GID","textPreview":"2. 點 bbox 建立 GID","textChars":16,"textLines":1,"bbox":[925.86,231.15,264.13,50.54]}
+{"kind":"shape","id":"sh/b2t0vupc","slide":13,"name":"Google Shape;410;p13","bbox":[814.62,395.48,342.19,20.74]}
+{"kind":"shape","id":"sh/ah0j2p8r","slide":13,"name":"Google Shape;411;p13","bbox":[814.62,378.2,342.17,38]}
+{"kind":"shape","id":"sh/x4bix47i","slide":13,"name":"Google Shape;412;p13","bbox":[845.64,600.71,132.68,16.77]}
+{"kind":"shape","id":"sh/c3214zqx","slide":13,"name":"Google Shape;413;p13","bbox":[845.64,591.15,132.67,26.3]}
+{"kind":"textbox","id":"sh/ne90ra9g","slide":13,"name":"Google Shape;414;p13","text":"3. 通過 gate 才寫入","textPreview":"3. 通過 gate 才寫入","textChars":14,"textLines":1,"bbox":[820.5,567.42,211.21,46.06]}
+{"kind":"textbox","id":"sh/2d0jyp8v","slide":13,"name":"Google Shape;415;p13","text":"SQLite identity data","textPreview":"SQLite identity data","textChars":20,"textLines":1,"bbox":[941.73,345.28,314.96,50.54]}
+{"kind":"image","id":"im/43utwrid","slide":13,"name":"Google Shape;397;p13","bbox":[150,112,980,592]}
+{"kind":"notes","id":"nt/hgzapcr6","slide":13,"text":"Demo 頁：這裡留給你放圖或影片。建議不要只播影片，要搭配右側流程讓觀眾知道該看什麼。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/6lsnupw7","slide":14,"title":"12 END-TO-END DEMO","textShapes":3}
+{"kind":"shape","id":"sh/kvmhc32l","slide":14,"name":"Google Shape;421;p14","bbox":[897.6,57.6,211.21,11.53]}
+{"kind":"shape","id":"sh/judgjy10","slide":14,"name":"Google Shape;422;p14","bbox":[945.6,69.12,211.21,11.53]}
+{"kind":"shape","id":"sh/it4zatkf","slide":14,"name":"Google Shape;423;p14","bbox":[993.6,80.64,211.21,11.53]}
+{"kind":"shape","id":"sh/t0fyp8j2","slide":14,"name":"Google Shape;424;p14","bbox":[1041.6,92.16,211.21,11.53]}
+{"kind":"shape","id":"sh/sz6hgn2h","slide":14,"name":"Google Shape;425;p14","bbox":[1089.6,103.68,211.21,11.53]}
+{"kind":"textbox","id":"sh/7yxgni1w","slide":14,"name":"Google Shape;426;p14","text":"12 END-TO-END DEMO","textPreview":"12 END-TO-END DEMO","textChars":18,"textLines":1,"bbox":[59.52,41.28,460.79,22.08]}
+{"kind":"textbox","id":"sh/6x4zedkr","slide":14,"name":"Google Shape;427;p14","text":"Demo：Desktop 與 iPhone / DockKit 協同操作","textPreview":"Demo：Desktop 與 iPhone / DockKit 協同操作","textChars":36,"textLines":1,"bbox":[70,69.12,1100,46.08]}
+{"kind":"textbox","id":"sh/hofytsje","slide":14,"name":"Google Shape;428;p14","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,84,31.5]}
+{"kind":"image","id":"im/5cvmlwnm","slide":14,"name":"Google Shape;429;p14","bbox":[115,120,1050,590]}
+{"kind":"notes","id":"nt/6lsnupw7","slide":14,"text":"Demo 頁：這裡留給你放圖或影片。建議不要只播影片，要搭配右側流程讓觀眾知道該看什麼。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/vaxsvy10","slide":15,"title":"13 TRACKING VS IDENTITY","textShapes":22}
+{"kind":"textbox","id":"sh/3it43al0","slide":15,"name":"Google Shape;435;p15","text":"13 TRACKING VS IDENTITY","textPreview":"13 TRACKING VS IDENTITY","textChars":23,"textLines":1,"bbox":[52.8,26.88,172.8,24]}
+{"kind":"textbox","id":"sh/4j25wf2l","slide":15,"name":"Google Shape;436;p15","text":"從短期 track id 升級為可保存、可找回的 GID 身份","textPreview":"從短期 track id 升級為可保存、可找回的 GID 身份","textChars":31,"textLines":1,"bbox":[52.8,61.44,940.79,45.89]}
+{"kind":"shape","id":"sh/pkbm5036","slide":15,"name":"Google Shape;437;p15","bbox":[892.8,36.48,115.2,3.36]}
+{"kind":"shape","id":"sh/q5kny5kr","slide":15,"name":"Google Shape;438;p15","bbox":[936,45.12,129.6,3.36]}
+{"kind":"shape","id":"sh/r6t47alc","slide":15,"name":"Google Shape;439;p15","bbox":[984,53.76,110.4,3.36]}
+{"kind":"shape","id":"sh/zq5cv694","slide":15,"name":"Google Shape;440;p15","bbox":[1029.12,62.4,96,3.36]}
+{"kind":"shape","id":"sh/epwv2l8j","slide":15,"name":"Google Shape;441;p15","bbox":[67.2,148.8,552,211.2]}
+{"kind":"textbox","id":"sh/1s7uxgra","slide":15,"name":"Google Shape;442;p15","text":"Detector + Tracker","textPreview":"Detector + Tracker","textChars":18,"textLines":1,"bbox":[184.46,183.32,336,36.19]}
+{"kind":"textbox","id":"sh/0red4bqp","slide":15,"name":"Google Shape;443;p15","text":"偵測車輛與 bbox 位置\n以 LID 維持當前片段 continuity\n適合短期追蹤，不保存長期身份","textPreview":"偵測車輛與 bbox 位置 | 以 LID 維持當前片段 continuity | 適合短期追蹤，不保存長期身份","textChars":52,"textLines":3,"bbox":[131.66,235.16,480,86.3]}
+{"kind":"shape","id":"sh/nepwzq9g","slide":15,"name":"Google Shape;444;p15","bbox":[657.6,148.8,552,211.2]}
+{"kind":"textbox","id":"sh/mtgv6l8v","slide":15,"name":"Google Shape;445;p15","text":"Tracker + GID / ReID","textPreview":"Tracker + GID / ReID","textChars":20,"textLines":1,"bbox":[779.2,183.32,336,36.19]}
+{"kind":"textbox","id":"sh/9g7e10r6","slide":15,"name":"Google Shape;446;p15","text":"Detector 找候選，ReID 比對身份\nGID 與 SQLite 保存長期身份\ncoasting、search 與 reacquire 負責找回","textPreview":"Detector 找候選，ReID 比對身份 | GID 與 SQLite 保存長期身份 | coasting、search 與 reacquire 負責找回","textChars":75,"textLines":3,"bbox":[726.4,235.16,480,86.3]}
+{"kind":"shape","id":"sh/ofyd8vq1","slide":15,"name":"Google Shape;447;p15","bbox":[69.12,388.8,1142.4,244.8]}
+{"kind":"shape","id":"sh/3ilcnm9w","slide":15,"name":"Google Shape;448;p15","bbox":[69.12,388.8,340.8,46.08]}
+{"kind":"textbox","id":"sh/2xcvu18b","slide":15,"name":"Google Shape;449;p15","text":"評估項目","textPreview":"評估項目","textChars":4,"textLines":1,"bbox":[80.64,402.24,317.76,17.28]}
+{"kind":"shape","id":"sh/s3a94n69","slide":15,"name":"Google Shape;450;p15","bbox":[409.92,388.8,379.2,46.08]}
+{"kind":"textbox","id":"sh/tojaxs7u","slide":15,"name":"Google Shape;451;p15","text":"只有 Detector / Tracker","textPreview":"只有 Detector / Tracker","textChars":21,"textLines":1,"bbox":[421.44,402.24,356.16,23.04]}
+{"kind":"shape","id":"sh/61sr2xo3","slide":15,"name":"Google Shape;452;p15","bbox":[789.12,388.8,422.4,46.08]}
+{"kind":"textbox","id":"sh/721sv2po","slide":15,"name":"Google Shape;453;p15","text":"GID / ReID Identity Pipeline","textPreview":"GID / ReID Identity Pipeline","textChars":28,"textLines":1,"bbox":[800.64,402.24,399.36,23.04]}
+{"kind":"shape","id":"sh/kzq90n6d","slide":15,"name":"Google Shape;454;p15","bbox":[69.12,434.88,340.8,49.68]}
+{"kind":"textbox","id":"sh/50zats7y","slide":15,"name":"Google Shape;455;p15","text":"遮擋後找回同一台車","textPreview":"遮擋後找回同一台車","textChars":9,"textLines":1,"bbox":[78.72,449.28,321.6,28.56]}
+{"kind":"shape","id":"sh/ix8rydo7","slide":15,"name":"Google Shape;456;p15","bbox":[409.92,434.88,379.2,49.68]}
+{"kind":"textbox","id":"sh/jyhsrips","slide":15,"name":"Google Shape;457;p15","text":"依 tracker continuity","textPreview":"依 tracker continuity","textChars":20,"textLines":1,"bbox":[419.52,449.28,360,28.56]}
+{"kind":"shape","id":"sh/4vutc76h","slide":15,"name":"Google Shape;458;p15","bbox":[789.12,434.88,422.4,49.68]}
+{"kind":"textbox","id":"sh/pw3a5c72","slide":15,"name":"Google Shape;459;p15","text":"Reacquire / Find GID","textPreview":"Reacquire / Find GID","textChars":20,"textLines":1,"bbox":[798.72,449.28,403.2,28.56]}
+{"kind":"shape","id":"sh/dczapcz6","slide":15,"name":"Google Shape;460;p15","bbox":[69.12,484.56,340.8,49.68]}
+{"kind":"textbox","id":"sh/cbq9g7yl","slide":15,"name":"Google Shape;461;p15","text":"ID 穩定性","textPreview":"ID 穩定性","textChars":6,"textLines":1,"bbox":[78.72,498.96,321.6,28.56]}
+{"kind":"shape","id":"sh/bahsn2h0","slide":15,"name":"Google Shape;462;p15","bbox":[409.92,484.56,379.2,49.68]}
+{"kind":"textbox","id":"sh/q98ruxgf","slide":15,"name":"Google Shape;463;p15","text":"只在單段內有效","textPreview":"只在單段內有效","textChars":7,"textLines":1,"bbox":[419.52,498.96,360,28.56]}
+{"kind":"shape","id":"sh/pozalcza","slide":15,"name":"Google Shape;464;p15","bbox":[789.12,484.56,422.4,49.68]}
+{"kind":"textbox","id":"sh/onq9s7yp","slide":15,"name":"Google Shape;465;p15","text":"GID 跨片段保存","textPreview":"GID 跨片段保存","textChars":9,"textLines":1,"bbox":[798.72,498.96,403.2,28.56]}
+{"kind":"shape","id":"sh/3mxsj2h4","slide":15,"name":"Google Shape;466;p15","bbox":[69.12,534.24,340.8,49.68]}
+{"kind":"textbox","id":"sh/2lorqxgj","slide":15,"name":"Google Shape;467;p15","text":"錯追風險","textPreview":"錯追風險","textChars":4,"textLines":1,"bbox":[78.72,548.64,321.6,28.56]}
+{"kind":"shape","id":"sh/1kfahszy","slide":15,"name":"Google Shape;468;p15","bbox":[409.92,534.24,379.2,49.68]}
+{"kind":"textbox","id":"sh/gj69onyd","slide":15,"name":"Google Shape;469;p15","text":"密集、遮擋時易切換","textPreview":"密集、遮擋時易切換","textChars":9,"textLines":1,"bbox":[419.52,548.64,360,28.56]}
+{"kind":"shape","id":"sh/6p47itwb","slide":15,"name":"Google Shape;470;p15","bbox":[789.12,534.24,422.4,49.68]}
+{"kind":"textbox","id":"sh/rqdoryxw","slide":15,"name":"Google Shape;471;p15","text":"class + quality + ReID gates","textPreview":"class + quality + ReID gates","textChars":28,"textLines":1,"bbox":[798.72,548.64,403.2,28.56]}
+{"kind":"shape","id":"sh/srmpk3eh","slide":15,"name":"Google Shape;472;p15","bbox":[69.12,583.92,340.8,49.68]}
+{"kind":"textbox","id":"sh/tsv6t8f2","slide":15,"name":"Google Shape;473;p15","text":"跨片段辨識","textPreview":"跨片段辨識","textChars":5,"textLines":1,"bbox":[78.72,598.32,321.6,28.56]}
+{"kind":"shape","id":"sh/ilk7etwf","slide":15,"name":"Google Shape;474;p15","bbox":[409.92,583.92,379.2,49.68]}
+{"kind":"textbox","id":"sh/jmtonexk","slide":15,"name":"Google Shape;475;p15","text":"不保存身份","textPreview":"不保存身份","textChars":5,"textLines":1,"bbox":[419.52,598.32,360,28.56]}
+{"kind":"shape","id":"sh/4n2pgje5","slide":15,"name":"Google Shape;476;p15","bbox":[789.12,583.92,422.4,49.68]}
+{"kind":"textbox","id":"sh/5ov6pofq","slide":15,"name":"Google Shape;477;p15","text":"SQLite + Feature Gallery","textPreview":"SQLite + Feature Gallery","textChars":24,"textLines":1,"bbox":[798.72,598.32,403.2,28.56]}
+{"kind":"textbox","id":"sh/uxk7a9w3","slide":15,"name":"Google Shape;478;p15","text":"V2.3 架構依據：Detector Backend、Tracker Adapter、GID / ReID、Feature Gallery；結果以同資料集 replay 或 Benchmark Center 驗證。","textPreview":"V2.3 架構依據：Detector Backend、Tracker Adapter、GID / ReID、Feature Gallery；結果以同資料集 replay 或 Benchmark Center 驗證。","textChars":107,"textLines":1,"bbox":[69.12,650.88,1142.4,21.12]}
+{"kind":"image","id":"im/mxcj6d87","slide":15,"name":"Google Shape;479;p15","bbox":[127.68,174.68,48,48]}
+{"kind":"image","id":"im/a9srqhc7","slide":15,"name":"Google Shape;480;p15","bbox":[726.4,174.68,48,48]}
+{"kind":"notes","id":"nt/vaxsvy10","slide":15,"text":"這頁要誠實說明：目前是工程估算與測試目標，正式數字要由 demo 影片標註、統計 ID switch、reacquire success、tracking lost ratio 後確認。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/gny5sjyp","slide":16,"title":"14 CONTROL DATA FLOW","textShapes":31}
+{"kind":"shape","id":"sh/c7yl8vyd","slide":16,"name":"Google Shape;486;p16","bbox":[278.39,156.8,432,296]}
+{"kind":"textbox","id":"sh/x87210fy","slide":16,"name":"Google Shape;487;p16","text":"14 CONTROL DATA FLOW","textPreview":"14 CONTROL DATA FLOW","textChars":20,"textLines":1,"bbox":[48,27.2,256,22.39]}
+{"kind":"textbox","id":"sh/y9g3algj","slide":16,"name":"Google Shape;488;p16","text":"V2.3 控制閉環：Desktop 決策、iOS 執行","textPreview":"V2.3 控制閉環：Desktop 決策、iOS 執行","textChars":27,"textLines":1,"bbox":[48,54.4,783.97,56]}
+{"kind":"textbox","id":"sh/zupk3qx4","slide":16,"name":"Google Shape;489;p16","text":"影像、身份、構圖、控制與硬體執行分層處理；每一層都有清楚的資料契約與停止條件。","textPreview":"影像、身份、構圖、控制與硬體執行分層處理；每一層都有清楚的資料契約與停止條件。","textChars":39,"textLines":1,"bbox":[49.6,113.6,991.97,28.79]}
+{"kind":"shape","id":"sh/9obm94z6","slide":16,"name":"Google Shape;490;p16","bbox":[43.2,156.8,216,296]}
+{"kind":"textbox","id":"sh/83250zil","slide":16,"name":"Google Shape;491;p16","text":"iOS Camera Source","textPreview":"iOS Camera Source","textChars":17,"textLines":1,"bbox":[59.2,171.2,184,38.39]}
+{"kind":"textbox","id":"sh/72947uh0","slide":16,"name":"Google Shape;492;p16","text":"Desktop Vision + Identity","textPreview":"Desktop Vision + Identity","textChars":25,"textLines":1,"bbox":[294.39,171.2,392,38.39]}
+{"kind":"shape","id":"sh/m10nyp0f","slide":16,"name":"Google Shape;493;p16","bbox":[729.58,156.8,216,296]}
+{"kind":"textbox","id":"sh/hsb6x4z2","slide":16,"name":"Google Shape;494;p16","text":"Desktop Framing + Policy","textPreview":"Desktop Framing + Policy","textChars":24,"textLines":1,"bbox":[738.63,171.2,199.34,38.39]}
+{"kind":"shape","id":"sh/wr254zix","slide":16,"name":"Google Shape;495;p16","bbox":[964.77,156.8,272,296]}
+{"kind":"textbox","id":"sh/vqt4buhc","slide":16,"name":"Google Shape;496;p16","text":"iOS Safety + DockKit","textPreview":"iOS Safety + DockKit","textChars":20,"textLines":1,"bbox":[979.97,171.2,240,33.61]}
+{"kind":"shape","id":"sh/upkn2p0r","slide":16,"name":"Google Shape;497;p16","bbox":[67.2,249.6,167.97,158.93]}
+{"kind":"textbox","id":"sh/5wv61oze","slide":16,"name":"Google Shape;498;p16","text":"1","textPreview":"1","textChars":1,"textLines":1,"bbox":[80,268.8,33.61,33.61]}
+{"kind":"textbox","id":"sh/4vm58jit","slide":16,"name":"Google Shape;499;p16","text":"相機影像","textPreview":"相機影像","textChars":4,"textLines":1,"bbox":[121.6,267.2,102.39,38.39]}
+{"kind":"textbox","id":"sh/zqd4jq9w","slide":16,"name":"Google Shape;500;p16","text":"JPEG\nframe_id / time\ngeometry","textPreview":"JPEG | frame_id / time | geometry","textChars":29,"textLines":3,"bbox":[79.98,309.06,141.29,72]}
+{"kind":"shape","id":"sh/y543ql8b","slide":16,"name":"Google Shape;501;p16","bbox":[302.39,249.6,184,185.64]}
+{"kind":"textbox","id":"sh/lsfml0r2","slide":16,"name":"Google Shape;502;p16","text":"2","textPreview":"2","textChars":1,"textLines":1,"bbox":[315.19,268.8,38.39,38.39]}
+{"kind":"textbox","id":"sh/0rm5svqh","slide":16,"name":"Google Shape;503;p16","text":"偵測與追蹤","textPreview":"偵測與追蹤","textChars":5,"textLines":1,"bbox":[366.39,267.2,105.61,38.39]}
+{"kind":"textbox","id":"sh/nux4nq98","slide":16,"name":"Google Shape;504;p16","text":"YOLO26 bbox\nLID / confidence","textPreview":"YOLO26 bbox | LID / confidence","textChars":28,"textLines":2,"bbox":[311.97,315.21,177.61,72]}
+{"kind":"shape","id":"sh/mtonul8n","slide":16,"name":"Google Shape;505;p16","bbox":[502.39,249.6,184,185.64]}
+{"kind":"textbox","id":"sh/9wfmp0ry","slide":16,"name":"Google Shape;506;p16","text":"3","textPreview":"3","textChars":1,"textLines":1,"bbox":[515.19,268.8,38.39,38.39]}
+{"kind":"textbox","id":"sh/8v65wvqd","slide":16,"name":"Google Shape;507;p16","text":"身份與構圖","textPreview":"身份與構圖","textChars":5,"textLines":1,"bbox":[566.38,267.2,105.61,38.39]}
+{"kind":"textbox","id":"sh/vyx4ra94","slide":16,"name":"Google Shape;508;p16","text":"GID / ReID\nanchor / lead room\nzoom target","textPreview":"GID / ReID | anchor / lead room | zoom target","textChars":41,"textLines":3,"bbox":[506.52,318.4,194.14,72]}
+{"kind":"shape","id":"sh/axony58j","slide":16,"name":"Google Shape;509;p16","bbox":[753.58,249.6,167.97,185.64]}
+{"kind":"textbox","id":"sh/s3qlof6x","slide":16,"name":"Google Shape;510;p16","text":"4","textPreview":"4","textChars":1,"textLines":1,"bbox":[766.38,268.8,33.61,33.61]}
+{"kind":"textbox","id":"sh/tozmhkn2","slide":16,"name":"Google Shape;511;p16","text":"控制 Policy","textPreview":"控制 Policy","textChars":9,"textLines":1,"bbox":[807.98,267.2,123.81,46.43]}
+{"kind":"textbox","id":"sh/6183m5or","slide":16,"name":"Google Shape;512;p16","text":"dead zone\nhysteresis / limits","textPreview":"dead zone | hysteresis / limits","textChars":29,"textLines":2,"bbox":[761.34,324,184,72]}
+{"kind":"shape","id":"sh/72h4fa5c","slide":16,"name":"Google Shape;513;p16","bbox":[991.97,212.8,216,112]}
+{"kind":"textbox","id":"sh/kzqlkv6l","slide":16,"name":"Google Shape;514;p16","text":"5","textPreview":"5","textChars":1,"textLines":1,"bbox":[1004.77,228.42,38.39,38.39]}
+{"kind":"textbox","id":"sh/50zmd0n6","slide":16,"name":"Google Shape;515;p16","text":"1.0 Contract","textPreview":"1.0 Contract","textChars":12,"textLines":1,"bbox":[1055.97,227.71,137.61,38.39]}
+{"kind":"textbox","id":"sh/ixo3i5of","slide":16,"name":"Google Shape;516;p16","text":"sequence / error\nconfidence / zoom / state","textPreview":"sequence / error | confidence / zoom / state","textChars":42,"textLines":2,"bbox":[1008.7,267.37,212.06,46.43]}
+{"kind":"shape","id":"sh/jyxkbap0","slide":16,"name":"Google Shape;517;p16","bbox":[991.97,345.6,216,100.82]}
+{"kind":"textbox","id":"sh/wv6lgv6p","slide":16,"name":"Google Shape;518;p16","text":"6","textPreview":"6","textChars":1,"textLines":1,"bbox":[1004.77,360.32,38.39,38.39]}
+{"kind":"textbox","id":"sh/xwf2907a","slide":16,"name":"Google Shape;519;p16","text":"安全執行","textPreview":"安全執行","textChars":4,"textLines":1,"bbox":[1062.24,359.62,137.61,38.39]}
+{"kind":"textbox","id":"sh/dgnaxsvm","slide":16,"name":"Google Shape;520;p16","text":"timeout → STOP","textPreview":"timeout → STOP","textChars":14,"textLines":1,"bbox":[1018.64,392.9,194.14,28.79]}
+{"kind":"shape","id":"sh/u1w7u9gv","slide":16,"name":"Google Shape;521;p16","bbox":[235.17,329.07,67.21,13.35]}
+{"kind":"shape","id":"sh/v25o3ehg","slide":16,"name":"Google Shape;522;p16","bbox":[486.39,342.42,16,0]}
+{"kind":"shape","id":"sh/g3epwjyl","slide":16,"name":"Google Shape;523;p16","bbox":[686.39,342.42,67.18,0]}
+{"kind":"shape","id":"sh/h4765oz6","slide":16,"name":"Google Shape;524;p16","bbox":[921.55,268.81,70.43,73.61]}
+{"kind":"shape","id":"sh/i5g7ytgr","slide":16,"name":"Google Shape;525;p16","bbox":[1099.97,324.8,0,20.79]}
+{"kind":"shape","id":"sh/3alsridk","slide":16,"name":"Google Shape;526;p16","bbox":[67.2,475.2,560,190.43]}
+{"kind":"textbox","id":"sh/2pcridcz","slide":16,"name":"Google Shape;527;p16","text":"Desktop 下行命令的資料重點","textPreview":"Desktop 下行命令的資料重點","textChars":17,"textLines":1,"bbox":[81.6,499.2,505.57,33.61]}
+{"kind":"textbox","id":"sh/987a5cvu","slide":16,"name":"Google Shape;528;p16","text":"• state：tracking / coasting / searching / lost\n• error、confidence、selected GID、predicted\n• zoom、sequence 與 timestamp\n• policy：dead zone / hysteresis / rate limits","textPreview":"• state：tracking / coasting / searching / lost | • error、confidence、selected GID、predicted | • zoom、sequence 與 timestamp | • policy：dead ...","textChars":162,"textLines":4,"bbox":[125.62,539.97,486.39,100.82]}
+{"kind":"shape","id":"sh/87ytw7u9","slide":16,"name":"Google Shape;529;p16","bbox":[652.78,475.2,560,190.43]}
+{"kind":"textbox","id":"sh/6ts7q9sr","slide":16,"name":"Google Shape;530;p16","text":"iOS 的第二層安全與執行","textPreview":"iOS 的第二層安全與執行","textChars":13,"textLines":1,"bbox":[679.99,499.2,505.57,33.61]}
+{"kind":"textbox","id":"sh/7u18zetc","slide":16,"name":"Google Shape;531;p16","text":"• 驗證 sequence、lock 與 500 ms timeout\n• smoothing、rate 與 edge limits\n• DockKit：yaw / pitch / roll / Home\n• iPhone camera 套用實體 zoom","textPreview":"• 驗證 sequence、lock 與 500 ms timeout | • smoothing、rate 與 edge limits | • DockKit：yaw / pitch / roll / Home | • iPhone camera 套用實體 zoom","textChars":128,"textLines":4,"bbox":[711.98,547.78,486.39,100.82]}
+{"kind":"shape","id":"sh/2t47e9wz","slide":16,"name":"Google Shape;532;p16","bbox":[955.17,171.2,0,270.43]}
+{"kind":"textbox","id":"sh/tgjq1obi","slide":16,"name":"Google Shape;533;p16","text":"Desktop policy 與 iOS device safety 形成雙層保護；任一層判定資料失效，就停止馬達命令。","textPreview":"Desktop policy 與 iOS device safety 形成雙層保護；任一層判定資料失效，就停止馬達命令。","textChars":60,"textLines":1,"bbox":[65.6,680,1023.97,25.61]}
+{"kind":"textbox","id":"sh/ip87mpsv","slide":16,"name":"Google Shape;534;p16","text":"AI Vision Director Desktop V2.3","textPreview":"AI Vision Director Desktop V2.3","textChars":31,"textLines":1,"bbox":[1094.37,680,126.39,22.39]}
+{"kind":"notes","id":"nt/gny5sjyp","slide":16,"text":"[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/14bup87q","slide":17,"title":"15 DUAL-LAYER CONTROL","textShapes":23}
+{"kind":"shape","id":"sh/6d0v6tsr","slide":17,"name":"Google Shape;540;p17","bbox":[661.98,188,560,434.02]}
+{"kind":"shape","id":"sh/7e9wzy9w","slide":17,"name":"Google Shape;541;p17","bbox":[58,188,560,434.02]}
+{"kind":"textbox","id":"sh/8zix83ah","slide":17,"name":"Google Shape;542;p17","text":"15 DUAL-LAYER CONTROL","textPreview":"15 DUAL-LAYER CONTROL","textChars":21,"textLines":1,"bbox":[58,38,400,22.02]}
+{"kind":"textbox","id":"sh/t0re18r2","slide":17,"name":"Google Shape;543;p17","text":"雙層控制：Desktop 先決策，iOS 再安全限幅","textPreview":"雙層控制：Desktop 先決策，iOS 再安全限幅","textChars":26,"textLines":1,"bbox":[58,76,979.97,58.02]}
+{"kind":"textbox","id":"sh/y9gv2tsf","slide":17,"name":"Google Shape;544;p17","text":"Desktop policy 產生受限命令；iOS 依裝置狀態、邊界與 timeout 決定是否執行。","textPreview":"Desktop policy 產生受限命令；iOS 依裝置狀態、邊界與 timeout 決定是否執行。","textChars":51,"textLines":1,"bbox":[60,139,979.97,26.02]}
+{"kind":"shape","id":"sh/za9wve90","slide":17,"name":"Google Shape;545;p17","bbox":[926.98,39,140,4]}
+{"kind":"shape","id":"sh/kbid4jal","slide":17,"name":"Google Shape;546;p17","bbox":[974.97,51,140,4]}
+{"kind":"shape","id":"sh/lcrexor6","slide":17,"name":"Google Shape;547;p17","bbox":[1021.97,63,140,4]}
+{"kind":"shape","id":"sh/a5gvy9sj","slide":17,"name":"Google Shape;548;p17","bbox":[1069.97,75,140,4]}
+{"kind":"shape","id":"sh/b6pwre94","slide":17,"name":"Google Shape;549;p17","bbox":[1115.97,87,140,4]}
+{"kind":"textbox","id":"sh/d0vyxcbm","slide":17,"name":"Google Shape;550;p17","text":"AI Vision Director Desktop V2.3","textPreview":"AI Vision Director Desktop V2.3","textChars":31,"textLines":1,"bbox":[1097.97,686,138.02,16]}
+{"kind":"textbox","id":"sh/szmh47u1","slide":17,"name":"Google Shape;551;p17","text":"1. Desktop：Camera Control Policy","textPreview":"1. Desktop：Camera Control Policy","textChars":32,"textLines":1,"bbox":[86,214,390.02,28]}
+{"kind":"textbox","id":"sh/rydgv2tg","slide":17,"name":"Google Shape;552;p17","text":"framing error → dead zone / hysteresis → rate limits","textPreview":"framing error → dead zone / hysteresis → rate limits","textChars":52,"textLines":1,"bbox":[86,248,470.02,24]}
+{"kind":"shape","id":"sh/qx4z2hcv","slide":17,"name":"Google Shape;553;p17","bbox":[97.26,296.02,221.07,215.37]}
+{"kind":"shape","id":"sh/5wvytcba","slide":17,"name":"Google Shape;554;p17","bbox":[123.22,300,1.01,198.02]}
+{"kind":"shape","id":"sh/4vmh07up","slide":17,"name":"Google Shape;555;p17","bbox":[175.22,300,1.01,198.02]}
+{"kind":"shape","id":"sh/3udgr2t4","slide":17,"name":"Google Shape;556;p17","bbox":[227.22,300,1.01,198.02]}
+{"kind":"shape","id":"sh/it4zyxcz","slide":17,"name":"Google Shape;557;p17","bbox":[279.22,300,1.01,198.02]}
+{"kind":"shape","id":"sh/h8bypsbe","slide":17,"name":"Google Shape;558;p17","bbox":[71.22,349.5,260,1.01]}
+{"kind":"shape","id":"sh/g72hwnut","slide":17,"name":"Google Shape;559;p17","bbox":[71.22,399,260,1.01]}
+{"kind":"shape","id":"sh/8b6hcn2p","slide":17,"name":"Google Shape;560;p17","bbox":[71.22,448.5,260,1.01]}
+{"kind":"shape","id":"sh/9cfi5sja","slide":17,"name":"Google Shape;561;p17","bbox":[183.22,399,36,2.02]}
+{"kind":"shape","id":"sh/m9ozaxkj","slide":17,"name":"Google Shape;562;p17","bbox":[201.22,381,2.02,36]}
+{"kind":"shape","id":"sh/7axg3214","slide":17,"name":"Google Shape;563;p17","bbox":[149.22,350,104,82.02]}
+{"kind":"textbox","id":"sh/kn6h8n2d","slide":17,"name":"Google Shape;564;p17","text":"Desktop Policy","textPreview":"Desktop Policy","textChars":14,"textLines":1,"bbox":[141.72,311,120,36]}
+{"kind":"shape","id":"sh/l8fy1sjy","slide":17,"name":"Google Shape;565;p17","bbox":[225.22,391,14.02,14.02]}
+{"kind":"textbox","id":"sh/yl4z6dkn","slide":17,"name":"Google Shape;566;p17","text":"Target","textPreview":"Target","textChars":6,"textLines":1,"bbox":[246.12,383.25,73.1,26.02]}
+{"kind":"textbox","id":"sh/zmdgzi1s","slide":17,"name":"Google Shape;567;p17","text":"中心附近不動\n不讓微小 bbox 抖動變成馬達動作","textPreview":"中心附近不動 | 不讓微小 bbox 抖動變成馬達動作","textChars":25,"textLines":2,"bbox":[135.22,442,136,36]}
+{"kind":"shape","id":"sh/4jqhk72x","slide":17,"name":"Google Shape;568;p17","bbox":[96,534,480,44]}
+{"kind":"textbox","id":"sh/54zidcji","slide":17,"name":"Google Shape;569;p17","text":"身份不確定或失追時，Desktop 凍結／限制輸出。","textPreview":"身份不確定或失追時，Desktop 凍結／限制輸出。","textChars":26,"textLines":1,"bbox":[89.8,541.89,501.04,18.02]}
+{"kind":"textbox","id":"sh/fylkjqlk","slide":17,"name":"Google Shape;570;p17","text":"2. iOS：裝置安全 + DockKit","textPreview":"2. iOS：裝置安全 + DockKit","textChars":21,"textLines":1,"bbox":[689.98,214,420,28]}
+{"kind":"textbox","id":"sh/edcjal4z","slide":17,"name":"Google Shape;571;p17","text":"sequence / lock / timeout → smoothing / edge limits","textPreview":"sequence / lock / timeout → smoothing / edge limits","textChars":51,"textLines":1,"bbox":[689.98,248,470.02,24]}
+{"kind":"shape","id":"sh/1032lg3q","slide":17,"name":"Google Shape;572;p17","bbox":[695.98,298,250.02,198.02]}
+{"kind":"shape","id":"sh/gzulcbm5","slide":17,"name":"Google Shape;573;p17","bbox":[745.98,298,1.01,198.02]}
+{"kind":"shape","id":"sh/32lknqlg","slide":17,"name":"Google Shape;574;p17","bbox":[795.98,298,1.01,198.02]}
+{"kind":"shape","id":"sh/21c3el4v","slide":17,"name":"Google Shape;575;p17","bbox":[845.98,298,1.01,198.02]}
+{"kind":"shape","id":"sh/p432p03m","slide":17,"name":"Google Shape;576;p17","bbox":[895.98,298,1.01,198.02]}
+{"kind":"shape","id":"sh/o3ulgvm1","slide":17,"name":"Google Shape;577;p17","bbox":[695.98,347.5,250.02,1.01]}
+{"kind":"shape","id":"sh/j61kbmlc","slide":17,"name":"Google Shape;578;p17","bbox":[695.98,397,250.02,1.01]}
+{"kind":"shape","id":"sh/i58j214r","slide":17,"name":"Google Shape;579;p17","bbox":[695.98,446.5,250.02,1.01]}
+{"kind":"shape","id":"sh/6xorm58r","slide":17,"name":"Google Shape;580;p17","bbox":[802.98,397,36,2.02]}
+{"kind":"shape","id":"sh/7yxsfa9c","slide":17,"name":"Google Shape;581;p17","bbox":[820.98,379,2.02,36]}
+{"kind":"shape","id":"sh/8j69ofqx","slide":17,"name":"Google Shape;582;p17","bbox":[859.98,351,16,16]}
+{"kind":"textbox","id":"sh/tkfahkri","slide":17,"name":"Google Shape;583;p17","text":"Target","textPreview":"Target","textChars":6,"textLines":1,"bbox":[831.43,310,73.1,28]}
+{"kind":"shape","id":"sh/ul8rqp8n","slide":17,"name":"Google Shape;584;p17","bbox":[820.98,397,44,2.99]}
+{"kind":"shape","id":"sh/vmhsja98","slide":17,"name":"Google Shape;585;p17","bbox":[864.98,361,2.99,38.02]}
+{"kind":"textbox","id":"sh/gnqtcfqt","slide":17,"name":"Google Shape;586;p17","text":"error_x","textPreview":"error_x","textChars":7,"textLines":1,"bbox":[820.98,406,87.5,44]}
+{"kind":"textbox","id":"sh/hozalkre","slide":17,"name":"Google Shape;587;p17","text":"error_y","textPreview":"error_y","textChars":7,"textLines":1,"bbox":[866.06,366,92.85,44]}
+{"kind":"textbox","id":"sh/ap4rel8j","slide":17,"name":"Google Shape;588;p17","text":"→","textPreview":"→","textChars":1,"textLines":1,"bbox":[958.98,374,30.02,28]}
+{"kind":"shape","id":"sh/bqds7q94","slide":17,"name":"Google Shape;589;p17","bbox":[1001.97,299.99,198.02,81.23]}
+{"kind":"textbox","id":"sh/dk3udobm","slide":17,"name":"Google Shape;590;p17","text":"yaw","textPreview":"yaw","textChars":3,"textLines":1,"bbox":[1024.82,305.46,152.35,22.87]}
+{"kind":"textbox","id":"sh/sjadkja1","slide":17,"name":"Google Shape;591;p17","text":"error_x × gain","textPreview":"error_x × gain","textChars":14,"textLines":1,"bbox":[1024.82,338.47,152.35,17.8]}
+{"kind":"shape","id":"sh/ri1cbetg","slide":17,"name":"Google Shape;592;p17","bbox":[1001.97,416.77,198.02,81.23]}
+{"kind":"textbox","id":"sh/qhsvi9sv","slide":17,"name":"Google Shape;593;p17","text":"pitch","textPreview":"pitch","textChars":5,"textLines":1,"bbox":[1024.82,424.31,152.35,22.87]}
+{"kind":"textbox","id":"sh/1o3uh8by","slide":17,"name":"Google Shape;594;p17","text":"−error_y × gain","textPreview":"−error_y × gain","textChars":15,"textLines":1,"bbox":[1014.67,456.05,172.63,20.31]}
+{"kind":"textbox","id":"sh/0nudo3ad","slide":17,"name":"Google Shape;595;p17","text":"DockKit velocity","textPreview":"DockKit velocity","textChars":16,"textLines":1,"bbox":[1081.97,542,110.02,18.02]}
+{"kind":"shape","id":"sh/fmlcfyts","slide":17,"name":"Google Shape;596;p17","bbox":[699.98,534,480,44]}
+{"kind":"textbox","id":"sh/elcvmts7","slide":17,"name":"Google Shape;597;p17","text":"近邊界降速；異常狀態 → STOP。","textPreview":"近邊界降速；異常狀態 → STOP。","textChars":18,"textLines":1,"bbox":[722.05,539.77,440,16]}
+{"kind":"shape","id":"sh/hszu54be","slide":17,"name":"Google Shape;598;p17","bbox":[268,646,743.97,38.02]}
+{"kind":"textbox","id":"sh/grqdczat","slide":17,"name":"Google Shape;599;p17","text":"雙層原則：Desktop 負責拍攝意圖與控制政策，iOS 負責裝置安全與 DockKit 執行。","textPreview":"雙層原則：Desktop 負責拍攝意圖與控制政策，iOS 負責裝置安全與 DockKit 執行。","textChars":48,"textLines":1,"bbox":[258.47,650.22,773.35,22.87]}
+{"kind":"image","id":"im/47q5knul","slide":17,"name":"Google Shape;600;p17","bbox":[362.1,290.83,215.95,224.35]}
+{"kind":"notes","id":"nt/14bup87q","slide":17,"text":"[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/y5wne50z","slide":18,"title":"16 STATE & SAFETY","textShapes":13}
+{"kind":"shape","id":"sh/q1472d8n","slide":18,"name":"Google Shape;606;p18","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/r2dovi98","slide":18,"name":"Google Shape;607;p18","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/4zmp03qh","slide":18,"name":"Google Shape;608;p18","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/50v6t8r2","slide":18,"name":"Google Shape;609;p18","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/7at83yt4","slide":18,"name":"Google Shape;610;p18","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/69k7atsj","slide":18,"name":"Google Shape;611;p18","text":"16 STATE & SAFETY","textPreview":"16 STATE & SAFETY","textChars":17,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/tcbq58bu","slide":18,"name":"Google Shape;612;p18","text":"追蹤狀態與安全閘：短失追可預測，連線異常立即停止","textPreview":"追蹤狀態與安全閘：短失追可預測，連線異常立即停止","textChars":24,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"textbox","id":"sh/8b29c3a9","slide":18,"name":"Google Shape;613;p18","text":"Tracking","textPreview":"Tracking","textChars":8,"textLines":1,"bbox":[91.2,271.68,259.21,52.79]}
+{"kind":"textbox","id":"sh/vyt87it0","slide":18,"name":"Google Shape;614;p18","text":"目標鎖定時持續輸出構圖與控制命令\nGID 維持指定車輛身份","textPreview":"目標鎖定時持續輸出構圖與控制命令 | GID 維持指定車輛身份","textChars":29,"textLines":2,"bbox":[78.35,330.21,284.91,37.01]}
+{"kind":"textbox","id":"sh/udkredsf","slide":18,"name":"Google Shape;615;p18","text":"Coasting","textPreview":"Coasting","textChars":8,"textLines":1,"bbox":[384,271.68,259.21,52.79]}
+{"kind":"textbox","id":"sh/h0vq98b6","slide":18,"name":"Google Shape;616;p18","text":"短暫漏檢時保留 identity 並預測位置\n不安全或靠近邊界時停止 coasting","textPreview":"短暫漏檢時保留 identity 並預測位置 | 不安全或靠近邊界時停止 coasting","textChars":43,"textLines":2,"bbox":[370.3,330.21,289.67,26.87]}
+{"kind":"textbox","id":"sh/gzm9gnal","slide":18,"name":"Google Shape;617;p18","text":"500 ms","textPreview":"500 ms","textChars":6,"textLines":1,"bbox":[676.8,271.68,259.21,52.79]}
+{"kind":"textbox","id":"sh/32d8bitw","slide":18,"name":"Google Shape;618;p18","text":"iOS tracking timeout\n逾時、倒序、無效 JSON 或 target lost → STOP","textPreview":"iOS tracking timeout | 逾時、倒序、無效 JSON 或 target lost → STOP","textChars":55,"textLines":2,"bbox":[667,330.21,300.69,26.87]}
+{"kind":"textbox","id":"sh/i14ridsr","slide":18,"name":"Google Shape;619;p18","text":"4 秒","textPreview":"4 秒","textChars":3,"textLines":1,"bbox":[969.6,271.68,259.21,52.79]}
+{"kind":"textbox","id":"sh/exobahcz","slide":18,"name":"Google Shape;620;p18","text":"Handshake deadline\n成功前不傳資料","textPreview":"Handshake deadline | 成功前不傳資料","textChars":26,"textLines":2,"bbox":[969.6,330.21,259.21,26.87]}
+{"kind":"shape","id":"sh/zyhcjmd4","slide":18,"name":"Google Shape;621;p18","bbox":[110.4,425.28,1056,124.8]}
+{"kind":"textbox","id":"sh/0zqtcrup","slide":18,"name":"Google Shape;622;p18","text":"狀態機、sequence validation、雙層控制限制與 emergency STOP 共同守住硬體安全。","textPreview":"狀態機、sequence validation、雙層控制限制與 emergency STOP 共同守住硬體安全。","textChars":56,"textLines":1,"bbox":[132.51,469.18,1033.89,37.01]}
+{"kind":"textbox","id":"sh/10zulwva","slide":18,"name":"Google Shape;623;p18","text":"依據：AI Vision Director V2.3 README、Camera Control Policy、WebSocket 與 iOS safety implementation。","textPreview":"依據：AI Vision Director V2.3 README、Camera Control Policy、WebSocket 與 iOS safety implementation。","textChars":94,"textLines":1,"bbox":[59.52,675.84,979.2,17.28]}
+{"kind":"textbox","id":"sh/qtob6hcn","slide":18,"name":"Google Shape;624;p18","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"notes","id":"nt/y5wne50z","slide":18,"text":"這頁用數字呈現技術效果，讓觀眾覺得不是只有偵測，而是有處理直播畫面的細節。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/nid43ytk","slide":19,"title":"17 TRACKING RESULT","textShapes":3}
+{"kind":"shape","id":"sh/o3m5s3i9","slide":19,"name":"Google Shape;630;p19","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/94vm18je","slide":19,"name":"Google Shape;631;p19","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/m14nqtk3","slide":19,"name":"Google Shape;632;p19","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/n2d4zy1o","slide":19,"name":"Google Shape;633;p19","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/0z25oj2x","slide":19,"name":"Google Shape;634;p19","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/10bmxoji","slide":19,"name":"Google Shape;635;p19","text":"17 TRACKING RESULT","textPreview":"17 TRACKING RESULT","textChars":18,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/edknmtkr","slide":19,"name":"Google Shape;636;p19","text":"Demo：Desktop + iPhone / DockKit 實際追蹤成果","textPreview":"Demo：Desktop + iPhone / DockKit 實際追蹤成果","textChars":38,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"textbox","id":"sh/fyt4ve1c","slide":19,"name":"Google Shape;637;p19","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"image","id":"im/t0re14fi","slide":19,"name":"Google Shape;638;p19","bbox":[130.83,119.85,1018.31,572.8]}
+{"kind":"notes","id":"nt/nid43ytk","slide":19,"text":"Demo 頁：這裡留給你放圖或影片。建議不要只播影片，要搭配右側流程讓觀眾知道該看什麼。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/zyxsni5k","slide":20,"title":"18 BENCHMARK CENTER","textShapes":24}
+{"kind":"textbox","id":"sh/edkf6pc7","slide":20,"name":"Google Shape;644;p20","text":"18 BENCHMARK CENTER","textPreview":"18 BENCHMARK CENTER","textChars":19,"textLines":1,"bbox":[58,34,420,24]}
+{"kind":"textbox","id":"sh/zetgzudc","slide":20,"name":"Google Shape;645;p20","text":"Benchmark：Quick Auto 與 Verified 如何運作","textPreview":"Benchmark：Quick Auto 與 Verified 如何運作","textChars":36,"textLines":1,"bbox":[58,70,759.97,62.02]}
+{"kind":"shape","id":"sh/0z2x8zux","slide":20,"name":"Google Shape;646;p20","bbox":[857.98,44,220,6.02]}
+{"kind":"shape","id":"sh/10by14vi","slide":20,"name":"Google Shape;647;p20","bbox":[903.98,58,220,6.02]}
+{"kind":"shape","id":"sh/q90f25cv","slide":20,"name":"Google Shape;648;p20","bbox":[949.97,72,220,6.02]}
+{"kind":"shape","id":"sh/ra9wvadg","slide":20,"name":"Google Shape;649;p20","bbox":[995.97,86,220,6.02]}
+{"kind":"shape","id":"sh/t4zi1svy","slide":20,"name":"Google Shape;650;p20","bbox":[1041.97,100,220,6.02]}
+{"kind":"textbox","id":"sh/s3q18ned","slide":20,"name":"Google Shape;651;p20","text":"AI Vision Director Desktop V2.3","textPreview":"AI Vision Director Desktop V2.3","textChars":31,"textLines":1,"bbox":[1097.97,686,138.02,16]}
+{"kind":"shape","id":"sh/72x0zids","slide":20,"name":"Google Shape;652;p20","bbox":[75.31,162.22,268.28,147.56]}
+{"kind":"textbox","id":"sh/61oj6dw7","slide":20,"name":"Google Shape;653;p20","text":"1｜輸入","textPreview":"1｜輸入","textChars":4,"textLines":1,"bbox":[95.44,182.34,268.28,26.8]}
+{"kind":"textbox","id":"sh/50fix8v2","slide":20,"name":"Google Shape;654;p20","text":"影片 + 模型","textPreview":"影片 + 模型","textChars":7,"textLines":1,"bbox":[95.44,215.88,268.28,42.49]}
+{"kind":"textbox","id":"sh/kz6h43eh","slide":20,"name":"Google Shape;655;p20","text":"1–5 組 Detection × ReID","textPreview":"1–5 組 Detection × ReID","textChars":22,"textLines":1,"bbox":[95.44,265.07,268.28,23.46]}
+{"kind":"textbox","id":"sh/jyx0vyxw","slide":20,"name":"Google Shape;656;p20","text":"同一份解碼影格依序執行","textPreview":"同一份解碼影格依序執行","textChars":11,"textLines":1,"bbox":[95.44,287.42,268.28,17.89]}
+{"kind":"shape","id":"sh/ixoz2twb","slide":20,"name":"Google Shape;657;p20","bbox":[363.57,162.22,272.38,147.56]}
+{"kind":"textbox","id":"sh/xwfitofq","slide":20,"name":"Google Shape;658;p20","text":"2｜建立 Gallery","textPreview":"2｜建立 Gallery","textChars":12,"textLines":1,"bbox":[383.7,182.34,268.28,26.8]}
+{"kind":"textbox","id":"sh/wvmh03e5","slide":20,"name":"Google Shape;659;p20","text":"Feature limit 20","textPreview":"Feature limit 20","textChars":16,"textLines":1,"bbox":[383.7,215.88,268.28,42.49]}
+{"kind":"textbox","id":"sh/ofq1g3m1","slide":20,"name":"Google Shape;660;p20","text":"品質 gate + 固定 Gallery","textPreview":"品質 gate + 固定 Gallery","textChars":20,"textLines":1,"bbox":[383.7,261.16,268.28,23.46]}
+{"kind":"textbox","id":"sh/9gzip8nm","slide":20,"name":"Google Shape;661;p20","text":"Enrollment frame 不計分","textPreview":"Enrollment frame 不計分","textChars":20,"textLines":1,"bbox":[383.7,287.42,268.28,17.89]}
+{"kind":"shape","id":"sh/md8jet4v","slide":20,"name":"Google Shape;662;p20","bbox":[653.14,162.22,246.68,147.56]}
+{"kind":"textbox","id":"sh/neh0ny5g","slide":20,"name":"Google Shape;663;p20","text":"3｜正式量測","textPreview":"3｜正式量測","textChars":6,"textLines":1,"bbox":[673.27,182.34,268.28,26.8]}
+{"kind":"textbox","id":"sh/0bq1cjm5","slide":20,"name":"Google Shape;664;p20","text":"預設 3 輪","textPreview":"預設 3 輪","textChars":6,"textLines":1,"bbox":[673.27,215.88,268.28,42.49]}
+{"kind":"textbox","id":"sh/1czilonq","slide":20,"name":"Google Shape;665;p20","text":"逐 Shot / FPS / latency","textPreview":"逐 Shot / FPS / latency","textChars":22,"textLines":1,"bbox":[673.27,265.07,268.28,23.46]}
+{"kind":"textbox","id":"sh/e98zat4z","slide":20,"name":"Google Shape;666;p20","text":"可 Pause / Resume / Stop","textPreview":"可 Pause / Resume / Stop","textChars":23,"textLines":1,"bbox":[673.27,287.42,268.28,17.89]}
+{"kind":"shape","id":"sh/fah0je5k","slide":20,"name":"Google Shape;667;p20","bbox":[924.99,162.22,272.38,147.56]}
+{"kind":"textbox","id":"sh/k7a1onm9","slide":20,"name":"Google Shape;668;p20","text":"4｜輸出","textPreview":"4｜輸出","textChars":4,"textLines":1,"bbox":[945.11,182.34,268.28,26.8]}
+{"kind":"textbox","id":"sh/l83ixs3u","slide":20,"name":"Google Shape;669;p20","text":"Proxy / Verified","textPreview":"Proxy / Verified","textChars":16,"textLines":1,"bbox":[945.11,215.88,268.28,42.49]}
+{"kind":"textbox","id":"sh/v254nmpw","slide":20,"name":"Google Shape;670;p20","text":"進度、ETA、匯入／匯出","textPreview":"進度、ETA、匯入／匯出","textChars":12,"textLines":1,"bbox":[945.11,265.07,268.28,23.46]}
+{"kind":"textbox","id":"sh/u1w3ehob","slide":20,"name":"Google Shape;671;p20","text":"不同 profile 不直接比較","textPreview":"不同 profile 不直接比較","textChars":16,"textLines":1,"bbox":[945.11,287.42,268.28,17.89]}
+{"kind":"shape","id":"sh/h4nmpw72","slide":20,"name":"Google Shape;672;p20","bbox":[70.56,360.37,1145.42,288.13]}
+{"kind":"textbox","id":"sh/g3elgr6h","slide":20,"name":"Google Shape;673;p20","text":"Quick Auto｜不需標註","textPreview":"Quick Auto｜不需標註","textChars":15,"textLines":1,"bbox":[100,382,470,38]}
+{"kind":"textbox","id":"sh/3654rm58","slide":20,"name":"Google Shape;674;p20","text":"• 固定影片，逐一執行模型組合\n• 先建立品質過濾的 Gallery，再跑正式量測\n• 硬切鏡自動分 Shot；回報一致性與真實效能\n• Proxy 不是 mAP、HOTA 或 Rank-1","textPreview":"• 固定影片，逐一執行模型組合 | • 先建立品質過濾的 Gallery，再跑正式量測 | • 硬切鏡自動分 Shot；回報一致性與真實效能 | • Proxy 不是 mAP、HOTA 或 Rank-1","textChars":95,"textLines":4,"bbox":[100,430,475,170]}
+{"kind":"textbox","id":"sh/587mtwny","slide":20,"name":"Google Shape;676;p20","text":"Verified｜Ground Truth","textPreview":"Verified｜Ground Truth","textChars":21,"textLines":1,"bbox":[665,382,490,38]}
+{"kind":"textbox","id":"sh/jalkf2po","slide":20,"name":"Google Shape;678;p20","text":"• 使用 Golden video + 對應 JSONL\n• 六軸：Detection / Tracking / Identity / Framing / Control / Realtime\n• 可匯出 COCO / MOTChallenge 與完整設定\n• profile 與 dataset_version 相同才可直接比較","textPreview":"• 使用 Golden video + 對應 JSONL | • 六軸：Detection / Tracking / Identity / Framing / Control / Realtime | • 可匯出 COCO / MOTChallenge 與完整設定 | • ...","textChars":165,"textLines":4,"bbox":[665,430,500,170]}
+{"kind":"textbox","id":"sh/14n6xw3e","slide":20,"name":"Google Shape;724;p20","text":"Quick Auto 用於模型組合的 annotation-free proxy；需要標準準確率時，改用 Verified 與相符的 Ground Truth。","textPreview":"Quick Auto 用於模型組合的 annotation-free proxy；需要標準準確率時，改用 Verified 與相符的 Ground Truth。","textChars":80,"textLines":1,"bbox":[94,620,1070,28]}
+{"kind":"notes","id":"nt/zyxsni5k","slide":20,"text":"[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/m1wvqtk3","slide":21,"title":"19 WORKSPACE & OBSERVABILITY","textShapes":9}
+{"kind":"textbox","id":"sh/tkzy9cv2","slide":21,"name":"Google Shape;730;p21","text":"19 WORKSPACE & OBSERVABILITY","textPreview":"19 WORKSPACE & OBSERVABILITY","textChars":28,"textLines":1,"bbox":[52.8,26.88,172.79,24]}
+{"kind":"textbox","id":"sh/sjqxg7uh","slide":21,"name":"Google Shape;731;p21","text":"V2.3 工作區：每個模組都有入口、狀態與可追蹤輸出","textPreview":"V2.3 工作區：每個模組都有入口、狀態與可追蹤輸出","textChars":26,"textLines":1,"bbox":[52.8,61.44,940.79,46.08]}
+{"kind":"shape","id":"sh/rihg72dw","slide":21,"name":"Google Shape;732;p21","bbox":[892.8,36.48,115.21,3.37]}
+{"kind":"shape","id":"sh/6hofexcb","slide":21,"name":"Google Shape;733;p21","bbox":[936,45.12,129.61,3.37]}
+{"kind":"shape","id":"sh/1ozydcvy","slide":21,"name":"Google Shape;734;p21","bbox":[984,53.76,110.39,3.37]}
+{"kind":"shape","id":"sh/gnqxk7ut","slide":21,"name":"Google Shape;735;p21","bbox":[1029.12,62.4,96,3.37]}
+{"kind":"shape","id":"sh/fmhgb2d8","slide":21,"name":"Google Shape;736;p21","bbox":[72,139.2,552,446.39]}
+{"kind":"textbox","id":"sh/el8fihcn","slide":21,"name":"Google Shape;737;p21","text":"已落地：PySide6 Scheme A","textPreview":"已落地：PySide6 Scheme A","textChars":20,"textLines":1,"bbox":[100.8,181.42,403.21,32.63]}
+{"kind":"textbox","id":"sh/pcjyhwva","slide":21,"name":"Google Shape;738;p21","text":"• Source：webcam / video / URL / screen / iPhone\n• Playback 與錄影整合在來源流程\n• Models 獨立管理 Detection / ReID\n• Vehicle Database + Feature Manager 管理 GID、樣本與污染隔離","textPreview":"• Source：webcam / video / URL / screen / iPhone | • Playback 與錄影整合在來源流程 | • Models 獨立管理 Detection / ReID | • Vehicle Database + Feature M...","textChars":152,"textLines":4,"bbox":[100.8,241.9,501.39,220.79]}
+{"kind":"textbox","id":"sh/oraxorup","slide":21,"name":"Google Shape;739;p21","text":"Dock 可移動、浮動、隱藏；Workspace 與 QSettings 保存配置。","textPreview":"Dock 可移動、浮動、隱藏；Workspace 與 QSettings 保存配置。","textChars":42,"textLines":1,"bbox":[100.8,490.53,480,26.87]}
+{"kind":"shape","id":"sh/k7u1gvex","slide":21,"name":"Google Shape;740;p21","bbox":[657.6,139.2,552,446.39]}
+{"kind":"textbox","id":"sh/l83i90fi","slide":21,"name":"Google Shape;741;p21","text":"已落地：Performance + Diagnostics","textPreview":"已落地：Performance + Diagnostics","textChars":29,"textLines":1,"bbox":[686.4,181.42,403.21,32.63]}
+{"kind":"textbox","id":"sh/ylcjelwr","slide":21,"name":"Google Shape;742;p21","text":"• 分開統計來源缺口、iPhone send drop、latest-frame overwrite 與 decode failure\n• 顯示 FPS、P50/P95/P99 latency、失追 frame 區間\n• 一鍵彙整 detector、tracker、ReID、GMC、SQLite、WebSocket、DockKit 與 motor 狀態","textPreview":"• 分開統計來源缺口、iPhone send drop、latest-frame overwrite 與 decode failure | • 顯示 FPS、P50/P95/P99 latency、失追 frame 區間 | • 一鍵彙整 detector、tracker、...","textChars":177,"textLines":3,"bbox":[686.4,241.9,517.57,220.79]}
+{"kind":"textbox","id":"sh/z6l07qxc","slide":21,"name":"Google Shape;743;p21","text":"結構化事件可定位到來源、演算法、網路或硬體執行層。","textPreview":"結構化事件可定位到來源、演算法、網路或硬體執行層。","textChars":25,"textLines":1,"bbox":[686.4,490.53,480,26.87]}
+{"kind":"shape","id":"sh/cju1cbe1","slide":21,"name":"Google Shape;744;p21","bbox":[129.6,616.32,1022.39,46.08]}
+{"kind":"textbox","id":"sh/dk3i5gf6","slide":21,"name":"Google Shape;745;p21","text":"PySide6 是主要工作區；Tkinter 入口保留，並共用 application use case、SQLite 與 1.0 contract。","textPreview":"PySide6 是主要工作區；Tkinter 入口保留，並共用 application use case、SQLite 與 1.0 contract。","textChars":75,"textLines":1,"bbox":[139.2,630.72,1003.21,24.25]}
+{"kind":"notes","id":"nt/m1wvqtk3","slide":21,"text":"這頁要把困難講成下一步規劃，不要像是專案失敗。重點是：我們知道問題在哪，也知道工程解法與 KPI。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/5onypobq","slide":22,"title":"20 SYSTEM VALUE","textShapes":14}
+{"kind":"shape","id":"sh/t47adkf6","slide":22,"name":"Google Shape;751;p22","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/6hgri5gv","slide":22,"name":"Google Shape;752;p22","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/7ipsbaxg","slide":22,"name":"Google Shape;753;p22","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/g7i9ozyx","slide":22,"name":"Google Shape;754;p22","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/h8rah4fi","slide":22,"name":"Google Shape;755;p22","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/u5grmpgr","slide":22,"name":"Google Shape;756;p22","text":"20 SYSTEM VALUE","textPreview":"20 SYSTEM VALUE","textChars":15,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/f69sfuxc","slide":22,"name":"Google Shape;757;p22","text":"系統價值：拍攝意圖、AI 決策與硬體安全形成可驗證閉環","textPreview":"系統價值：拍攝意圖、AI 決策與硬體安全形成可驗證閉環","textChars":27,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"shape","id":"sh/4bi9szyt","slide":22,"name":"Google Shape;758;p22","bbox":[82.56,120,1113.6,30]}
+{"kind":"shape","id":"sh/pcral4fe","slide":22,"name":"Google Shape;759;p22","bbox":[81.6,177.6,360,297.6]}
+{"kind":"textbox","id":"sh/ds7a547i","slide":22,"name":"Google Shape;760;p22","text":"Desktop","textPreview":"Desktop","textChars":7,"textLines":1,"bbox":[105.6,235.2,312,74.88]}
+{"kind":"textbox","id":"sh/cre9czqd","slide":22,"name":"Google Shape;761;p22","text":"AI 決策與身份記憶","textPreview":"AI 決策與身份記憶","textChars":10,"textLines":1,"bbox":[110.4,340.8,302.4,33.6]}
+{"kind":"textbox","id":"sh/bq583ups","slide":22,"name":"Google Shape;762;p22","text":"YOLO → Tracker → GID/ReID → Framing → Control Policy","textPreview":"YOLO → Tracker → GID/ReID → Framing → Control Policy","textChars":52,"textLines":1,"bbox":[92,389,340,58]}
+{"kind":"shape","id":"sh/qpwrap87","slide":22,"name":"Google Shape;763;p22","bbox":[460.8,177.6,360,297.61]}
+{"kind":"textbox","id":"sh/lw7a947u","slide":22,"name":"Google Shape;764;p22","text":"iPhone","textPreview":"iPhone","textChars":6,"textLines":1,"bbox":[484.8,235.2,312,74.88]}
+{"kind":"textbox","id":"sh/0vy9gj69","slide":22,"name":"Google Shape;765;p22","text":"相機、網路與 DockKit 執行","textPreview":"相機、網路與 DockKit 執行","textChars":17,"textLines":1,"bbox":[489.6,340.8,302.4,33.6]}
+{"kind":"textbox","id":"sh/zups7epo","slide":22,"name":"Google Shape;766;p22","text":"JPEG 上行；1.0 contract 驗證；DockKit + timeout STOP","textPreview":"JPEG 上行；1.0 contract 驗證；DockKit + timeout STOP","textChars":46,"textLines":1,"bbox":[472,389,350,58]}
+{"kind":"shape","id":"sh/ytgre983","slide":22,"name":"Google Shape;767;p22","bbox":[840,177.6,360,297.6]}
+{"kind":"textbox","id":"sh/103qxk7q","slide":22,"name":"Google Shape;768;p22","text":"Benchmark","textPreview":"Benchmark","textChars":9,"textLines":1,"bbox":[864,235.2,312,74.88]}
+{"kind":"textbox","id":"sh/gzu94fq5","slide":22,"name":"Google Shape;769;p22","text":"重現性與工程選型","textPreview":"重現性與工程選型","textChars":8,"textLines":1,"bbox":[864,340.8,312,33.6]}
+{"kind":"textbox","id":"sh/6t8fihkr","slide":22,"name":"Google Shape;770;p22","text":"同影片依序跑模型；保存 dataset、profile、runtime 與硬體 metadata","textPreview":"同影片依序跑模型；保存 dataset、profile、runtime 與硬體 metadata","textChars":48,"textLines":1,"bbox":[850,389,335,58]}
+{"kind":"textbox","id":"sh/7uhgrm1w","slide":22,"name":"Google Shape;771;p22","text":"每個控制命令都能追溯到影像、身份、構圖、Policy 與安全狀態。","textPreview":"每個控制命令都能追溯到影像、身份、構圖、Policy 與安全狀態。","textChars":33,"textLines":1,"bbox":[129.6,537.6,1075.21,100.38]}
+{"kind":"textbox","id":"sh/svqxkr2h","slide":22,"name":"Google Shape;772;p22","text":"實際人力與成本效益依場地、機位與工作流程驗證；本頁不使用未經實測的百分比。","textPreview":"實際人力與成本效益依場地、機位與工作流程驗證；本頁不使用未經實測的百分比。","textChars":37,"textLines":1,"bbox":[59.52,675.84,979.2,17.28]}
+{"kind":"textbox","id":"sh/twjytwj2","slide":22,"name":"Google Shape;773;p22","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"notes","id":"nt/5onypobq","slide":22,"text":"這頁已依需求移除金額，只留下百分比。請上台時強調比例與工作量變化，不要停留在價格。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/c7uhcr6t","slide":23,"title":"21 ROADMAP","textShapes":13}
+{"kind":"shape","id":"sh/sjaxs7qx","slide":23,"name":"Google Shape;779;p23","bbox":[897.6,57.6,211.2,11.52]}
+{"kind":"shape","id":"sh/4jqlsvyd","slide":23,"name":"Google Shape;780;p23","bbox":[945.6,69.12,211.2,11.52]}
+{"kind":"shape","id":"sh/5kz210zy","slide":23,"name":"Google Shape;781;p23","bbox":[993.6,80.64,211.2,11.52]}
+{"kind":"shape","id":"sh/iho3qlgn","slide":23,"name":"Google Shape;782;p23","bbox":[1041.6,92.16,211.2,11.52]}
+{"kind":"shape","id":"sh/jihkzqh8","slide":23,"name":"Google Shape;783;p23","bbox":[1089.6,103.68,211.2,11.52]}
+{"kind":"textbox","id":"sh/wf6lovyh","slide":23,"name":"Google Shape;784;p23","text":"21 ROADMAP","textPreview":"21 ROADMAP","textChars":10,"textLines":1,"bbox":[59.52,41.28,460.8,22.08]}
+{"kind":"textbox","id":"sh/hgf2xgz2","slide":23,"name":"Google Shape;785;p23","text":"V2.3 已完成模組化與 Benchmark，下一步擴大資料與多機能力","textPreview":"V2.3 已完成模組化與 Benchmark，下一步擴大資料與多機能力","textChars":35,"textLines":1,"bbox":[57.6,69.12,1113.6,46.08]}
+{"kind":"shape","id":"sh/udojmlgb","slide":23,"name":"Google Shape;786;p23","bbox":[62.4,139.2,288,369.6]}
+{"kind":"textbox","id":"sh/vexkvqhw","slide":23,"name":"Google Shape;787;p23","text":"近期：Golden Dataset","textPreview":"近期：Golden Dataset","textChars":17,"textLines":1,"bbox":[83.52,160.32,245.76,26.88]}
+{"kind":"shape","id":"sh/gbal0fyl","slide":23,"name":"Google Shape;788;p23","bbox":[83.52,198.72,59.52,4.8]}
+{"kind":"textbox","id":"sh/1cj29kz6","slide":23,"name":"Google Shape;789;p23","text":"建立版本化影片、JSONL 標註與固定 train / validation / test split。\n\n以官方 COCOeval、TrackEval 與產品門檻驗證發布數字。","textPreview":"建立版本化影片、JSONL 標註與固定 train / validation / test split。 |  | 以官方 COCOeval、TrackEval 與產品門檻驗證發布數字。","textChars":89,"textLines":3,"bbox":[77.12,220.8,258.55,273.61]}
+{"kind":"shape","id":"sh/b6loze18","slide":23,"name":"Google Shape;790;p23","bbox":[369.6,139.2,288,369.6]}
+{"kind":"textbox","id":"sh/q5cnq903","slide":23,"name":"Google Shape;791;p23","text":"近期：iOS 實機強化","textPreview":"近期：iOS 實機強化","textChars":11,"textLines":1,"bbox":[390.72,160.32,245.76,26.88]}
+{"kind":"shape","id":"sh/d8361oje","slide":23,"name":"Google Shape;792;p23","bbox":[390.72,198.72,59.52,4.8]}
+{"kind":"textbox","id":"sh/c7u5sjit","slide":23,"name":"Google Shape;793;p23","text":"擴充不同網路、不同 DockKit 裝置與長時間連線測試。\n\n強化 calibration、重連、背景切換與失效安全紀錄。","textPreview":"擴充不同網路、不同 DockKit 裝置與長時間連線測試。 |  | 強化 calibration、重連、背景切換與失效安全紀錄。","textChars":61,"textLines":3,"bbox":[384.32,220.8,258.55,273.61]}
+{"kind":"shape","id":"sh/za5o3y1k","slide":23,"name":"Google Shape;794;p23","bbox":[676.8,139.2,268.8,369.6]}
+{"kind":"textbox","id":"sh/y9wnut0z","slide":23,"name":"Google Shape;795;p23","text":"中期：多機 AI 中控","textPreview":"中期：多機 AI 中控","textChars":11,"textLines":1,"bbox":[697.92,160.32,226.56,26.88]}
+{"kind":"shape","id":"sh/lwn65ojq","slide":23,"name":"Google Shape;796;p23","bbox":[697.92,198.72,59.52,4.8]}
+{"kind":"textbox","id":"sh/0ve5wji5","slide":23,"name":"Google Shape;797;p23","text":"管理多支 iPhone、相機與雲台；整合跨機身份、機位狀態與導播輔助決策。","textPreview":"管理多支 iPhone、相機與雲台；整合跨機身份、機位狀態與導播輔助決策。","textChars":37,"textLines":1,"bbox":[689.34,220.8,243.72,273.61]}
+{"kind":"shape","id":"sh/fe14ru1g","slide":23,"name":"Google Shape;798;p23","bbox":[964.8,139.2,254.4,369.6]}
+{"kind":"textbox","id":"sh/edsnip0v","slide":23,"name":"Google Shape;799;p23","text":"中長期：場景拓展","textPreview":"中長期：場景拓展","textChars":8,"textLines":1,"bbox":[985.92,160.32,212.16,26.88]}
+{"kind":"shape","id":"sh/ne1sju1w","slide":23,"name":"Google Shape;800;p23","bbox":[985.92,198.72,59.52,4.8]}
+{"kind":"textbox","id":"sh/mdsbapkb","slide":23,"name":"Google Shape;801;p23","text":"由賽車延伸到運動、拍賣與活動紀錄；依場景建立 framing profile、資料集與驗收門檻。","textPreview":"由賽車延伸到運動、拍賣與活動紀錄；依場景建立 framing profile、資料集與驗收門檻。","textChars":48,"textLines":1,"bbox":[979.53,220.8,226.55,273.61]}
+{"kind":"shape","id":"sh/9gjalkj2","slide":23,"name":"Google Shape;802;p23","bbox":[192,566.4,897.6,59.52]}
+{"kind":"textbox","id":"sh/8fatcz2h","slide":23,"name":"Google Shape;803;p23","text":"目標：從可靠的單機閉環，擴展成可量測、可稽核、可調度的多機 AI 拍攝平台。","textPreview":"目標：從可靠的單機閉環，擴展成可量測、可稽核、可調度的多機 AI 拍攝平台。","textChars":38,"textLines":1,"bbox":[206.4,576,868.8,40]}
+{"kind":"textbox","id":"sh/vilsnu18","slide":23,"name":"Google Shape;804;p23","text":"現況依據：AI Vision Director V2.3 README 與架構文件；Roadmap 項目不列為現行功能。","textPreview":"現況依據：AI Vision Director V2.3 README 與架構文件；Roadmap 項目不列為現行功能。","textChars":60,"textLines":1,"bbox":[59.52,675.84,979.2,17.28]}
+{"kind":"textbox","id":"sh/ahcbepkn","slide":23,"name":"Google Shape;805;p23","placeholder":"slideNumber","text":"‹#›","textPreview":"‹#›","textChars":3,"textLines":1,"bbox":[1221.12,684.48,83.99,31.5]}
+{"kind":"notes","id":"nt/c7uhcr6t","slide":23,"text":"最後收斂成願景：不是只做賽車，而是以賽車作為高難度場景驗證，未來可擴展到更多直播和拍攝場景。\n\n[Sources]\n- Local repository: README.md (Desktop V2.3 / iOS V2.2 architecture and operation)\n- Local repository: CHANGELOG.md (V2.3 current behavior)\n- Local repository: docs/architecture/benchmark-center.md\n- Local repository: docs/architecture/framing-engine.md\n- Local repository: docs/architecture/camera-control-policy.md\n- Local repository: docs/architecture/identity-components.md\n- Local repository: docs/architecture/feature-gallery-components.md\n- Local repository: docs/architecture/websocket-components.md"}
+{"kind":"slide","id":"sl/7qto7e10","slide":24,"title":"AI VISION DIRECTOR","textShapes":5}
+{"kind":"textbox","id":"sh/507utszq","slide":24,"name":"Google Shape;811;p24","text":"AI VISION DIRECTOR","textPreview":"AI VISION DIRECTOR","textChars":18,"textLines":1,"bbox":[90.62,5.98,1098.73,672.52]}
+{"kind":"shape","id":"sh/9ofapkr6","slide":24,"name":"Google Shape;812;p24","bbox":[639.98,-639.98,0,1279.97]}
+{"kind":"textbox","id":"sh/gvetg3y9","slide":24,"name":"Google Shape;814;p24","text":"感謝您的聆聽","textPreview":"感謝您的聆聽","textChars":6,"textLines":1,"bbox":[140,220,1000,100]}
+{"kind":"textbox","id":"sh/hwnup8ze","slide":24,"name":"Google Shape;815;p24","text":"DESKTOP AI × IPHONE CAMERA × DOCKKIT CONTROL","textPreview":"DESKTOP AI × IPHONE CAMERA × DOCKKIT CONTROL","textChars":44,"textLines":1,"bbox":[140,320,1000,60]}
+{"kind":"textbox","id":"sh/utwbedg3","slide":24,"name":"Google Shape;816;p24","text":"AI Vision Director Desktop V2.3","textPreview":"AI Vision Director Desktop V2.3","textChars":31,"textLines":1,"bbox":[140,490,1000,50.02]}
+{"kind":"textbox","id":"sh/vu5cnyho","slide":24,"name":"Google Shape;817;p24","text":"Desktop V2.3 · iOS V2.2","textPreview":"Desktop V2.3 · iOS V2.2","textChars":23,"textLines":1,"bbox":[1065.6,684.48,182.39,17.29]}
+{"kind":"image","id":"im/t4fa18je","slide":24,"name":"Google Shape;813;p24","bbox":[0,711.5,1280,1.51]}
+{"kind":"notes","id":"nt/7qto7e10","slide":24,"text":""}

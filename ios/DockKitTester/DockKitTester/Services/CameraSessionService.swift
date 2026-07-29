@@ -2,7 +2,14 @@
 import Combine
 import CoreImage
 import Foundation
+import simd
 import UIKit
+
+struct DockKitCameraCalibration: @unchecked Sendable {
+    let captureDevice: AVCaptureDevice.DeviceType
+    let intrinsics: simd_float3x3
+    let referenceDimensions: CGSize
+}
 
 enum CameraStreamOrientation: String, CaseIterable, Identifiable {
     case portrait
@@ -64,6 +71,9 @@ final class CameraSessionService: ObservableObject {
     var onJPEGFrame: (@Sendable (Data) -> Void)? {
         didSet { capture.frameStreamer.onFrame = onJPEGFrame }
     }
+    var onDockKitCalibration: (@Sendable (DockKitCameraCalibration) -> Void)? {
+        didSet { capture.frameStreamer.onDockKitCalibration = onDockKitCalibration }
+    }
 
     @Published private(set) var isRunning = false
     @Published private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
@@ -84,6 +94,7 @@ final class CameraSessionService: ObservableObject {
     private let capture = CaptureSessionBox()
     private var orientationObserver: AnyCancellable?
     private var lastTrackingZoomUpdate = Date.distantPast
+    private var isStarting = false
 
     init(logger: AppLogger) {
         self.logger = logger
@@ -97,6 +108,12 @@ final class CameraSessionService: ObservableObject {
     }
 
     func start() async {
+        guard !isRunning, !isStarting else {
+            logger.log(.info, "Rear camera capture session is already running; duplicate start ignored.")
+            return
+        }
+        isStarting = true
+        defer { isStarting = false }
         authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
 
         if authorizationStatus == .notDetermined {
@@ -256,6 +273,7 @@ final class CameraSessionService: ObservableObject {
                         }
                         capture.session.addInput(input)
                         capture.camera = camera
+                        capture.frameStreamer.cameraDeviceType = camera.deviceType
                         capture.minimumZoomFactor = camera.minAvailableVideoZoomFactor
                         capture.maximumZoomFactor = min(camera.maxAvailableVideoZoomFactor, 10)
                         capture.zoomFactor = camera.videoZoomFactor
@@ -273,6 +291,11 @@ final class CameraSessionService: ObservableObject {
                             throw CameraSessionError.cannotAddOutput
                         }
                         capture.session.addOutput(output)
+                        if let connection = output.connection(with: .video) {
+                            if connection.isCameraIntrinsicMatrixDeliverySupported {
+                                connection.isCameraIntrinsicMatrixDeliveryEnabled = true
+                            }
+                        }
                         capture.session.commitConfiguration()
                         capture.isConfigured = true
                     }
@@ -376,6 +399,8 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
     private static let envelopeMagic = Data([0x41, 0x43, 0x54, 0x46, 0x32]) // ACTF2
 
     var onFrame: (@Sendable (Data) -> Void)?
+    var onDockKitCalibration: (@Sendable (DockKitCameraCalibration) -> Void)?
+    var cameraDeviceType: AVCaptureDevice.DeviceType = .builtInWideAngleCamera
 
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -385,6 +410,7 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
     private let presetLock = NSLock()
     private var preset: CameraStreamPreset = .lowLatency
     private var sourceFrameID: UInt64 = 0
+    private var calibrationDelivered = false
 
     func setOrientation(_ newOrientation: CameraStreamOrientation) {
         orientationLock.lock()
@@ -405,6 +431,32 @@ private final class JPEGFrameStreamer: NSObject, AVCaptureVideoDataOutputSampleB
     ) {
         guard onFrame != nil,
               let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+
+        if !calibrationDelivered,
+           let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
+           let intrinsicData = CMGetAttachment(
+               sampleBuffer,
+               key: kCMSampleBufferAttachmentKey_CameraIntrinsicMatrix,
+               attachmentModeOut: nil
+           ) as? Data,
+           intrinsicData.count >= MemoryLayout<simd_float3x3>.size {
+            let intrinsics = intrinsicData.withUnsafeBytes {
+                $0.loadUnaligned(as: simd_float3x3.self)
+            }
+            let dimensions = CMVideoFormatDescriptionGetPresentationDimensions(
+                formatDescription,
+                usePixelAspectRatio: true,
+                useCleanAperture: true
+            )
+            calibrationDelivered = true
+            onDockKitCalibration?(
+                DockKitCameraCalibration(
+                    captureDevice: cameraDeviceType,
+                    intrinsics: intrinsics,
+                    referenceDimensions: dimensions
+                )
+            )
+        }
 
         presetLock.lock()
         let currentPreset = preset

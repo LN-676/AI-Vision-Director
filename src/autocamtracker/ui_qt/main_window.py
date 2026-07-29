@@ -27,15 +27,22 @@ from autocamtracker.ui_qt.state import (
     APPLICATION_NAME,
     CUSTOM_GEOMETRY_KEY,
     CUSTOM_SPLITTER_KEY,
+    CUSTOM_SPLITTER_SIZES_KEY,
     CUSTOM_STATE_KEY,
+    CUSTOM_WINDOW_SIZE_KEY,
+    DEFAULT_GEOMETRY_BASE64,
+    DEFAULT_SPLITTER_BASE64,
+    DEFAULT_STATE_BASE64,
     GEOMETRY_KEY,
     LAYOUT_VERSION,
     ORGANIZATION_NAME,
     PRESET_KEY,
     SOURCE_KEY,
     SPLITTER_KEY,
+    SPLITTER_SIZES_KEY,
     STATE_KEY,
     VERSION_KEY,
+    WINDOW_SIZE_KEY,
     Workspace,
 )
 from autocamtracker.ui_qt.widgets import DualMonitorWidget
@@ -434,31 +441,64 @@ class AIVisionDirectorMainWindow(QMainWindow):
     def save_workspace(self) -> None:
         self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)
         self.settings.setValue(GEOMETRY_KEY, self.saveGeometry())
+        self.settings.setValue(
+            WINDOW_SIZE_KEY, [self.width(), self.height()]
+        )
         self.settings.setValue(STATE_KEY, self.saveState(LAYOUT_VERSION))
         self.settings.setValue(SPLITTER_KEY, self.monitors.splitter.saveState())
+        self.settings.setValue(
+            SPLITTER_SIZES_KEY, self.monitors.splitter.sizes()
+        )
         self.settings.sync()
 
     def save_custom_workspace(self) -> None:
         if self._monitor_maximized:
             self.toggle_monitor_maximize(False)
         self.settings.setValue(CUSTOM_GEOMETRY_KEY, self.saveGeometry())
+        self.settings.setValue(
+            CUSTOM_WINDOW_SIZE_KEY, [self.width(), self.height()]
+        )
         self.settings.setValue(CUSTOM_STATE_KEY, self.saveState(LAYOUT_VERSION))
         self.settings.setValue(
             CUSTOM_SPLITTER_KEY, self.monitors.splitter.saveState()
+        )
+        self.settings.setValue(
+            CUSTOM_SPLITTER_SIZES_KEY, self.monitors.splitter.sizes()
         )
         self.save_workspace()
         self.status_label.setText("Status: custom layout saved")
 
     def restore_custom_workspace(self) -> bool:
         geometry = self.settings.value(CUSTOM_GEOMETRY_KEY, QByteArray())
+        window_size = self.settings.value(CUSTOM_WINDOW_SIZE_KEY, [])
         state = self.settings.value(CUSTOM_STATE_KEY, QByteArray())
         splitter = self.settings.value(CUSTOM_SPLITTER_KEY, QByteArray())
+        splitter_sizes = self.settings.value(CUSTOM_SPLITTER_SIZES_KEY, [])
         if not geometry or not state:
             self.status_label.setText("Status: no custom layout has been saved")
             return False
         geometry_ok = self.restoreGeometry(geometry)
+        if window_size:
+            self.resize(int(window_size[0]), int(window_size[1]))
         state_ok = self.restoreState(state, LAYOUT_VERSION)
+        if not state_ok:
+            state_ok = self.restoreState(state, LAYOUT_VERSION - 1)
         splitter_ok = bool(splitter) and self.monitors.splitter.restoreState(splitter)
+        if splitter_ok:
+            if splitter_sizes:
+                sizes = [int(value) for value in splitter_sizes]
+                self.monitors.splitter.setSizes(sizes)
+                QTimer.singleShot(
+                    0,
+                    lambda saved=sizes: self.monitors.splitter.setSizes(saved),
+                )
+            else:
+                QTimer.singleShot(
+                    0,
+                    lambda saved=QByteArray(
+                        splitter
+                    ): self.monitors.splitter.restoreState(saved),
+                )
         restored = bool(geometry_ok and state_ok and splitter_ok)
         self.status_label.setText(
             "Status: custom layout restored"
@@ -473,11 +513,21 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.reset_workspace()
             return False
         geometry = self.settings.value(GEOMETRY_KEY, QByteArray())
+        window_size = self.settings.value(WINDOW_SIZE_KEY, [])
         state = self.settings.value(STATE_KEY, QByteArray())
         splitter = self.settings.value(SPLITTER_KEY, QByteArray())
+        splitter_sizes = self.settings.value(SPLITTER_SIZES_KEY, [])
         geometry_ok = bool(geometry) and self.restoreGeometry(geometry)
+        if window_size:
+            self.resize(int(window_size[0]), int(window_size[1]))
         state_ok = bool(state) and self.restoreState(state, LAYOUT_VERSION)
         splitter_ok = bool(splitter) and self.monitors.splitter.restoreState(splitter)
+        if splitter_ok and splitter_sizes:
+            sizes = [int(value) for value in splitter_sizes]
+            self.monitors.splitter.setSizes(sizes)
+            QTimer.singleShot(
+                0, lambda saved=sizes: self.monitors.splitter.setSizes(saved)
+            )
         try:
             workspace = Workspace(str(self.settings.value(PRESET_KEY, Workspace.TRACKING.value)))
         except ValueError:
@@ -487,13 +537,28 @@ class AIVisionDirectorMainWindow(QMainWindow):
             self.apply_workspace(workspace)
         return bool(geometry_ok and state_ok and splitter_ok)
 
+    def _restore_default_layout(self) -> bool:
+        geometry = QByteArray.fromBase64(DEFAULT_GEOMETRY_BASE64.encode("ascii"))
+        state = QByteArray.fromBase64(DEFAULT_STATE_BASE64.encode("ascii"))
+        splitter = QByteArray.fromBase64(DEFAULT_SPLITTER_BASE64.encode("ascii"))
+        geometry_ok = self.restoreGeometry(geometry)
+        state_ok = self.restoreState(state, LAYOUT_VERSION - 1)
+        splitter_ok = self.monitors.splitter.restoreState(splitter)
+        self.monitors.show()
+        self.workspace_actions[Workspace.TRACKING].setChecked(True)
+        self.settings.setValue(PRESET_KEY, Workspace.TRACKING.value)
+        return bool(geometry_ok and state_ok and splitter_ok)
+
     def reset_workspace(self) -> None:
         self.settings.remove(GEOMETRY_KEY)
+        self.settings.remove(WINDOW_SIZE_KEY)
         self.settings.remove(STATE_KEY)
         self.settings.remove(SPLITTER_KEY)
+        self.settings.remove(SPLITTER_SIZES_KEY)
         self.settings.setValue(VERSION_KEY, LAYOUT_VERSION)
-        self.resize(1440, 900)
-        self.apply_workspace(Workspace.TRACKING)
+        if not self._restore_default_layout():
+            self.resize(1440, 900)
+            self.apply_workspace(Workspace.TRACKING)
 
     def _test_connection(self) -> None:
         self._source_changed("iphone")
