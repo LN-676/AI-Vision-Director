@@ -307,7 +307,7 @@ export function VisionDashboard() {
               {item.label}
             </button>
           ))}
-          <a href="/remote">
+          <a className="nav-link" href="/remote">
             <span>RC</span>
             Remote
           </a>
