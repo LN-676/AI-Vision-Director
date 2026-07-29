@@ -1,6 +1,6 @@
-# V3.0.0a1 Phase 0：上網部署邊界
+# V3.0.0b1 Phase 0：上網部署邊界
 
-版本標籤：`AI-Vision-Director V3.0.0a1`
+版本標籤：`AI-Vision-Director V3.0.0b1`
 
 Phase 0 只建立本機與雲端之間的穩定邊界，不把現有 CV pipeline、SQLite
 或 UI 綁定到特定 HTTP framework、雲端資料庫或訊息服務。
@@ -22,7 +22,7 @@ last-write-wins 靜默改綁。刪除 mapping 與刪除本機車輛是兩個不�
 
 ## API schema
 
-`api/schema/openapi.v3.0-alpha1.json` 是 HTTP delivery adapter 的 OpenAPI 3.1
+`api/schema/openapi.v3.0-beta1.json` 是 HTTP delivery adapter 的 OpenAPI 3.1
 合約。它使用 `/api/v3`、cursor pagination 與 `Idempotency-Key`，但 domain
 ports 本身不依賴 HTTP。
 

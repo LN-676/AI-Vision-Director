@@ -28,7 +28,7 @@ class CloudBoundaryTests(unittest.TestCase):
         return VehicleIdMapping(**values)
 
     def test_release_label_is_exact(self) -> None:
-        self.assertEqual(RELEASE_LABEL, "AI-Vision-Director V3.0.0a1")
+        self.assertEqual(RELEASE_LABEL, "AI-Vision-Director V3.0.0b1")
 
     def test_boundary_types_are_runtime_protocols(self) -> None:
         for boundary in (
@@ -83,12 +83,12 @@ class CloudBoundaryTests(unittest.TestCase):
             Path(__file__).resolve().parents[1]
             / "api"
             / "schema"
-            / "openapi.v3.0-alpha1.json"
+            / "openapi.v3.0-beta1.json"
         )
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
         self.assertEqual(schema["openapi"], "3.1.0")
-        self.assertEqual(schema["info"]["version"], "3.0.0a1")
+        self.assertEqual(schema["info"]["version"], "3.0.0b1")
         self.assertEqual(
             set(schema["paths"]),
             {"/system/status", "/vehicles", "/vehicles/{cloud_id}", "/events"},
