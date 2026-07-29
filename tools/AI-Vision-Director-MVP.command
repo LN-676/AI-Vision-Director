@@ -35,13 +35,14 @@ if [[ -z "${LAN_IP}" ]]; then
   print "Could not determine LAN IP. Set AIVD_LAN_IP before running."
   exit 1
 fi
+LAN_HOST="${AIVD_LAN_HOST:-${LAN_IP}}"
 
 export AIVD_EDGE_NODE_ID="${AIVD_EDGE_NODE_ID:-edge-mac-01}"
 export AIVD_EDGE_DEVICE_TOKEN="${AIVD_EDGE_DEVICE_TOKEN:-$(openssl rand -hex 24)}"
 export AIVD_EDGE_PREVIEW_DIR="${AIVD_EDGE_PREVIEW_DIR:-${PROJECT_DIR}/outputs/edge-preview}"
 export AIVD_CONTROL_API_URL="http://127.0.0.1:8080"
-export AIVD_CORS_ALLOW_ORIGINS="http://${LAN_IP}:3000,http://127.0.0.1:3000"
-export NEXT_PUBLIC_AIVD_API_BASE_URL="http://${LAN_IP}:8080"
+export AIVD_CORS_ALLOW_ORIGINS="http://${LAN_HOST}:3000,http://${LAN_IP}:3000,http://127.0.0.1:3000"
+export NEXT_PUBLIC_AIVD_API_BASE_URL="http://${LAN_HOST}:8080"
 
 API_PID=""
 DASHBOARD_PID=""
@@ -54,14 +55,26 @@ trap cleanup EXIT INT TERM
 cd "${PROJECT_DIR}"
 "${API_BIN}" --host 0.0.0.0 --port 8080 &
 API_PID=$!
+sleep 1
+if ! kill -0 "${API_PID}" 2>/dev/null; then
+  print "Control API could not start on port 8080."
+  print "Close the previous AI Vision Director window and try again."
+  exit 1
+fi
 
 cd "${PROJECT_DIR}/dashboard"
 "${DASHBOARD_BIN}" dev --hostname 0.0.0.0 --port 3000 &
 DASHBOARD_PID=$!
+sleep 1
+if ! kill -0 "${DASHBOARD_PID}" 2>/dev/null; then
+  print "Remote Console could not start on port 3000."
+  print "Close the previous AI Vision Director window and try again."
+  exit 1
+fi
 
 print ""
 print "AI Vision Director Remote Console:"
-print "  http://${LAN_IP}:3000/remote"
+print "  http://${LAN_HOST}:3000/remote"
 print ""
 print "Keep Mac, iPhone, and Tablet on the same private LAN."
 print "Closing the Desktop stops this local MVP control plane."
