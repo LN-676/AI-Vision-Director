@@ -18,9 +18,8 @@ if [[ -z "${LOCAL_HOST_NAME}" ]]; then
 fi
 
 export AIVD_LAN_IP="${WIFI_IP}"
-export AIVD_LAN_HOST="${LOCAL_HOST_NAME}.local"
+export AIVD_LAN_HOST="${WIFI_IP}"
 REMOTE_URL="http://${AIVD_LAN_HOST}:3000/remote"
-IP_FALLBACK_URL="http://${AIVD_LAN_IP}:3000/remote"
 
 if command -v pbcopy >/dev/null 2>&1; then
   print -rn "${REMOTE_URL}" | pbcopy
@@ -28,10 +27,9 @@ fi
 
 print ""
 print "Wi-Fi / phone hotspot detected:"
-print "  Mac: ${AIVD_LAN_IP} (${AIVD_LAN_HOST}, ${WIFI_INTERFACE})"
+print "  Mac: ${AIVD_LAN_IP} (${LOCAL_HOST_NAME}.local, ${WIFI_INTERFACE})"
 print "  Tablet Remote: ${REMOTE_URL}"
-print "  IP fallback: ${IP_FALLBACK_URL}"
-print "  The stable Tablet Remote URL was copied to the Apple clipboard."
+print "  The current Tablet Remote URL was copied to the Apple clipboard."
 print ""
 
 exec "${SCRIPT_DIR}/AI-Vision-Director-MVP.command"
