@@ -44,11 +44,17 @@ fi
 
 export AIVD_LAN_IP="${WIRED_IP}"
 export AIVD_LAN_HOST="${WIRED_IP}"
+REMOTE_URL="http://${AIVD_LAN_HOST}:3000/remote"
+
+if command -v pbcopy >/dev/null 2>&1; then
+  print -rn "${REMOTE_URL}" | pbcopy
+fi
 
 print ""
 print "Wired iPad network detected:"
 print "  Mac: ${AIVD_LAN_IP} (${LOCAL_HOST_NAME}.local, ${WIRED_INTERFACE})"
-print "  Remote: http://${AIVD_LAN_HOST}:3000/remote"
+print "  Remote: ${REMOTE_URL}"
+print "  The Remote URL was copied to the Apple clipboard."
 print ""
 
 exec "${SCRIPT_DIR}/AI-Vision-Director-MVP.command"
