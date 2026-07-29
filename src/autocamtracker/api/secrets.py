@@ -26,9 +26,10 @@ def _secret(environ: Mapping[str, str], name: str) -> str | None:
 
 @dataclass(frozen=True, slots=True)
 class PublicApiSettings:
-    database_url: str = field(repr=False)
+    database_url: str | None = field(repr=False)
     firebase_project_id: str
     cors_allow_origins: tuple[str, ...]
+    stateless_mode: bool = False
     rate_limit_requests: int = 30
     rate_limit_window_seconds: int = 60
     forwarded_allow_ips: str = "127.0.0.1"
@@ -41,7 +42,12 @@ class PublicApiSettings:
         values = os.environ if environ is None else environ
         database_url = _secret(values, "AIVD_DATABASE_URL")
         project_id = _secret(values, "AIVD_FIREBASE_PROJECT_ID")
-        if not database_url:
+        stateless_mode = values.get("AIVD_STATELESS_MODE", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if not database_url and not stateless_mode:
             raise ValueError("AIVD_DATABASE_URL or AIVD_DATABASE_URL_FILE is required")
         if not project_id:
             raise ValueError("AIVD_FIREBASE_PROJECT_ID is required")
@@ -71,6 +77,7 @@ class PublicApiSettings:
             database_url,
             project_id,
             origins,
+            stateless_mode,
             requests,
             window,
             forwarded_allow_ips,

@@ -1,6 +1,18 @@
 # Google Cloud Deployment — V3 Phase 5
 
 Target project: `bright-torus-483009-k2`
+
+## Strict US$1 cost-capped profile
+
+Until persistent resources are explicitly approved, deploy only Cloud Run
+services with request-based billing, minimum instances `0`, maximum instances
+`1`, and `AIVD_STATELESS_MODE=true`. In this profile:
+
+- Cloud SQL, Cloud Storage, migration jobs, and Terraform apply are deferred.
+- The API serves health, system status, OpenAPI, and empty read collections.
+- Every public write is disabled with HTTP `503`.
+- Artifact Registry is created only as required to hold deployable container
+  images; old images must be deleted after successful rollouts.
 Default region: `asia-east1` (Taiwan)
 
 ## Topology

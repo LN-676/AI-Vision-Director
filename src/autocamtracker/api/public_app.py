@@ -55,6 +55,36 @@ bearer = HTTPBearer(auto_error=False)
 IDEMPOTENCY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
 
 
+class StatelessReadStore:
+    """Empty read model for a cost-capped deployment without PostgreSQL."""
+
+    def ready(self) -> bool:
+        return True
+
+    def list_vehicles(self, *, offset: int, limit: int):
+        return [], False
+
+    def list_sessions(self, *, offset: int, limit: int):
+        return [], False
+
+    def list_events(self, *, offset: int, limit: int, session_id: str | None):
+        return [], False
+
+
+class StatelessRateLimiter:
+    """No persistent limiter is needed while every mutation is disabled."""
+
+    def consume(self, subject: str, route: str):
+        from autocamtracker.api.write_models import RateLimitDecision
+
+        return RateLimitDecision(allowed=True, retry_after_seconds=0)
+
+
+class StatelessVehicleWrites:
+    def patch_vehicle(self, cloud_id, patch, context):
+        raise RuntimeError("writes are disabled in stateless mode")
+
+
 def create_public_app(
     settings: PublicApiSettings | None = None,
     *,
@@ -65,16 +95,31 @@ def create_public_app(
 ) -> FastAPI:
     config = settings or PublicApiSettings.from_env()
     owned_engine = None
-    if vehicle_writes is None or rate_limiter is None or read_store is None:
+    if (
+        not config.stateless_mode
+        and (vehicle_writes is None or rate_limiter is None or read_store is None)
+    ):
         owned_engine = create_engine(config.database_url, pool_pre_ping=True)
     verifier = token_verifier or FirebaseTokenVerifier(config.firebase_project_id)
-    writes = vehicle_writes or PostgresVehicleWriteService(owned_engine)
-    limiter = rate_limiter or PostgresRateLimiter(
-        owned_engine,
-        config.rate_limit_requests,
-        config.rate_limit_window_seconds,
+    writes = vehicle_writes or (
+        StatelessVehicleWrites()
+        if config.stateless_mode
+        else PostgresVehicleWriteService(owned_engine)
     )
-    reads = read_store or PostgresReadStore(owned_engine)
+    limiter = rate_limiter or (
+        StatelessRateLimiter()
+        if config.stateless_mode
+        else PostgresRateLimiter(
+            owned_engine,
+            config.rate_limit_requests,
+            config.rate_limit_window_seconds,
+        )
+    )
+    reads = read_store or (
+        StatelessReadStore()
+        if config.stateless_mode
+        else PostgresReadStore(owned_engine)
+    )
     app = FastAPI(
         title="AI-Vision-Director Public API",
         description=(
@@ -140,8 +185,16 @@ def create_public_app(
             deployment_mode="cloud",
             read_only=True,
             checks={
-                "postgresql": "ready" if database_ready else "unavailable",
-                "access_mode": "authenticated_writes",
+                "postgresql": (
+                    "disabled_cost_cap"
+                    if config.stateless_mode
+                    else ("ready" if database_ready else "unavailable")
+                ),
+                "access_mode": (
+                    "stateless_read_only"
+                    if config.stateless_mode
+                    else "authenticated_writes"
+                ),
             },
         )
 
@@ -241,6 +294,11 @@ def create_public_app(
         principal: Principal = Depends(authenticated),
         idempotency_key: str = Header(alias="Idempotency-Key"),
     ) -> VehicleWriteResponse:
+        if config.stateless_mode:
+            raise HTTPException(
+                status_code=503,
+                detail="writes are disabled in cost-capped stateless mode",
+            )
         try:
             UUID(cloud_id)
         except ValueError as error:

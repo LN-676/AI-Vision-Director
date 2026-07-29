@@ -132,6 +132,24 @@ class CloudHostedApiTests(unittest.TestCase):
             ):
                 pass
 
+    def test_stateless_cost_cap_mode_exposes_empty_read_only_api(self) -> None:
+        settings = PublicApiSettings.from_env(
+            {
+                "AIVD_STATELESS_MODE": "true",
+                "AIVD_FIREBASE_PROJECT_ID": "bright-torus-483009-k2",
+                "AIVD_CORS_ALLOW_ORIGINS": "https://bright-torus-483009-k2.web.app",
+            }
+        )
+        client = TestClient(create_public_app(settings, token_verifier=UnusedVerifier()))
+
+        status = client.get("/api/v3/system/status")
+        self.assertEqual(status.status_code, 200)
+        self.assertEqual(status.json()["checks"]["postgresql"], "disabled_cost_cap")
+        self.assertEqual(status.json()["checks"]["access_mode"], "stateless_read_only")
+        self.assertEqual(client.get("/api/v3/vehicles").json()["items"], [])
+        self.assertEqual(client.get("/api/v3/sessions").json()["items"], [])
+        self.assertEqual(client.get("/api/v3/events").json()["items"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
