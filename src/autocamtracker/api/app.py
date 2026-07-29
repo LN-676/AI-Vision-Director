@@ -66,6 +66,15 @@ def create_app(
             allow_credentials=False,
             allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["Content-Type", "X-Device-Token", "X-Edge-Node-ID"],
+            expose_headers=[
+                "X-AIVD-API-Timestamp-Ms",
+                "X-AIVD-Frame-ID",
+                "X-AIVD-Capture-Timestamp-Ms",
+                "X-AIVD-Published-Timestamp-Ms",
+                "X-AIVD-Encode-Duration-Ms",
+                "X-AIVD-Pipeline-Latency-Ms",
+                "X-AIVD-Source-Decode-Ms",
+            ],
             max_age=600,
         )
     if config.edge_control is not None:

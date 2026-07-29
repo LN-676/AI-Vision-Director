@@ -7,6 +7,8 @@ import {
   type CommandType,
   type EdgeCommand,
   type EdgeNodeState,
+  type PreviewLatency,
+  type RemoteApi,
 } from "../lib/remote-api-client";
 
 type LoadState =
@@ -35,6 +37,74 @@ function StatusItem({
         <strong>{value}</strong>
       </div>
     </div>
+  );
+}
+
+function LiveMonitor({
+  api,
+  view,
+  title,
+  description,
+  corner,
+}: {
+  api: RemoteApi;
+  view: "before" | "after";
+  title: string;
+  description: string;
+  corner: string;
+}) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [latency, setLatency] = useState<PreviewLatency | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    let currentUrl: string | null = null;
+    let timer: number | null = null;
+
+    const refresh = async () => {
+      try {
+        const frame = await api.preview(view, controller.signal);
+        if (!active) {
+          URL.revokeObjectURL(frame.objectUrl);
+          return;
+        }
+        const previousUrl = currentUrl;
+        currentUrl = frame.objectUrl;
+        setImageUrl(frame.objectUrl);
+        setLatency(frame.latency);
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+      } catch {
+        // A missing first frame is expected while the desktop pipeline warms up.
+      } finally {
+        if (active) timer = window.setTimeout(() => void refresh(), 100);
+      }
+    };
+    void refresh();
+    return () => {
+      active = false;
+      controller.abort();
+      if (timer !== null) window.clearTimeout(timer);
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+    };
+  }, [api, view]);
+
+  return (
+    <figure className="remote-monitor">
+      <figcaption>
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </figcaption>
+      <div className="remote-monitor-screen">
+        {imageUrl ? <img alt={`${title} monitor`} src={imageUrl} /> : null}
+        <span className="remote-monitor-corner">{corner}</span>
+        <small className="remote-monitor-latency">
+          {latency
+            ? `E2E ${latency.previewEndToEndMs.toFixed(0)} ms · API ${latency.fastApiMs.toFixed(0)} · NET ${latency.networkMs.toFixed(0)} · DEC ${latency.browserDecodeMs.toFixed(0)}`
+            : "Waiting for timing…"}
+        </small>
+      </div>
+    </figure>
   );
 }
 
@@ -201,35 +271,23 @@ export function RemoteConsole() {
                 <span className="eyebrow">LIVE VISION</span>
                 <h2>Before / After Monitors</h2>
               </div>
-              <span>{online ? "1 FPS tablet preview" : "Waiting for Edge Mac"}</span>
+              <span>{online ? "Up to 10 FPS low-latency preview" : "Waiting for Edge Mac"}</span>
             </div>
             <div className="remote-monitor-grid">
-              <figure className="remote-monitor">
-                <figcaption>
-                  <strong>BEFORE</strong>
-                  <span>Detection + identity overlay</span>
-                </figcaption>
-                <div className="remote-monitor-screen">
-                  <img
-                    alt="Before detection monitor"
-                    src={api.previewUrl("before", node.last_heartbeat)}
-                  />
-                  <span className="remote-monitor-corner">INPUT</span>
-                </div>
-              </figure>
-              <figure className="remote-monitor">
-                <figcaption>
-                  <strong>AFTER</strong>
-                  <span>AI reframed output</span>
-                </figcaption>
-                <div className="remote-monitor-screen">
-                  <img
-                    alt="After reframed monitor"
-                    src={api.previewUrl("after", node.last_heartbeat)}
-                  />
-                  <span className="remote-monitor-corner">PROGRAM</span>
-                </div>
-              </figure>
+              <LiveMonitor
+                api={api}
+                corner="INPUT"
+                description="Detection + identity overlay"
+                title="BEFORE"
+                view="before"
+              />
+              <LiveMonitor
+                api={api}
+                corner="PROGRAM"
+                description="AI reframed output"
+                title="AFTER"
+                view="after"
+              />
             </div>
           </section>
 

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import asyncio
+import json
 from pathlib import Path
 import os
 import secrets
+from time import time
 from uuid import UUID
 
 from fastapi import (
@@ -103,10 +105,33 @@ def install_edge_control_routes(
         path = config.preview_directory / f"{view_name}.jpg"
         if not path.is_file():
             raise HTTPException(status_code=404, detail="preview not ready")
+        metadata: dict[str, object] = {}
+        metadata_path = config.preview_directory / f"{view_name}.json"
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, ValueError, TypeError):
+            metadata = {}
+        served_timestamp_ms = time() * 1000.0
+        headers = {
+            "Cache-Control": "no-store, max-age=0",
+            "X-AIVD-API-Timestamp-Ms": f"{served_timestamp_ms:.3f}",
+        }
+        timing_headers = {
+            "frame_id": "X-AIVD-Frame-ID",
+            "capture_timestamp_ms": "X-AIVD-Capture-Timestamp-Ms",
+            "published_timestamp_ms": "X-AIVD-Published-Timestamp-Ms",
+            "encode_duration_ms": "X-AIVD-Encode-Duration-Ms",
+            "pipeline_end_to_end_ms": "X-AIVD-Pipeline-Latency-Ms",
+            "decode_duration_ms": "X-AIVD-Source-Decode-Ms",
+        }
+        for key, header in timing_headers.items():
+            value = metadata.get(key)
+            if value is not None:
+                headers[header] = str(value)
         return FileResponse(
             path,
             media_type="image/jpeg",
-            headers={"Cache-Control": "no-store, max-age=0"},
+            headers=headers,
         )
 
     @app.post(

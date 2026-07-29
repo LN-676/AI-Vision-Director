@@ -315,6 +315,23 @@ nav .nav-link:hover {
   right: 8px;
 }
 
+.remote-monitor-latency {
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  z-index: 2;
+  max-width: calc(100% - 18px);
+  overflow: hidden;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(7, 10, 14, .76);
+  color: #dce6f2;
+  font: 9px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .remote-grid {
   display: grid;
   gap: 18px;

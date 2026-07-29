@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import json
 import unittest
 from uuid import uuid4
 
@@ -98,6 +99,17 @@ class EdgeControlApiTests(unittest.TestCase):
         after = b"\xff\xd8after\xff\xd9"
         (self.preview_directory / "before.jpg").write_bytes(before)
         (self.preview_directory / "after.jpg").write_bytes(after)
+        (self.preview_directory / "before.json").write_text(
+            json.dumps(
+                {
+                    "frame_id": 42,
+                    "published_timestamp_ms": 1234.5,
+                    "encode_duration_ms": 2.5,
+                    "pipeline_end_to_end_ms": 21.0,
+                }
+            ),
+            encoding="utf-8",
+        )
 
         before_response = self.client.get("/api/v3/edge/preview/before")
         after_response = self.client.get("/api/v3/edge/preview/after")
@@ -106,6 +118,11 @@ class EdgeControlApiTests(unittest.TestCase):
         self.assertEqual(before_response.content, before)
         self.assertEqual(after_response.content, after)
         self.assertEqual(before_response.headers["cache-control"], "no-store, max-age=0")
+        self.assertEqual(before_response.headers["x-aivd-frame-id"], "42")
+        self.assertEqual(
+            before_response.headers["x-aivd-published-timestamp-ms"], "1234.5"
+        )
+        self.assertIn("x-aivd-api-timestamp-ms", before_response.headers)
         self.assertEqual(
             self.client.get("/api/v3/edge/preview/unknown").status_code,
             404,
@@ -225,13 +242,24 @@ class EdgePreviewPublisherTests(unittest.TestCase):
             publisher = EdgePreviewPublisher(directory, interval_seconds=0.2)
             frame = np.zeros((18, 32, 3), dtype=np.uint8)
 
-            self.assertTrue(publisher.publish(frame, frame, now=1.0))
+            self.assertTrue(
+                publisher.publish(
+                    frame,
+                    frame,
+                    now=1.0,
+                    timing={"frame_id": 7, "pipeline_end_to_end_ms": 18.0},
+                )
+            )
             self.assertTrue(
                 (directory / "before.jpg").read_bytes().startswith(b"\xff\xd8")
             )
             self.assertTrue(
                 (directory / "after.jpg").read_bytes().startswith(b"\xff\xd8")
             )
+            metadata = json.loads((directory / "before.json").read_text())
+            self.assertEqual(metadata["frame_id"], 7)
+            self.assertEqual(metadata["pipeline_end_to_end_ms"], 18.0)
+            self.assertGreater(metadata["jpeg_bytes"], 0)
             self.assertFalse(publisher.publish(frame, frame, now=1.1))
 
 

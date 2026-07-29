@@ -27,6 +27,9 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
 
     private let logger: AppLogger
     private var listeningTask: Task<Void, Never>?
+    private var retryTask: Task<Void, Never>?
+    private var discoveryWatchdogTask: Task<Void, Never>?
+    private var discoveryFailureCount = 0
 
 #if !targetEnvironment(simulator)
     private var accessory: DockAccessory?
@@ -44,6 +47,8 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
 
     deinit {
         listeningTask?.cancel()
+        retryTask?.cancel()
+        discoveryWatchdogTask?.cancel()
     }
 
     var isDocked: Bool {
@@ -62,12 +67,15 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         logger.log(.warning, "DockKit requires an iPhone and is unavailable in Simulator.")
 #else
         accessoryStatus = .connecting
+        retryTask?.cancel()
+        retryTask = nil
         logger.log(.info, "Starting DockAccessoryManager.accessoryStateChanges listener.")
+        armDiscoveryWatchdog()
         listeningTask = Task { @MainActor [weak self] in
-            defer { self?.listeningTask = nil }
             do {
                 for await stateChange in try DockAccessoryManager.shared.accessoryStateChanges {
                     guard !Task.isCancelled else { return }
+                    self?.discoveryFailureCount = 0
                     self?.handle(stateChange)
                 }
             } catch is CancellationError {
@@ -75,7 +83,10 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
             } catch {
                 self?.accessoryStatus = .error
                 self?.recordError(api: "accessoryStateChanges", error: error)
+                self?.listeningTask = nil
+                self?.scheduleDiscoveryRetry()
             }
+            self?.listeningTask = nil
         }
 #endif
     }
@@ -91,6 +102,8 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         }
         listeningTask = nil
         accessory = nil
+        discoveryWatchdogTask?.cancel()
+        discoveryWatchdogTask = nil
         accessoryStatus = .connecting
         accessoryName = nil
         isSystemTrackingEnabled = nil
@@ -100,6 +113,36 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
         await startListening()
 #endif
     }
+
+#if !targetEnvironment(simulator)
+    private func scheduleDiscoveryRetry() {
+        guard retryTask == nil else { return }
+        discoveryFailureCount = min(discoveryFailureCount + 1, 5)
+        let delayMilliseconds = min(4_000, 250 * (1 << (discoveryFailureCount - 1)))
+        logger.log(
+            .warning,
+            "DockKit discovery will retry in \(delayMilliseconds) ms without resetting pairing."
+        )
+        retryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(delayMilliseconds))
+            guard !Task.isCancelled, let self else { return }
+            self.retryTask = nil
+            await self.startListening()
+        }
+    }
+
+    private func armDiscoveryWatchdog() {
+        discoveryWatchdogTask?.cancel()
+        discoveryWatchdogTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled, let self, self.accessory == nil else { return }
+            self.accessoryStatus = .notFound
+            let message = "No DockKit dock event. Power on and fully unfold Flow 2 Pro, enable Bluetooth, then remove and remount iPhone. If it has never paired, unlock iPhone on the Home Screen and tap the Flow NFC mark."
+            self.lastError = message
+            self.logger.log(.warning, message)
+        }
+    }
+#endif
 
     func enableSystemTracking() async {
 #if targetEnvironment(simulator)
@@ -416,6 +459,8 @@ final class DockKitManager: ObservableObject, DockKitMotorControlling {
 
 #if !targetEnvironment(simulator)
     private func handle(_ stateChange: DockAccessory.StateChange) {
+        discoveryWatchdogTask?.cancel()
+        discoveryWatchdogTask = nil
         let previousTracking = isSystemTrackingEnabled
         trackingButtonEnabled = stateChange.trackingButtonEnabled
         let currentTracking = DockAccessoryManager.shared.isSystemTrackingEnabled

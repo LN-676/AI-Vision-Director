@@ -18,16 +18,25 @@ This document records current releases. Complete historical source is available 
 - Added long-term BigQuery telemetry storage with daily partitioning and tenant
   and event-type clustering.
 - Added live Before/After monitors to the tablet Remote Console.
-- Added resilient DockKit rediscovery on foreground entry and a manual
-  rediscovery control in the iOS app.
+- Added per-frame FastAPI/browser timing, up-to-10-FPS tablet previews, and
+  low-bandwidth 960px JPEG publication.
+- Fixed Remote commands on insecure private-LAN HTTP browsers by providing a
+  UUID fallback and connected every high-level command to the Qt desktop UI.
+- Stabilized DockKit discovery by preserving the listener across foreground
+  transitions, adding bounded retry after stream failure, and showing an
+  actionable Flow 2 Pro/NFC timeout diagnosis.
 
 ### 中文
 
 - 建立上網部署 Phase 0 邊界：`Repository`、`SystemStatusQuery`、
   `VehicleQuery`／`VehicleCommand` 與 `EventSink`。
 - 平板 Remote Console 新增即時 Before／After 雙監看畫面。
-- iOS App 新增回到前景自動重建 DockKit 探索，以及手動「重新偵測
-  DockKit」操作。
+- Remote 雙監看加入逐幀 FastAPI、網路與瀏覽器解碼時間，最高 10 FPS，
+  並以 960px 低流量 JPEG 傳輸。
+- 修正區網 HTTP 瀏覽器缺少 `crypto.randomUUID()` 導致所有 Remote
+  按鈕失效，並把所有高階命令完整串接至 Qt 桌面 UI。
+- iOS App 保留跨前景切換的 DockKit listener，只在 stream 錯誤時做有界
+  重試，並在 Flow 2 Pro／NFC 沒有 dock event 時顯示可操作的診斷。
 - 新增 OpenAPI 3.1 schema，定義 status、vehicle query/command 與 event
   delivery，所有 mutation 使用 idempotency key。
 - 新增一對一、衝突即拒絕的 `(node_id, local_id) <-> cloud_id` mapping

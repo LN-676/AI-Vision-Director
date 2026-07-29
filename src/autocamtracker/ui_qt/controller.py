@@ -567,7 +567,44 @@ class QtRuntimeController(QObject):
             after = getattr(result.frame_data, "after_frame", result.raw_frame)
             if self._edge_preview_publisher is not None:
                 try:
-                    self._edge_preview_publisher.publish(before, after, now=now)
+                    timeline = result.frame_data.timestamps
+                    latency = result.frame_data.latency_breakdown
+                    self._edge_preview_publisher.publish(
+                        before,
+                        after,
+                        now=now,
+                        timing={
+                            "frame_id": (
+                                timeline.frame_id
+                                if timeline is not None
+                                else result.frame_data.source_frame_id
+                            ),
+                            "source_id": (
+                                timeline.source_id
+                                if timeline is not None
+                                else self.input_config.source_type
+                            ),
+                            "capture_timestamp_ms": (
+                                timeline.capture_timestamp_ms
+                                if timeline is not None
+                                else None
+                            ),
+                            "pipeline_end_to_end_ms": (
+                                latency.end_to_end_ms
+                                if latency is not None
+                                else None
+                            ),
+                            "decode_duration_ms": float(
+                                result.frame_data.decode_time_ms
+                            ),
+                            "inference_duration_ms": float(
+                                result.frame_data.inference_time_ms
+                            ),
+                            "pipeline_duration_ms": float(
+                                result.frame_data.pipeline_time_ms
+                            ),
+                        },
+                    )
                 except (OSError, ValueError):
                     pass
             self.beforeFrameReady.emit(before)

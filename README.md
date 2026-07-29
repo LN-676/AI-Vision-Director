@@ -468,10 +468,13 @@ CORS accepts only the exact Dashboard LAN origin and localhost; wildcard CORS
 is not used. `AIVD_EDGE_DEVICE_TOKEN` is generated ephemerally unless supplied
 in the environment and must never be committed.
 
-Start, Stop, Home, and Emergency Stop execute through the Desktop's high-level
-`ControlPort`. Emergency Stop requires a second tablet tap and still passes
-through the existing Desktop/DockKit stop path. If the control API disconnects,
-Desktop tracking and local manual controls continue to operate.
+Start, Stop, tracking-mode selection, GID selection, Find, Home, and Emergency
+Stop execute through the Desktop's high-level `ControlPort`. The two monitors
+refresh independently at up to 10 FPS and show preview end-to-end, FastAPI
+queue, LAN transfer, and browser decode timing in the lower-right corner.
+Emergency Stop requires a second tablet tap and still passes through the
+existing Desktop/DockKit stop path. If the control API disconnects, Desktop
+tracking and local manual controls continue to operate.
 
 Architecture, safety details, demo steps, and known limitations are documented
 in [Edge Control Plane MVP](docs/architecture/edge-control-plane-mvp.md).

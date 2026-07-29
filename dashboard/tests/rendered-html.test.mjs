@@ -104,10 +104,14 @@ test("remote console uses high-level commands and confirms emergency stop", asyn
   assert.match(remote, /Control API Offline/);
   assert.match(remote, /No Edge Mac heartbeat yet/);
   assert.match(remote, /Before \/ After Monitors/);
-  assert.match(remote, /Before detection monitor/);
-  assert.match(remote, /After reframed monitor/);
+  assert.match(remote, /E2E.*API.*NET.*DEC/);
+  assert.match(remote, /Up to 10 FPS low-latency preview/);
   assert.match(client, /method:\s*"POST"/);
+  assert.match(client, /typeof crypto\.randomUUID/);
+  assert.match(client, /crypto\.getRandomValues/);
   assert.match(client, /\/api\/v3\/edge\/preview\/\$\{view\}/);
+  assert.match(client, /X-AIVD-API-Timestamp-Ms/);
+  assert.match(client, /image\.decode/);
   assert.match(client, /expires_at/);
   assert.doesNotMatch(client, /yaw_velocity|pitch_velocity/);
 });
