@@ -1,0 +1,44 @@
+substitutions:
+  _REGION: asia-east1
+  _REPOSITORY: aivd
+
+steps:
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${COMMIT_SHA}
+      - --file
+      - Dockerfile.cloud
+      - .
+
+  - id: push-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${COMMIT_SHA}
+
+  - id: build-dashboard
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dashboard:${COMMIT_SHA}
+      - --file
+      - dashboard/Dockerfile.cloud
+      - --build-arg
+      - NEXT_PUBLIC_AIVD_API_BASE_URL=https://${PROJECT_ID}.web.app
+      - --build-arg
+      - NEXT_PUBLIC_AIVD_WS_URL=wss://${PROJECT_ID}.web.app/ws/telemetry
+      - dashboard
+
+  - id: push-dashboard
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dashboard:${COMMIT_SHA}
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${COMMIT_SHA}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dashboard:${COMMIT_SHA}

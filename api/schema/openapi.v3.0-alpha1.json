@@ -1,0 +1,199 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI-Vision-Director Cloud Boundary API",
+    "version": "3.0.0-alpha.1",
+    "description": "Phase 0 contract. IDs are opaque and all mutations require an idempotency key."
+  },
+  "servers": [
+    {"url": "/api/v3"}
+  ],
+  "paths": {
+    "/system/status": {
+      "get": {
+        "operationId": "getSystemStatus",
+        "responses": {
+          "200": {
+            "description": "Current node status",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/SystemStatus"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vehicles": {
+      "get": {
+        "operationId": "listVehicles",
+        "parameters": [
+          {"name": "node_id", "in": "query", "schema": {"type": "string"}},
+          {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Vehicle page",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/VehiclePage"}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "upsertVehicle",
+        "parameters": [
+          {"$ref": "#/components/parameters/IdempotencyKey"}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/VehicleMutation"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upserted vehicle",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Vehicle"}
+              }
+            }
+          },
+          "409": {"description": "ID mapping conflict"}
+        }
+      }
+    },
+    "/vehicles/{cloud_id}": {
+      "parameters": [
+        {"name": "cloud_id", "in": "path", "required": true, "schema": {"type": "string", "minLength": 1}}
+      ],
+      "get": {
+        "operationId": "getVehicle",
+        "responses": {
+          "200": {
+            "description": "Vehicle",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Vehicle"}
+              }
+            }
+          },
+          "404": {"description": "Vehicle not found"}
+        }
+      },
+      "delete": {
+        "operationId": "deleteVehicle",
+        "parameters": [
+          {"$ref": "#/components/parameters/IdempotencyKey"}
+        ],
+        "responses": {
+          "204": {"description": "Deleted"},
+          "404": {"description": "Vehicle not found"}
+        }
+      }
+    },
+    "/events": {
+      "post": {
+        "operationId": "publishEvent",
+        "parameters": [
+          {"$ref": "#/components/parameters/IdempotencyKey"}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/EventEnvelope"}
+            }
+          }
+        },
+        "responses": {
+          "202": {"description": "Accepted for delivery"}
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {"type": "string", "minLength": 1}
+      }
+    },
+    "schemas": {
+      "SystemStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "status", "observed_at", "version_label", "deployment_mode", "checks"],
+        "properties": {
+          "node_id": {"type": "string", "minLength": 1},
+          "status": {"enum": ["starting", "ready", "degraded", "stopping", "offline"]},
+          "observed_at": {"type": "string", "format": "date-time"},
+          "version_label": {"type": "string", "minLength": 1},
+          "deployment_mode": {"enum": ["local", "cloud", "hybrid"]},
+          "checks": {"type": "object", "additionalProperties": {"type": "string"}}
+        }
+      },
+      "Vehicle": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "local_id", "cloud_id", "display_name", "created_at", "updated_at", "metadata"],
+        "properties": {
+          "node_id": {"type": "string", "minLength": 1},
+          "local_id": {"type": "integer", "minimum": 1},
+          "cloud_id": {"type": ["string", "null"], "minLength": 1},
+          "display_name": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"},
+          "metadata": {"type": "object"}
+        }
+      },
+      "VehicleMutation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id"],
+        "anyOf": [
+          {"required": ["local_id"]},
+          {"required": ["cloud_id"]}
+        ],
+        "properties": {
+          "node_id": {"type": "string", "minLength": 1},
+          "local_id": {"type": "integer", "minimum": 1},
+          "cloud_id": {"type": "string", "minLength": 1},
+          "display_name": {"type": "string"},
+          "metadata": {"type": "object"}
+        }
+      },
+      "VehiclePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["items", "next_cursor"],
+        "properties": {
+          "items": {"type": "array", "items": {"$ref": "#/components/schemas/Vehicle"}},
+          "next_cursor": {"type": ["string", "null"]}
+        }
+      },
+      "EventEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_id", "event_type", "occurred_at", "source_node_id", "schema_version", "data"],
+        "properties": {
+          "event_id": {"type": "string", "minLength": 1},
+          "event_type": {"type": "string", "minLength": 1},
+          "occurred_at": {"type": "string", "format": "date-time"},
+          "source_node_id": {"type": "string", "minLength": 1},
+          "schema_version": {"type": "integer", "minimum": 1},
+          "correlation_id": {"type": ["string", "null"], "minLength": 1},
+          "data": {"type": "object"}
+        }
+      }
+    }
+  }
+}

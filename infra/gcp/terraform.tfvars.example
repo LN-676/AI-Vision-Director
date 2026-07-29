@@ -1,0 +1,9 @@
+project_id         = "bright-torus-483009-k2"
+billing_account_id = "016F38-D5506F-3E7770"
+region             = "asia-east1"
+
+api_image       = "asia-east1-docker.pkg.dev/bright-torus-483009-k2/aivd/api@sha256:REPLACE"
+dashboard_image = "asia-east1-docker.pkg.dev/bright-torus-483009-k2/aivd/dashboard@sha256:REPLACE"
+
+cors_allow_origins = "https://bright-torus-483009-k2.web.app,https://bright-torus-483009-k2.firebaseapp.com"
+custom_domain      = ""

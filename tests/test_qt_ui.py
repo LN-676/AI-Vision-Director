@@ -61,7 +61,7 @@ class QtUITests(unittest.TestCase):
         )
 
     def test_display_label_and_tk_class_aliases_preserve_protocol_version(self) -> None:
-        self.assertEqual(DISPLAY_NAME, "AI Vision Director V2.3")
+        self.assertEqual(DISPLAY_NAME, "AI Vision Director V3.0 alph1")
         self.assertEqual(VERSION, "1.0")
         self.assertIs(AIVisonDirectorApp, AIVisionDirectorApp)
         self.assertIs(AutoCamTrackerApp, AIVisionDirectorApp)

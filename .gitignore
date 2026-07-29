@@ -8,8 +8,15 @@ cmake-build-*/
 *.user
 *.log
 outputs/
+secrets/
 output/
 tmp/
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+crash.log
+.pnpm-store/
 evaluation/gid_loss_replays/
 *.pt
 *.pth

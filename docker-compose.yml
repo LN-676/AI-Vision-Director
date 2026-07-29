@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: aivd
+      POSTGRES_USER: aivd
+      POSTGRES_PASSWORD: ${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - aivd-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aivd -d aivd"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.cloud
+    environment:
+      AIVD_DATABASE_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  edge-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile.cloud
+    profiles: ["sync"]
+    environment:
+      AIVD_DATABASE_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd
+    volumes:
+      - ./outputs:/app/outputs
+    command:
+      - python
+      - -m
+      - autocamtracker.cloud.edge_outbox
+      - --watch
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  public-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.cloud
+    profiles: ["public"]
+    environment:
+      AIVD_DATABASE_URL_FILE: /run/secrets/database_url
+      AIVD_FIREBASE_PROJECT_ID: ${AIVD_FIREBASE_PROJECT_ID:?set Firebase project ID}
+      AIVD_CORS_ALLOW_ORIGINS: ${AIVD_CORS_ALLOW_ORIGINS:?set explicit CORS origins}
+      AIVD_RATE_LIMIT_REQUESTS: ${AIVD_RATE_LIMIT_REQUESTS:-30}
+      AIVD_RATE_LIMIT_WINDOW_SECONDS: ${AIVD_RATE_LIMIT_WINDOW_SECONDS:-60}
+      AIVD_FORWARDED_ALLOW_IPS: ${AIVD_FORWARDED_ALLOW_IPS:-127.0.0.1}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase_service_account
+    secrets:
+      - database_url
+      - firebase_service_account
+    command: ["python", "-m", "autocamtracker.api.public_main"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.cloud
+    profiles: ["test"]
+    environment:
+      AIVD_TEST_POSTGRES_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd
+      AIVD_DATABASE_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd
+    command:
+      - python
+      - -m
+      - unittest
+      - discover
+      - -s
+      - tests
+      - -p
+      - test_postgres_integration.py
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  aivd-postgres:
+
+secrets:
+  database_url:
+    file: ${AIVD_DATABASE_URL_SECRET_FILE:-./secrets/database_url.txt}
+  firebase_service_account:
+    file: ${AIVD_FIREBASE_CREDENTIALS_FILE:-./secrets/firebase-service-account.json}

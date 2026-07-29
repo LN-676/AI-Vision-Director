@@ -1,0 +1,10 @@
+.git
+.ruff_cache
+build
+output
+outputs
+tmp
+*.pptx
+*.inspect.ndjson
+__pycache__
+*.pyc

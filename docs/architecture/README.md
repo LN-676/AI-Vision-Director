@@ -19,6 +19,11 @@
 | Gallery | [feature-gallery-components.md](feature-gallery-components.md) | feature quality、encoder、policy 與 index |
 | Persistence | [sqlite-threading.md](sqlite-threading.md) | SQLite 單一 owner worker |
 | Network | [websocket-components.md](websocket-components.md) | protocol、transport、receiver、publisher 與 policy |
+| Cloud | [cloud-boundaries-v3.md](cloud-boundaries-v3.md) | V3 Phase 0 query、command、event、API 與 ID mapping 邊界 |
+| Cloud persistence | [postgresql-edge-sync.md](postgresql-edge-sync.md) | PostgreSQL schema、Alembic、import 與 Edge outbox |
+| Public API security | [public-api-security.md](public-api-security.md) | Firebase Auth、RBAC、audit、rate limit、CORS 與 secrets |
+| React dashboard | [react-dashboard.md](react-dashboard.md) | typed read-only client、operations views、UI states 與 telemetry reconnect |
+| Google Cloud deployment | [google-cloud-deployment.md](google-cloud-deployment.md) | Cloud Run、Cloud SQL、Storage、Artifact Registry、Firebase、監控與成本邊界 |
 | Evaluation | [offline-replay.md](offline-replay.md) | 無 UI 的可重現 replay |
 | Benchmark | [benchmark-center.md](benchmark-center.md) | 最多五模型的標準格式、跑分與 live capture |
 | Safety | [camera-control-policy.md](camera-control-policy.md) | dead zone、hysteresis 與安全限制 |

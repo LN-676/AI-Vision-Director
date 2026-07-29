@@ -4,6 +4,63 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## V3.0 alph1 — 2026-07-29
+
+### 中文
+
+- 建立上網部署 Phase 0 邊界：`Repository`、`SystemStatusQuery`、
+  `VehicleQuery`／`VehicleCommand` 與 `EventSink`。
+- 新增 OpenAPI 3.1 schema，定義 status、vehicle query/command 與 event
+  delivery，所有 mutation 使用 idempotency key。
+- 新增一對一、衝突即拒絕的 `(node_id, local_id) <-> cloud_id` mapping
+  contract 與 reference in-memory adapter。
+- 新增本機 read-only FastAPI，提供 system status、vehicles、sessions、
+  events 與 runtime OpenAPI；SQLite 強制使用 `mode=ro` 與 `query_only`。
+- 新增 PostgreSQL 正式 schema、Alembic migration、SQLAlchemy adapter、
+  Docker Compose、可重跑的 SQLite/telemetry importer，以及具 lease、
+  exponential backoff、dead-letter 與 idempotent projection 的 Edge outbox。
+- 新增 Phase 3 public write boundary：Firebase revoked-token verification、
+  RBAC/node scope、PATCH vehicle optimistic concurrency、append-only audit、
+  PostgreSQL rate limit、CORS allowlist 與 Docker secrets。
+- 新增 Phase 4 React Mission Control：typed read-only client、overview、
+  vehicles、sessions、events、完整 loading/error/empty states，以及具
+  offline awareness 與 bounded exponential backoff 的 WebSocket telemetry。
+- 新增 Phase 5 Google Cloud 部署來源：Firebase Hosting、Cloud Run API
+  與 Dashboard、Cloud SQL PostgreSQL、Cloud Storage、Artifact Registry、
+  Secret Manager、Logging/Monitoring、HTTPS/WSS、Pub/Sub billing 通知，
+  以及 Cloud Run US$1 原生支出上限的安全邊界。
+- 將版本標籤更新為 `AI-Vision-Director V3.0 alph1`，套件版本更新為
+  `3.0.0a1`；既有 WebSocket protocol version `1.0` 保持不變。
+
+### English
+
+- Established Phase 0 online-deployment boundaries: `Repository`,
+  `SystemStatusQuery`, `VehicleQuery`/`VehicleCommand`, and `EventSink`.
+- Added an OpenAPI 3.1 schema for status, vehicle query/command, and event
+  delivery, with idempotency keys on every mutation.
+- Added a conflict-safe, one-to-one `(node_id, local_id) <-> cloud_id` mapping
+  contract and reference in-memory adapter.
+- Added a local read-only FastAPI for system status, vehicles, sessions,
+  events, and runtime OpenAPI, with SQLite forced into `mode=ro` and
+  `query_only`.
+- Added the formal PostgreSQL schema, Alembic migration, SQLAlchemy adapter,
+  Docker Compose, repeatable SQLite/telemetry importer, and an Edge outbox
+  with leases, exponential backoff, dead-letter handling, and idempotent
+  projection.
+- Added the Phase 3 public write boundary with Firebase revoked-token
+  verification, RBAC/node scope, optimistic-concurrency vehicle PATCH,
+  append-only audit, PostgreSQL rate limiting, a CORS allowlist, and Docker
+  secrets.
+- Added the Phase 4 React Mission Control with a typed read-only client,
+  overview, vehicles, sessions, events, complete loading/error/empty states,
+  and offline-aware WebSocket telemetry with bounded exponential backoff.
+- Added Phase 5 Google Cloud deployment sources for Firebase Hosting, Cloud Run
+  API/dashboard services, Cloud SQL PostgreSQL, Cloud Storage, Artifact
+  Registry, Secret Manager, Logging/Monitoring, HTTPS/WSS, Pub/Sub billing
+  notifications, and a safe boundary for the native US$1 Cloud Run spend cap.
+- Updated the release label to `AI-Vision-Director V3.0 alph1` and package
+  version to `3.0.0a1` while preserving WebSocket protocol version `1.0`.
+
 ## V2.3 — 2026-07-24
 
 ### 中文
