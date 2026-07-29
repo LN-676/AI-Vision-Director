@@ -19,6 +19,22 @@ steps:
       - push
       - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${COMMIT_SHA}
 
+  - id: build-benchmark
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/benchmark:${COMMIT_SHA}
+      - --file
+      - Dockerfile.benchmark
+      - .
+
+  - id: push-benchmark
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/benchmark:${COMMIT_SHA}
+
   - id: build-dashboard
     name: gcr.io/cloud-builders/docker
     args:
@@ -42,3 +58,4 @@ steps:
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${COMMIT_SHA}
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dashboard:${COMMIT_SHA}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/benchmark:${COMMIT_SHA}

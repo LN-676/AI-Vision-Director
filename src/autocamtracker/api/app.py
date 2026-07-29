@@ -9,6 +9,7 @@ import socket
 import sqlite3
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from autocamtracker.api.models import (
     EventPageResponse,
@@ -25,6 +26,8 @@ from autocamtracker.api.read_models import (
     encode_cursor,
 )
 from autocamtracker.product import RELEASE_LABEL
+from autocamtracker.edge_control.api import EdgeControlSettings, install_edge_control_routes
+from autocamtracker.edge_control.repository import EdgeControlRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,9 +35,15 @@ class ApiSettings:
     identity_db_path: Path = Path("outputs/vehicle_identity.sqlite3")
     telemetry_dir: Path = Path("outputs/telemetry")
     node_id: str = socket.gethostname()
+    cors_allow_origins: tuple[str, ...] = ()
+    edge_control: EdgeControlSettings | None = None
 
 
-def create_app(settings: ApiSettings | None = None) -> FastAPI:
+def create_app(
+    settings: ApiSettings | None = None,
+    *,
+    edge_repository: EdgeControlRepository | None = None,
+) -> FastAPI:
     config = settings or ApiSettings()
     vehicles = ReadOnlyVehicleReader(config.identity_db_path, config.node_id)
     telemetry = TelemetryReader(config.telemetry_dir)
@@ -42,14 +51,30 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         title="AI-Vision-Director Read-only API",
         summary="Local read-only inspection API",
         description=(
-            "V3.0 alph1 Phase 1. This process opens SQLite in read-only mode and "
+            "V3.0.0a1 Phase 1. This process opens SQLite in read-only mode and "
             "does not expose mutation endpoints."
         ),
-        version="3.0.0-alpha.1",
+        version="3.0.0a1",
         openapi_url="/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",
     )
+    if config.cors_allow_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(config.cors_allow_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Content-Type", "X-Device-Token", "X-Edge-Node-ID"],
+            max_age=600,
+        )
+    if config.edge_control is not None:
+        app.state.edge_control_cors_origins = config.cors_allow_origins
+        install_edge_control_routes(
+            app,
+            config.edge_control,
+            repository=edge_repository,
+        )
 
     @app.get(
         "/api/v3/system/status",

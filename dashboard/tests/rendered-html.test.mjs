@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", {
+    new Request(`http://localhost${path}`, {
       headers: { accept: "text/html" },
     }),
     {
@@ -38,6 +38,15 @@ test("server-renders the Mission Control shell", async () => {
   assert.match(html, /Read-only dashboard/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   assert.doesNotMatch(html, /Your site is taking shape|Building your site/i);
+});
+
+test("server-renders the tablet Remote Console route", async () => {
+  const response = await render("/remote");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Remote Console · AI Vision Director/);
+  assert.match(html, /AI Vision Director Remote Console/);
+  assert.match(html, /Connecting to Edge control plane/);
 });
 
 test("typed client keeps the read-only API boundary explicit", async () => {
@@ -78,4 +87,33 @@ test("dashboard has distinct loading, error, and empty states", async () => {
   assert.match(dashboard, /No sessions recorded/);
   assert.match(dashboard, /No events to display/);
   assert.match(dashboard, /Retry request/);
+});
+
+test("remote console uses high-level commands and confirms emergency stop", async () => {
+  const remote = await readFile(
+    new URL("../app/remote/remote-console.tsx", import.meta.url),
+    "utf8",
+  );
+  const client = await readFile(
+    new URL("../app/lib/remote-api-client.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(remote, /start_tracking/);
+  assert.match(remote, /stop_tracking/);
+  assert.match(remote, /TAP AGAIN — CONFIRM EMERGENCY STOP/);
+  assert.match(remote, /Control API Offline/);
+  assert.match(remote, /No Edge Mac heartbeat yet/);
+  assert.match(client, /method:\s*"POST"/);
+  assert.match(client, /expires_at/);
+  assert.doesNotMatch(client, /yaw_velocity|pitch_velocity/);
+});
+
+test("remote tablet CSS prevents primary horizontal overflow", async () => {
+  const css = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(css, /\.remote-shell[\s\S]*overflow-x:\s*hidden/);
+  assert.match(css, /@media \(max-width: 900px\)/);
+  assert.match(css, /\.remote-grid\s*\{\s*grid-template-columns:\s*1fr/);
 });

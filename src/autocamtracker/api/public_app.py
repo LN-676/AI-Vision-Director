@@ -48,6 +48,19 @@ from autocamtracker.cloud.security_store import (
     PostgresRateLimiter,
     PostgresVehicleWriteService,
 )
+from autocamtracker.cloud.advanced import (
+    BenchmarkJobRequest,
+    BenchmarkJobResponse,
+    BenchmarkSubmissionService,
+    ModelRegistryService,
+    ModelRegistryConflict,
+    ModelVersionRegistrationRequest,
+    ModelVersionRegistrationResponse,
+    ModelVersionStatusRequest,
+    ModelVersionStatusResponse,
+    ModelVersionNotFound,
+    OrganizationScopeDenied,
+)
 from autocamtracker.product import RELEASE_LABEL
 
 
@@ -92,6 +105,8 @@ def create_public_app(
     vehicle_writes: VehicleWriteService | None = None,
     rate_limiter: RateLimiter | None = None,
     read_store: PostgresReadStore | None = None,
+    benchmark_submissions: BenchmarkSubmissionService | None = None,
+    model_registry: ModelRegistryService | None = None,
 ) -> FastAPI:
     config = settings or PublicApiSettings.from_env()
     owned_engine = None
@@ -126,13 +141,13 @@ def create_public_app(
             "Authenticated V3 write API. Firebase token verification, RBAC, "
             "distributed rate limiting, optimistic concurrency, and audit are mandatory."
         ),
-        version="3.0.0-alpha.1",
+        version="3.0.0a1",
     )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(config.cors_allow_origins),
         allow_credentials=True,
-        allow_methods=["GET", "PATCH", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
         expose_headers=["ETag", "X-Audit-ID"],
         max_age=600,
@@ -334,6 +349,88 @@ def create_public_app(
         response.headers["ETag"] = f'"{result.updated_at}"'
         response.headers["X-Audit-ID"] = result.audit_id
         return result
+
+    @app.post(
+        "/api/v3/benchmark-jobs",
+        response_model=BenchmarkJobResponse,
+        status_code=202,
+        tags=["benchmarks"],
+        operation_id="createBenchmarkJob",
+    )
+    def create_benchmark_job(
+        job: BenchmarkJobRequest,
+        principal: Principal = Depends(authenticated),
+    ) -> BenchmarkJobResponse:
+        if config.stateless_mode or benchmark_submissions is None:
+            raise HTTPException(
+                status_code=503,
+                detail="cloud benchmark submission is not configured",
+            )
+        try:
+            return benchmark_submissions.submit(job, principal)
+        except OrganizationScopeDenied as error:
+            raise HTTPException(
+                status_code=403, detail="organization scope denied"
+            ) from error
+        except PermissionError as error:
+            raise HTTPException(
+                status_code=403, detail="benchmark:create permission required"
+            ) from error
+        except ModelVersionNotFound as error:
+            raise HTTPException(status_code=404, detail="model version not found") from error
+
+    @app.post(
+        "/api/v3/model-versions",
+        response_model=ModelVersionRegistrationResponse,
+        status_code=201,
+        tags=["models"],
+        operation_id="registerModelVersion",
+    )
+    def register_model_version(
+        model: ModelVersionRegistrationRequest,
+        principal: Principal = Depends(authenticated),
+    ) -> ModelVersionRegistrationResponse:
+        if config.stateless_mode or model_registry is None:
+            raise HTTPException(
+                status_code=503,
+                detail="model registry is not configured",
+            )
+        try:
+            return model_registry.register(model, principal)
+        except OrganizationScopeDenied as error:
+            raise HTTPException(
+                status_code=403, detail="organization scope denied"
+            ) from error
+        except PermissionError as error:
+            raise HTTPException(
+                status_code=403, detail="model:write permission required"
+            ) from error
+        except ModelRegistryConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.patch(
+        "/api/v3/model-versions/{model_version_id}/status",
+        response_model=ModelVersionStatusResponse,
+        tags=["models"],
+        operation_id="updateModelVersionStatus",
+    )
+    def update_model_version_status(
+        model_version_id: str,
+        status: ModelVersionStatusRequest,
+        principal: Principal = Depends(authenticated),
+    ) -> ModelVersionStatusResponse:
+        if config.stateless_mode or model_registry is None:
+            raise HTTPException(status_code=503, detail="model registry is not configured")
+        try:
+            return model_registry.update_status(model_version_id, status, principal)
+        except (ValueError, ModelVersionNotFound) as error:
+            raise HTTPException(status_code=404, detail="model version not found") from error
+        except OrganizationScopeDenied as error:
+            raise HTTPException(status_code=403, detail="organization scope denied") from error
+        except PermissionError as error:
+            raise HTTPException(
+                status_code=403, detail="model:write permission required"
+            ) from error
 
     if owned_engine is not None:
         @app.on_event("shutdown")

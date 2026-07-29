@@ -4,7 +4,19 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
-## V3.0 alph1 — 2026-07-29
+## V3.0.0a1 — 2026-07-29
+
+### Phase 6 advanced cloud
+
+- Added organization/member/device ownership and tenant-scoped Firebase claims.
+- Added Pub/Sub lifecycle topics, dead lettering, a durable event envelope, and
+  a PostgreSQL event outbox.
+- Added cloud benchmark submission, CPU and opt-in NVIDIA L4 Cloud Run jobs, and
+  a CUDA benchmark worker with model digest verification.
+- Added a tenant model registry, notification channels and alert rules, Cloud
+  Monitoring email routing, and a benchmark failure policy.
+- Added long-term BigQuery telemetry storage with daily partitioning and tenant
+  and event-type clustering.
 
 ### 中文
 
@@ -29,7 +41,9 @@ This document records current releases. Complete historical source is available 
   與 Dashboard、Cloud SQL PostgreSQL、Cloud Storage、Artifact Registry、
   Secret Manager、Logging/Monitoring、HTTPS/WSS、Pub/Sub billing 通知，
   以及 Cloud Run US$1 原生支出上限的安全邊界。
-- 將版本標籤更新為 `AI-Vision-Director V3.0 alph1`，套件版本更新為
+- 同步 iOS 顯示版本為 `V3.0.0a1`，Marketing Version 更新為 `3.0.0`，
+  build 更新為 `3001`。
+- 將版本標籤更新為 `AI-Vision-Director V3.0.0a1`，套件版本更新為
   `3.0.0a1`；既有 WebSocket protocol version `1.0` 保持不變。
 
 ### English
@@ -58,7 +72,9 @@ This document records current releases. Complete historical source is available 
   API/dashboard services, Cloud SQL PostgreSQL, Cloud Storage, Artifact
   Registry, Secret Manager, Logging/Monitoring, HTTPS/WSS, Pub/Sub billing
   notifications, and a safe boundary for the native US$1 Cloud Run spend cap.
-- Updated the release label to `AI-Vision-Director V3.0 alph1` and package
+- Synchronized the iOS display version to `V3.0.0a1`, Marketing Version to
+  `3.0.0`, and build number to `3001`.
+- Updated the release label to `AI-Vision-Director V3.0.0a1` and package
   version to `3.0.0a1` while preserving WebSocket protocol version `1.0`.
 
 ## V2.3 — 2026-07-24

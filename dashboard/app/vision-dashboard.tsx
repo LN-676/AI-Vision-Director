@@ -307,6 +307,10 @@ export function VisionDashboard() {
               {item.label}
             </button>
           ))}
+          <a className="nav-link" href="/remote">
+            <span>RC</span>
+            Remote
+          </a>
         </nav>
         <div className="sidebar-status">
           <p>EDGE NETWORK</p>
@@ -384,7 +388,7 @@ export function VisionDashboard() {
         </div>
         <footer>
           <span>
-            AI-Vision-Director V3.0 alph1 ·{" "}
+            AI-Vision-Director V3.0.0a1 ·{" "}
             {api.mode === "demo" ? "Preview mode" : "Live mode"}
           </span>
           <span>Read-only dashboard</span>

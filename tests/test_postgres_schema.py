@@ -12,7 +12,10 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertEqual(
             set(metadata.tables),
             {
+                "organizations",
+                "organization_members",
                 "nodes",
+                "organization_nodes",
                 "vehicles",
                 "vehicle_id_mappings",
                 "sessions",
@@ -22,6 +25,12 @@ class PostgresSchemaTests(unittest.TestCase):
                 "idempotency_keys",
                 "audit_logs",
                 "api_rate_limits",
+                "registered_models",
+                "model_versions",
+                "benchmark_jobs",
+                "notification_channels",
+                "alert_rules",
+                "cloud_event_outbox",
             },
         )
 
@@ -61,6 +70,28 @@ class PostgresSchemaTests(unittest.TestCase):
         self.assertIn('down_revision = "20260729_0001"', migration)
         self.assertIn("trg_audit_logs_append_only", migration)
         self.assertIn("BEFORE UPDATE OR DELETE ON audit_logs", migration)
+
+    def test_phase_six_migration_contains_advanced_control_plane(self) -> None:
+        migration = (
+            Path(__file__).resolve().parents[1]
+            / "migrations"
+            / "versions"
+            / "20260729_0003_phase6_advanced_cloud.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('down_revision = "20260729_0002"', migration)
+        for table in (
+            "organizations",
+            "organization_members",
+            "organization_nodes",
+            "registered_models",
+            "model_versions",
+            "benchmark_jobs",
+            "notification_channels",
+            "alert_rules",
+            "cloud_event_outbox",
+        ):
+            self.assertIn(f'"{table}"', migration)
 
 
 if __name__ == "__main__":

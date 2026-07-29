@@ -184,7 +184,7 @@ class PublicApiSecurityTests(unittest.TestCase):
             for method in path
             if method in {"post", "put", "patch", "delete"}
         }
-        self.assertEqual(methods, {"patch"})
+        self.assertEqual(methods, {"patch", "post"})
 
 
 class PrincipalAndSecretTests(unittest.TestCase):

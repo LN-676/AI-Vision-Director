@@ -33,6 +33,8 @@ class PublicApiSettings:
     rate_limit_requests: int = 30
     rate_limit_window_seconds: int = 60
     forwarded_allow_ips: str = "127.0.0.1"
+    cloud_region: str = "asia-east1"
+    gpu_region: str = "asia-southeast1"
 
     @classmethod
     def from_env(
@@ -81,4 +83,6 @@ class PublicApiSettings:
             requests,
             window,
             forwarded_allow_ips,
+            values.get("AIVD_CLOUD_REGION", "asia-east1").strip(),
+            values.get("AIVD_GPU_REGION", "asia-southeast1").strip(),
         )

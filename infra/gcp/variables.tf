@@ -26,6 +26,12 @@ variable "dashboard_image" {
   type        = string
 }
 
+variable "benchmark_image" {
+  description = "CUDA-enabled immutable benchmark worker image. Falls back to api_image for planning compatibility."
+  type        = string
+  default     = ""
+}
+
 variable "cors_allow_origins" {
   description = "Comma-separated HTTPS origins permitted to call the API."
   type        = string
@@ -36,4 +42,28 @@ variable "custom_domain" {
   description = "Optional custom dashboard domain configured in Firebase Hosting."
   type        = string
   default     = ""
+}
+
+variable "enable_gpu_benchmark" {
+  description = "Create the opt-in L4 Cloud Run benchmark job. Disabled by default for cost safety."
+  type        = bool
+  default     = false
+}
+
+variable "gpu_region" {
+  description = "Cloud Run region with NVIDIA L4 job capacity."
+  type        = string
+  default     = "asia-southeast1"
+}
+
+variable "alert_email" {
+  description = "Optional email address for Cloud Monitoring incident notifications."
+  type        = string
+  default     = ""
+}
+
+variable "enable_advanced_cloud" {
+  description = "Enable stateful Phase 6 API mutations and cloud benchmark submission."
+  type        = bool
+  default     = false
 }

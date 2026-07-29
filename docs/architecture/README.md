@@ -24,6 +24,7 @@
 | Public API security | [public-api-security.md](public-api-security.md) | Firebase Auth、RBAC、audit、rate limit、CORS 與 secrets |
 | React dashboard | [react-dashboard.md](react-dashboard.md) | typed read-only client、operations views、UI states 與 telemetry reconnect |
 | Google Cloud deployment | [google-cloud-deployment.md](google-cloud-deployment.md) | Cloud Run、Cloud SQL、Storage、Artifact Registry、Firebase、監控與成本邊界 |
+| Advanced cloud | [phase6-advanced-cloud.md](phase6-advanced-cloud.md) | 多租戶、Pub/Sub、GPU benchmark、model registry、通知與 BigQuery |
 | Evaluation | [offline-replay.md](offline-replay.md) | 無 UI 的可重現 replay |
 | Benchmark | [benchmark-center.md](benchmark-center.md) | 最多五模型的標準格式、跑分與 live capture |
 | Safety | [camera-control-policy.md](camera-control-policy.md) | dead zone、hysteresis 與安全限制 |
@@ -42,3 +43,6 @@ The table above is the architecture index. Together, these documents separate:
 - framing intent from hardware safety limits.
 
 Historical V1.77 source remains available through its Git tag. These documents describe the current V1.0 working tree.
+- [Edge Control Plane MVP](edge-control-plane-mvp.md): local tablet Remote
+  Console, SQLite command queue, heartbeat/lease safety, and future cloud
+  contract.

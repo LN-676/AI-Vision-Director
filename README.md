@@ -1,4 +1,4 @@
-# AI Vision Director V2.3
+# AI Vision Director V3.0.0a1
 
 [中文](#中文) · [English](#english)
 
@@ -12,17 +12,17 @@ AI Vision Director 是一套由 **Mac 桌面端**與 **iPhone 相機／DockKit �
 
 | 元件 | 正式名稱 | 主要責任 |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V2.3 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
-| iOS | AI Vision Director Camera for iOS V2.2 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
+| Desktop | AI Vision Director Desktop V3.0.0a1 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
+| iOS | AI Vision Director Camera for iOS V3.0.0a1 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
 
-目前 Desktop 正式版本是 **V2.3**，iOS 顯示版本維持 **V2.2**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
+目前 Desktop 與 iOS 的 alpha 版本均為 **V3.0.0a1**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
 
 ## 整體硬體與資料連接
 
 ```mermaid
 flowchart LR
     subgraph COMPUTER["Mac／電腦端"]
-        DESKTOP["AI Vision Director Desktop V2.3<br/>PySide6 Scheme A／Tkinter compatibility"]
+        DESKTOP["AI Vision Director Desktop V3.0.0a1<br/>PySide6 Scheme A／Tkinter compatibility"]
         SERVER["WebSocket Server<br/>ws://Mac.local:8765/ws/tracking"]
         AI["YOLO Detection<br/>Tracking · GID/ReID · Framing"]
         DB[("SQLite Identity DB<br/>本機持久化")]
@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph MOBILE["iPhone＋手機穩定器"]
-        IOS["AI Vision Director Camera for iOS V2.2"]
+        IOS["AI Vision Director Camera for iOS V3.0.0a1"]
         CAMERA["iPhone Camera<br/>AVCaptureSession"]
         DOCKKIT["Apple DockKit<br/>Custom Motor Control"]
         GIMBAL["Insta360 Flow 2 Pro<br/>Motors · Firmware"]
@@ -160,6 +160,7 @@ flowchart TD
 - 可版本化的相機 calibration、GMC、timestamp pipeline 與離線 benchmark。
 - 即時效能評估會分開統計來源序號缺口、iPhone send drop、Desktop latest-frame overwrite、decode failure 與影片主動跳幀，並顯示 latency percentile 與失追 frame 區間。
 - 一鍵診斷會彙整 source、decoder、detector、tracker、ReID、GMC、framing、SQLite、WebSocket、DockKit 與 motor control 的健康狀態及結構化事件。
+- V3 Phase 6 雲端控制面提供 organization／member／device 租戶隔離、Pub/Sub 事件、CPU 或 NVIDIA L4 benchmark job、版本化 model registry、通知規則與 BigQuery 長期分析；進階雲端與 GPU 均採 opt-in 部署。
 
 ## Quick Auto 使用方式
 
@@ -223,11 +224,11 @@ Quick Auto 的分數是 annotation-free proxy，用於比較模型組合的一�
 
 ```text
 AI-Vision-Director/
-├── src/autocamtracker/       # Desktop V2.3 Python application and shared use cases
+├── src/autocamtracker/       # Desktop V3.0.0a1 Python application and shared use cases
 │   ├── ui_qt/                # PySide6 Scheme A workspace
 │   └── ui/                   # Preserved Tkinter compatibility UI
 ├── tests/                    # Desktop unit and integration tests
-├── ios/DockKitTester/        # iOS V2.2 Xcode project and Swift tests
+├── ios/DockKitTester/        # iOS V3.0.0a1 Xcode project and Swift tests
 ├── docs/architecture/        # Architecture contracts and design notes
 ├── evaluation/               # Versioned evaluation scenarios
 ├── code/model/               # YOLO, tracker and ReID model assets
@@ -235,7 +236,7 @@ AI-Vision-Director/
 └── outputs/                  # Local runtime data; excluded from releases
 ```
 
-`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V2.2**。
+`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V3.0.0a1**。
 
 ## Desktop 安裝與執行
 
@@ -277,9 +278,9 @@ Mac 與 iPhone 必須位於可互相存取的同一區域網路。單純 USB 充
 ## 版本與歷史
 
 - 最新程式碼：`main`
-- 目前發布：`v2.3`
+- 目前發布：`V3.0.0a1`
 - 舊版封存：`v1.77` 與其他歷史 tags
-- Desktop 為 V2.3，iOS 顯示版本維持 V2.2，兩端持續使用相容的 1.0 WebSocket contract。
+- Desktop 與 iOS 均為 V3.0.0a1，兩端持續使用相容的 1.0 WebSocket contract。
 - 版本變更內容：[CHANGELOG.md](CHANGELOG.md)
 
 ---
@@ -292,10 +293,10 @@ Both components are maintained in this monorepo because they share one versioned
 
 | Component | Product name | Responsibility |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V2.3 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
-| iOS | AI Vision Director Camera for iOS V2.2 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
+| Desktop | AI Vision Director Desktop V3.0.0a1 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
+| iOS | AI Vision Director Camera for iOS V3.0.0a1 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
 
-The current Desktop release is **V2.3** and the iOS display version remains **V2.2**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
+The current Desktop and iOS alpha release is **V3.0.0a1**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
 
 ## End-to-end hardware and data flow
 
@@ -432,6 +433,49 @@ Module entry point:
 PYTHONPATH=src .venv/bin/python -m autocamtracker.main
 ```
 
+## Tablet Remote Control MVP
+
+The local MVP keeps all AI inference, tracking, ReID, framing, and DockKit
+safety on the Mac. A tablet on the same private LAN opens a high-contrast Remote
+Console and sends only high-level commands.
+
+Install both Python and Dashboard dependencies once:
+
+```bash
+.venv/bin/python -m pip install -e .
+cd dashboard
+npm install
+cd ..
+chmod +x tools/AI-Vision-Director-MVP.command
+```
+
+Connect the Mac, iPhone, and tablet to the same private hotspot or router, then
+run:
+
+```bash
+./tools/AI-Vision-Director-MVP.command
+```
+
+The launcher prints the tablet URL:
+
+```text
+http://<MAC_LAN_IP>:3000/remote
+```
+
+Find the Wi-Fi address manually with `ipconfig getifaddr en0`. If needed, set
+`AIVD_LAN_IP` explicitly before launching. The API binds to `0.0.0.0:8080`, but
+CORS accepts only the exact Dashboard LAN origin and localhost; wildcard CORS
+is not used. `AIVD_EDGE_DEVICE_TOKEN` is generated ephemerally unless supplied
+in the environment and must never be committed.
+
+Start, Stop, Home, and Emergency Stop execute through the Desktop's high-level
+`ControlPort`. Emergency Stop requires a second tablet tap and still passes
+through the existing Desktop/DockKit stop path. If the control API disconnects,
+Desktop tracking and local manual controls continue to operate.
+
+Architecture, safety details, demo steps, and known limitations are documented
+in [Edge Control Plane MVP](docs/architecture/edge-control-plane-mvp.md).
+
 The Mac and iPhone must have mutually reachable IP connectivity. A charging cable or Xcode deployment alone does not create the app data channel.
 
 ## Safety and local data
@@ -445,7 +489,7 @@ The Mac and iPhone must have mutually reachable IP connectivity. A charging cabl
 ## Version history
 
 - Latest code: `main`
-- Current release: `v2.3`
+- Current release: `V3.0.0a1`
 - Archived releases: `v1.77` and earlier tags
-- Desktop is V2.3 and the iOS display version remains V2.2; both retain the compatible 1.0 WebSocket contract.
+- Desktop and iOS are both V3.0.0a1 and retain the compatible 1.0 WebSocket contract.
 - Release notes: [CHANGELOG.md](CHANGELOG.md)

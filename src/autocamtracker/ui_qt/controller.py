@@ -248,6 +248,21 @@ class QtRuntimeController(QObject):
         self.statusChanged.emit("Tracking stopped")
 
     @Slot()
+    def home(self) -> None:
+        """High-level recenter request; iOS remains responsible for safe motor actuation."""
+        self.dependencies.tracking_server.publish_stop()
+        self.application.camera_control_policy.reset()
+        self.dependencies.tracking_server.publish_control("recenter")
+        self.statusChanged.emit("DockKit Home requested")
+
+    @Slot()
+    def emergency_stop(self) -> None:
+        """Highest-priority local stop without exposing raw motor commands."""
+        self.stop()
+        self.application.camera_control_policy.reset()
+        self.statusChanged.emit("EMERGENCY STOP")
+
+    @Slot()
     def toggle_recording(self) -> None:
         if self.recording:
             session = self.live_benchmark_recorder.stop()

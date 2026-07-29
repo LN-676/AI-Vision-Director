@@ -43,6 +43,33 @@ def test_cloud_build_publishes_api_and_dashboard_images() -> None:
 
     assert "Dockerfile.cloud" in cloud_build
     assert "dashboard/Dockerfile.cloud" in cloud_build
+    assert "Dockerfile.benchmark" in cloud_build
     assert "/api:${COMMIT_SHA}" in cloud_build
     assert "/dashboard:${COMMIT_SHA}" in cloud_build
+    assert "/benchmark:${COMMIT_SHA}" in cloud_build
     assert "wss://${PROJECT_ID}.web.app/ws/telemetry" in cloud_build
+
+
+def test_phase6_advanced_cloud_infrastructure_is_cost_gated() -> None:
+    terraform = (ROOT / "infra/gcp/main.tf").read_text(encoding="utf-8")
+    variables = (ROOT / "infra/gcp/variables.tf").read_text(encoding="utf-8")
+
+    for resource in (
+        'resource "google_pubsub_topic" "telemetry"',
+        'resource "google_pubsub_topic" "benchmark"',
+        'resource "google_pubsub_topic" "alerts"',
+        'resource "google_pubsub_topic" "dead_letter"',
+        'resource "google_bigquery_dataset" "analytics"',
+        'resource "google_bigquery_table" "cloud_events"',
+        'resource "google_pubsub_subscription" "telemetry_bigquery"',
+        'resource "google_cloud_run_v2_job" "benchmark_cpu"',
+        'resource "google_cloud_run_v2_job" "benchmark_gpu"',
+        'resource "google_monitoring_alert_policy" "benchmark_failures"',
+    ):
+        assert resource in terraform
+
+    assert 'variable "enable_gpu_benchmark"' in variables
+    assert 'variable "enable_advanced_cloud"' in variables
+    assert "default     = false" in variables
+    assert 'accelerator = "nvidia-l4"' in terraform
+    assert '"nvidia.com/gpu" = "1"' in terraform

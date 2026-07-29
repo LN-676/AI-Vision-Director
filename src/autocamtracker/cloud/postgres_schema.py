@@ -27,6 +27,36 @@ from sqlalchemy.sql import func
 
 metadata = MetaData()
 
+organizations = Table(
+    "organizations",
+    metadata,
+    Column("organization_id", UUID(as_uuid=True), primary_key=True),
+    Column("display_name", String(255), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("metadata", JSONB, nullable=False, server_default="{}"),
+)
+
+organization_members = Table(
+    "organization_members",
+    metadata,
+    Column(
+        "organization_id",
+        UUID(as_uuid=True),
+        ForeignKey("organizations.organization_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("user_uid", String(255), nullable=False),
+    Column("role", String(32), nullable=False),
+    Column("joined_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("metadata", JSONB, nullable=False, server_default="{}"),
+    PrimaryKeyConstraint("organization_id", "user_uid"),
+    CheckConstraint(
+        "role IN ('viewer','operator','maintainer','admin')",
+        name="ck_organization_members_role",
+    ),
+)
+Index("ix_organization_members_user", organization_members.c.user_uid)
+
 nodes = Table(
     "nodes",
     metadata,
@@ -35,6 +65,27 @@ nodes = Table(
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("last_seen_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("metadata", JSONB, nullable=False, server_default="{}"),
+)
+
+organization_nodes = Table(
+    "organization_nodes",
+    metadata,
+    Column(
+        "organization_id",
+        UUID(as_uuid=True),
+        ForeignKey("organizations.organization_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "node_id",
+        String(255),
+        ForeignKey("nodes.node_id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    ),
+    Column("assigned_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("assigned_by", String(255), nullable=False),
+    PrimaryKeyConstraint("organization_id", "node_id"),
 )
 
 vehicles = Table(
@@ -226,3 +277,174 @@ api_rate_limits = Table(
     CheckConstraint("request_count > 0", name="ck_api_rate_limit_positive"),
 )
 Index("ix_api_rate_limits_window", api_rate_limits.c.window_started_at)
+
+registered_models = Table(
+    "registered_models",
+    metadata,
+    Column("model_id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "organization_id",
+        UUID(as_uuid=True),
+        ForeignKey("organizations.organization_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("name", String(255), nullable=False),
+    Column("task", String(64), nullable=False),
+    Column("description", Text),
+    Column("created_by", String(255), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("metadata", JSONB, nullable=False, server_default="{}"),
+    UniqueConstraint("organization_id", "name", name="uq_registered_models_org_name"),
+    CheckConstraint(
+        "task IN ('detection','reid','tracking','framing')",
+        name="ck_registered_models_task",
+    ),
+)
+
+model_versions = Table(
+    "model_versions",
+    metadata,
+    Column("model_version_id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "model_id",
+        UUID(as_uuid=True),
+        ForeignKey("registered_models.model_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("version", String(100), nullable=False),
+    Column("artifact_uri", Text, nullable=False),
+    Column("digest_sha256", String(64), nullable=False),
+    Column("runtime", String(32), nullable=False),
+    Column("status", String(32), nullable=False, server_default="candidate"),
+    Column("metrics", JSONB, nullable=False, server_default="{}"),
+    Column("created_by", String(255), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("model_id", "version", name="uq_model_versions_version"),
+    CheckConstraint(
+        "runtime IN ('onnx','tensorrt','pytorch','coreml')",
+        name="ck_model_versions_runtime",
+    ),
+    CheckConstraint(
+        "status IN ('candidate','validated','production','retired')",
+        name="ck_model_versions_status",
+    ),
+)
+Index("ix_model_versions_model_created", model_versions.c.model_id, model_versions.c.created_at.desc())
+
+benchmark_jobs = Table(
+    "benchmark_jobs",
+    metadata,
+    Column("job_id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "organization_id",
+        UUID(as_uuid=True),
+        ForeignKey("organizations.organization_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "model_version_id",
+        UUID(as_uuid=True),
+        ForeignKey("model_versions.model_version_id"),
+        nullable=False,
+    ),
+    Column("created_by", String(255), nullable=False),
+    Column("status", String(32), nullable=False, server_default="pending"),
+    Column("accelerator", String(32), nullable=False),
+    Column("dataset_uri", Text, nullable=False),
+    Column("output_uri", Text, nullable=False),
+    Column("execution_name", Text),
+    Column("repetitions", Integer, nullable=False, server_default="1"),
+    Column("submitted_event_id", UUID(as_uuid=True)),
+    Column("result", JSONB, nullable=False, server_default="{}"),
+    Column("error_message", Text),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("started_at", DateTime(timezone=True)),
+    Column("finished_at", DateTime(timezone=True)),
+    Column("metadata", JSONB, nullable=False, server_default="{}"),
+    CheckConstraint(
+        "status IN ('pending','submitted','running','succeeded','failed','cancelled')",
+        name="ck_benchmark_jobs_status",
+    ),
+    CheckConstraint(
+        "accelerator IN ('cpu','nvidia-l4')",
+        name="ck_benchmark_jobs_accelerator",
+    ),
+    CheckConstraint("repetitions > 0 AND repetitions <= 20", name="ck_benchmark_repetitions"),
+)
+Index(
+    "ix_benchmark_jobs_org_created",
+    benchmark_jobs.c.organization_id,
+    benchmark_jobs.c.created_at.desc(),
+)
+
+notification_channels = Table(
+    "notification_channels",
+    metadata,
+    Column("channel_id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "organization_id",
+        UUID(as_uuid=True),
+        ForeignKey("organizations.organization_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("channel_type", String(32), nullable=False),
+    Column("display_name", String(255), nullable=False),
+    Column("secret_ref", String(255), nullable=False),
+    Column("enabled", Boolean, nullable=False, server_default="true"),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "channel_type IN ('email','webhook','firebase')",
+        name="ck_notification_channels_type",
+    ),
+)
+
+alert_rules = Table(
+    "alert_rules",
+    metadata,
+    Column("rule_id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "organization_id",
+        UUID(as_uuid=True),
+        ForeignKey("organizations.organization_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "channel_id",
+        UUID(as_uuid=True),
+        ForeignKey("notification_channels.channel_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("name", String(255), nullable=False),
+    Column("event_type", String(255), nullable=False),
+    Column("minimum_severity", String(16), nullable=False, server_default="warning"),
+    Column("cooldown_seconds", Integer, nullable=False, server_default="300"),
+    Column("enabled", Boolean, nullable=False, server_default="true"),
+    Column("filters", JSONB, nullable=False, server_default="{}"),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint(
+        "minimum_severity IN ('info','warning','error','critical')",
+        name="ck_alert_rules_severity",
+    ),
+    CheckConstraint("cooldown_seconds >= 0", name="ck_alert_rules_cooldown"),
+)
+
+cloud_event_outbox = Table(
+    "cloud_event_outbox",
+    metadata,
+    Column("event_id", UUID(as_uuid=True), primary_key=True),
+    Column("organization_id", UUID(as_uuid=True), nullable=False),
+    Column("topic", String(255), nullable=False),
+    Column("event_type", String(255), nullable=False),
+    Column("payload", JSONB, nullable=False),
+    Column("publish_attempts", Integer, nullable=False, server_default="0"),
+    Column("available_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("published_at", DateTime(timezone=True)),
+    Column("last_error", Text),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    CheckConstraint("publish_attempts >= 0", name="ck_cloud_event_outbox_attempts"),
+)
+Index(
+    "ix_cloud_event_outbox_pending",
+    cloud_event_outbox.c.available_at,
+    postgresql_where=cloud_event_outbox.c.published_at.is_(None),
+)

@@ -11,6 +11,7 @@ class Principal:
     uid: str
     roles: frozenset[str]
     node_ids: frozenset[str]
+    organization_ids: frozenset[str]
     claims: Mapping[str, Any]
 
     def has_permission(self, permission: str) -> bool:
@@ -24,7 +25,16 @@ class Principal:
 
 ROLE_PERMISSIONS = {
     "viewer": frozenset(),
-    "operator": frozenset({"vehicle:write"}),
+    "operator": frozenset({"vehicle:write", "benchmark:create"}),
+    "maintainer": frozenset(
+        {
+            "vehicle:write",
+            "benchmark:create",
+            "model:write",
+            "device:write",
+            "alert:write",
+        }
+    ),
     "admin": frozenset({"*"}),
 }
 
@@ -59,10 +69,18 @@ def principal_from_claims(claims: Mapping[str, Any]) -> Principal:
         node_ids = {str(node_id) for node_id in claimed_nodes}
     else:
         node_ids = set()
+    claimed_organizations = claims.get("organization_ids", claims.get("org_ids", ()))
+    if isinstance(claimed_organizations, str):
+        organization_ids = {claimed_organizations}
+    elif isinstance(claimed_organizations, (list, tuple, set)):
+        organization_ids = {str(org_id) for org_id in claimed_organizations}
+    else:
+        organization_ids = set()
     return Principal(
         uid=uid,
         roles=frozenset(roles),
         node_ids=frozenset(node_ids),
+        organization_ids=frozenset(organization_ids),
         claims=dict(claims),
     )
 

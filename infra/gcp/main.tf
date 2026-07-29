@@ -4,8 +4,10 @@ locals {
   database_user     = "aivd_api"
   api_service       = "aivd-api"
   dashboard_service = "aivd-dashboard"
+  benchmark_image    = var.benchmark_image == "" ? var.api_image : var.benchmark_image
   required_apis = toset([
     "artifactregistry.googleapis.com",
+    "bigquery.googleapis.com",
     "billingbudgets.googleapis.com",
     "cloudbilling.googleapis.com",
     "firebase.googleapis.com",
@@ -136,9 +138,12 @@ resource "google_service_account" "runtime" {
 
 resource "google_project_iam_member" "runtime_roles" {
   for_each = toset([
+    "roles/bigquery.dataEditor",
     "roles/cloudsql.client",
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
+    "roles/pubsub.publisher",
+    "roles/run.invoker",
     "roles/storage.objectUser",
   ])
   project = var.project_id
@@ -186,6 +191,18 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "AIVD_FORWARDED_ALLOW_IPS"
         value = "169.254.8.129"
+      }
+      env {
+        name  = "AIVD_STATELESS_MODE"
+        value = var.enable_advanced_cloud ? "false" : "true"
+      }
+      env {
+        name  = "AIVD_CLOUD_REGION"
+        value = var.region
+      }
+      env {
+        name  = "AIVD_GPU_REGION"
+        value = var.gpu_region
       }
       env {
         name = "AIVD_DATABASE_URL"
@@ -331,6 +348,266 @@ resource "google_pubsub_topic" "billing" {
   depends_on                 = [google_project_service.required]
 }
 
+resource "google_pubsub_topic" "telemetry" {
+  name                       = "aivd-telemetry-events"
+  message_retention_duration = "604800s"
+  message_storage_policy {
+    allowed_persistence_regions = [var.region]
+  }
+  depends_on = [google_project_service.required]
+}
+
+resource "google_pubsub_topic" "benchmark" {
+  name                       = "aivd-benchmark-events"
+  message_retention_duration = "604800s"
+  message_storage_policy {
+    allowed_persistence_regions = [var.region]
+  }
+  depends_on = [google_project_service.required]
+}
+
+resource "google_pubsub_topic" "alerts" {
+  name                       = "aivd-alert-events"
+  message_retention_duration = "604800s"
+  depends_on                 = [google_project_service.required]
+}
+
+resource "google_pubsub_topic" "dead_letter" {
+  name                       = "aivd-dead-letter"
+  message_retention_duration = "1209600s"
+  depends_on                 = [google_project_service.required]
+}
+
+resource "google_pubsub_subscription" "alert_dispatch" {
+  name                 = "aivd-alert-dispatch"
+  topic                = google_pubsub_topic.alerts.id
+  ack_deadline_seconds = 60
+  message_retention_duration = "604800s"
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dead_letter.id
+    max_delivery_attempts = 10
+  }
+}
+
+resource "google_pubsub_subscription" "dead_letter_audit" {
+  name                       = "aivd-dead-letter-audit"
+  topic                      = google_pubsub_topic.dead_letter.id
+  message_retention_duration = "1209600s"
+}
+
+resource "google_pubsub_topic_iam_member" "pubsub_dead_letter_publisher" {
+  topic  = google_pubsub_topic.dead_letter.name
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_pubsub_subscription_iam_member" "pubsub_dead_letter_subscriber" {
+  subscription = google_pubsub_subscription.alert_dispatch.name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_bigquery_dataset" "analytics" {
+  dataset_id                 = "aivd_analytics"
+  friendly_name              = "AI Vision Director long-term analytics"
+  location                   = var.region
+  delete_contents_on_destroy = false
+  default_partition_expiration_ms = 31536000000
+
+  labels = {
+    system = "aivd"
+    phase  = "6"
+  }
+  depends_on = [google_project_service.required]
+}
+
+resource "google_bigquery_table" "cloud_events" {
+  dataset_id          = google_bigquery_dataset.analytics.dataset_id
+  table_id            = "cloud_events"
+  deletion_protection = true
+
+  time_partitioning {
+    type  = "DAY"
+    field = "occurred_at"
+  }
+  clustering = ["organization_id", "event_type"]
+  schema = jsonencode([
+    { name = "event_id", type = "STRING", mode = "REQUIRED" },
+    { name = "event_type", type = "STRING", mode = "REQUIRED" },
+    { name = "occurred_at", type = "TIMESTAMP", mode = "REQUIRED" },
+    { name = "organization_id", type = "STRING", mode = "REQUIRED" },
+    { name = "actor_uid", type = "STRING", mode = "NULLABLE" },
+    { name = "subject", type = "STRING", mode = "REQUIRED" },
+    { name = "schema_version", type = "INTEGER", mode = "REQUIRED" },
+    { name = "correlation_id", type = "STRING", mode = "NULLABLE" },
+    { name = "data", type = "JSON", mode = "REQUIRED" },
+  ])
+}
+
+resource "google_project_iam_member" "pubsub_bigquery_writer" {
+  project = var.project_id
+  role    = "roles/bigquery.dataEditor"
+  member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+resource "google_pubsub_subscription" "telemetry_bigquery" {
+  name  = "aivd-telemetry-bigquery"
+  topic = google_pubsub_topic.telemetry.id
+
+  bigquery_config {
+    table            = "${var.project_id}.${google_bigquery_dataset.analytics.dataset_id}.${google_bigquery_table.cloud_events.table_id}"
+    use_table_schema = true
+  }
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dead_letter.id
+    max_delivery_attempts = 10
+  }
+  depends_on = [google_project_iam_member.pubsub_bigquery_writer]
+}
+
+resource "google_pubsub_subscription" "benchmark_bigquery" {
+  name  = "aivd-benchmark-bigquery"
+  topic = google_pubsub_topic.benchmark.id
+
+  bigquery_config {
+    table            = "${var.project_id}.${google_bigquery_dataset.analytics.dataset_id}.${google_bigquery_table.cloud_events.table_id}"
+    use_table_schema = true
+  }
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dead_letter.id
+    max_delivery_attempts = 10
+  }
+  depends_on = [google_project_iam_member.pubsub_bigquery_writer]
+}
+
+resource "google_pubsub_subscription" "alerts_bigquery" {
+  name  = "aivd-alerts-bigquery"
+  topic = google_pubsub_topic.alerts.id
+
+  bigquery_config {
+    table            = "${var.project_id}.${google_bigquery_dataset.analytics.dataset_id}.${google_bigquery_table.cloud_events.table_id}"
+    use_table_schema = true
+  }
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dead_letter.id
+    max_delivery_attempts = 10
+  }
+  depends_on = [google_project_iam_member.pubsub_bigquery_writer]
+}
+
+resource "google_cloud_run_v2_job" "benchmark_cpu" {
+  name                = "aivd-benchmark-cpu"
+  location            = var.region
+  deletion_protection = true
+
+  template {
+    parallelism = 1
+    task_count  = 1
+    template {
+      service_account = google_service_account.runtime.email
+      max_retries     = 0
+      timeout         = "3600s"
+      containers {
+        image   = local.benchmark_image
+        command = ["python3"]
+        args    = ["-m", "autocamtracker.cloud.benchmark_worker"]
+        env {
+          name  = "AIVD_FIREBASE_PROJECT_ID"
+          value = var.project_id
+        }
+        env {
+          name = "AIVD_DATABASE_URL"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.database_url.secret_id
+              version = "latest"
+            }
+          }
+        }
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "4Gi"
+          }
+        }
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [google_sql_database_instance.postgres.connection_name]
+        }
+      }
+    }
+  }
+  depends_on = [google_project_service.required]
+}
+
+resource "google_cloud_run_v2_job" "benchmark_gpu" {
+  count               = var.enable_gpu_benchmark ? 1 : 0
+  name                = "aivd-benchmark-gpu"
+  location            = var.gpu_region
+  deletion_protection = true
+
+  template {
+    parallelism = 1
+    task_count  = 1
+    template {
+      service_account                = google_service_account.runtime.email
+      max_retries                    = 0
+      timeout                        = "3600s"
+      gpu_zonal_redundancy_disabled  = true
+      node_selector {
+        accelerator = "nvidia-l4"
+      }
+      containers {
+        image   = local.benchmark_image
+        command = ["python3"]
+        args    = ["-m", "autocamtracker.cloud.benchmark_worker"]
+        env {
+          name  = "AIVD_FIREBASE_PROJECT_ID"
+          value = var.project_id
+        }
+        env {
+          name = "AIVD_DATABASE_URL"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.database_url.secret_id
+              version = "latest"
+            }
+          }
+        }
+        resources {
+          limits = {
+            cpu              = "4"
+            memory           = "16Gi"
+            "nvidia.com/gpu" = "1"
+          }
+        }
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [google_sql_database_instance.postgres.connection_name]
+        }
+      }
+    }
+  }
+  depends_on = [google_project_service.required]
+}
+
 resource "google_billing_budget" "notifications" {
   billing_account = var.billing_account_id
   display_name    = "AI Vision Director US$1 notifications"
@@ -390,4 +667,41 @@ resource "google_monitoring_alert_policy" "api_errors" {
   alert_strategy {
     auto_close = "1800s"
   }
+
+  notification_channels = var.alert_email == "" ? [] : [
+    google_monitoring_notification_channel.email[0].name
+  ]
+}
+
+resource "google_monitoring_notification_channel" "email" {
+  count        = var.alert_email == "" ? 0 : 1
+  display_name = "AIVD operations email"
+  type         = "email"
+  labels = {
+    email_address = var.alert_email
+  }
+}
+
+resource "google_monitoring_alert_policy" "benchmark_failures" {
+  display_name = "AIVD benchmark job failures"
+  combiner     = "OR"
+  conditions {
+    display_name = "Cloud Run benchmark task failed"
+    condition_matched_log {
+      filter = join(" AND ", [
+        "resource.type=\"cloud_run_job\"",
+        "severity>=ERROR",
+        "resource.labels.job_name=monitoring.regex.full_match(\"aivd-benchmark-(cpu|gpu)\")",
+      ])
+    }
+  }
+  alert_strategy {
+    notification_rate_limit {
+      period = "300s"
+    }
+    auto_close = "1800s"
+  }
+  notification_channels = var.alert_email == "" ? [] : [
+    google_monitoring_notification_channel.email[0].name
+  ]
 }

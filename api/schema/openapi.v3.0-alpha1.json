@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI-Vision-Director Cloud Boundary API",
-    "version": "3.0.0-alpha.1",
+    "version": "3.0.0a1",
     "description": "Phase 0 contract. IDs are opaque and all mutations require an idempotency key."
   },
   "servers": [

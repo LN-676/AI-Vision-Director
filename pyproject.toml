@@ -47,6 +47,8 @@ ai-vision-director-api = "autocamtracker.api.main:main"
 ai-vision-director-import = "autocamtracker.cloud.importer:main"
 ai-vision-director-sync = "autocamtracker.cloud.edge_outbox:main"
 ai-vision-director-public-api = "autocamtracker.api.public_main:main"
+cloud-benchmark-worker = "autocamtracker.cloud.benchmark_worker:main"
+ai-vision-director-edge-agent = "autocamtracker.edge_control.agent:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

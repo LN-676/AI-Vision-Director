@@ -1,0 +1,6 @@
+-r requirements-cloud.txt
+ultralytics==8.4.64
+filterpy==1.4.5
+pillow==12.2.0
+onnx>=1.21.0
+onnxruntime-gpu>=1.22,<2.0
