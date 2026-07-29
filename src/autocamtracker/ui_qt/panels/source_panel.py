@@ -1,9 +1,13 @@
+import os
+from urllib.parse import urlsplit
+
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -15,6 +19,18 @@ from PySide6.QtWidgets import (
 
 from autocamtracker.ui_qt.panels.base import FormPanel
 from autocamtracker.ui_qt.panels.playback_panel import PlaybackPanel
+
+
+def tablet_remote_url(websocket_url: str, lan_host: str | None = None) -> str:
+    """Return the tablet console URL for the active launcher/network."""
+
+    host = (lan_host or "").strip()
+    if not host:
+        host = urlsplit(websocket_url).hostname or ""
+    if not host:
+        return ""
+    formatted_host = f"[{host}]" if ":" in host else host
+    return f"http://{formatted_host}:3000/remote"
 
 
 class SourcePanel(FormPanel):
@@ -47,6 +63,16 @@ class SourcePanel(FormPanel):
         self.websocket_url.setMinimumWidth(0)
         self.websocket_url.setReadOnly(True)
         self.websocket_url.setPlaceholderText("Start the desktop link to show its URL")
+        self.tablet_url = QLineEdit()
+        self.tablet_url.setMinimumWidth(0)
+        self.tablet_url.setReadOnly(True)
+        self.tablet_url.setPlaceholderText(
+            "Start the Remote Console to show its URL"
+        )
+        self.tablet_url.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Fixed,
+        )
         self.connection = QLabel("iPhone link: idle")
         self.connection.setWordWrap(True)
         self.connection.setMinimumWidth(0)
@@ -54,12 +80,19 @@ class SourcePanel(FormPanel):
             QSizePolicy.Policy.Ignored,
             QSizePolicy.Policy.Preferred,
         )
-        copy_url = QPushButton("Copy WebSocket URL")
+        self.copy_websocket_url_button = QPushButton("Copy WebSocket URL")
+        self.copy_tablet_url_button = QPushButton("Copy Tablet URL")
+        tablet_url_row = QWidget()
+        tablet_url_layout = QHBoxLayout(tablet_url_row)
+        tablet_url_layout.setContentsMargins(0, 0, 0, 0)
+        tablet_url_layout.addWidget(self.tablet_url, 1)
+        tablet_url_layout.addWidget(self.copy_tablet_url_button)
         test_button = QPushButton("Start / Test iPhone Connection")
         iphone_form.addRow("WebSocket URL", self.websocket_url)
-        iphone_form.addRow(copy_url)
+        iphone_form.addRow(self.copy_websocket_url_button)
         iphone_form.addRow(self.connection)
         iphone_form.addRow(test_button)
+        iphone_form.addRow("Tablet Remote URL", tablet_url_row)
 
         webcam_page = QWidget()
         webcam_form = QFormLayout(webcam_page)
@@ -105,7 +138,10 @@ class SourcePanel(FormPanel):
         self.form.addRow(self.pages)
         self.source.currentIndexChanged.connect(self._source_selected)
         test_button.clicked.connect(self.testConnectionRequested)
-        copy_url.clicked.connect(self._copy_websocket_url)
+        self.copy_websocket_url_button.clicked.connect(
+            self._copy_websocket_url
+        )
+        self.copy_tablet_url_button.clicked.connect(self._copy_tablet_url)
         choose_video.clicked.connect(self._choose_video)
         apply_url.clicked.connect(lambda: self.videoUrlChanged.emit(self.video_url.text().strip()))
         apply_region.clicked.connect(
@@ -132,6 +168,14 @@ class SourcePanel(FormPanel):
         self.websocket_url.setText(url)
         self.websocket_url.setCursorPosition(0)
         self.websocket_url.setToolTip(url)
+        self.set_tablet_url(
+            tablet_remote_url(url, os.environ.get("AIVD_LAN_HOST"))
+        )
+
+    def set_tablet_url(self, url: str) -> None:
+        self.tablet_url.setText(url)
+        self.tablet_url.setCursorPosition(0)
+        self.tablet_url.setToolTip(url)
 
     def _source_selected(self, index: int) -> None:
         self.pages.setCurrentIndex(max(0, index))
@@ -139,5 +183,10 @@ class SourcePanel(FormPanel):
 
     def _copy_websocket_url(self) -> None:
         url = self.websocket_url.text().strip()
+        if url:
+            QGuiApplication.clipboard().setText(url)
+
+    def _copy_tablet_url(self) -> None:
+        url = self.tablet_url.text().strip()
         if url:
             QGuiApplication.clipboard().setText(url)
