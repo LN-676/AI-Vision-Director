@@ -3,7 +3,10 @@ FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src \
-    AIVD_STATELESS_MODE=true
+    AIVD_STATELESS_MODE=true \
+    AIVD_FIREBASE_PROJECT_ID=bright-torus-483009-k2 \
+    AIVD_CORS_ALLOW_ORIGINS=https://ai-vision-director-mission-control.nick0955466752.chatgpt.site \
+    AIVD_FORWARDED_ALLOW_IPS=169.254.8.129
 
 WORKDIR /app
 COPY requirements-cloud.txt .
