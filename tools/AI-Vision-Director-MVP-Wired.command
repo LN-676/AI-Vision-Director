@@ -43,11 +43,11 @@ if [[ -z "${LOCAL_HOST_NAME}" ]]; then
 fi
 
 export AIVD_LAN_IP="${WIRED_IP}"
-export AIVD_LAN_HOST="${LOCAL_HOST_NAME}.local"
+export AIVD_LAN_HOST="${WIRED_IP}"
 
 print ""
 print "Wired iPad network detected:"
-print "  Mac: ${AIVD_LAN_IP} (${AIVD_LAN_HOST}, ${WIRED_INTERFACE})"
+print "  Mac: ${AIVD_LAN_IP} (${LOCAL_HOST_NAME}.local, ${WIRED_INTERFACE})"
 print "  Remote: http://${AIVD_LAN_HOST}:3000/remote"
 print ""
 
