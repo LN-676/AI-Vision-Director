@@ -174,20 +174,21 @@ export class RemoteApi {
       return Number.isFinite(value) ? value : null;
     };
     const apiTimestamp = numberHeader("X-AIVD-API-Timestamp-Ms");
+    const captureTimestamp = numberHeader("X-AIVD-Capture-Timestamp-Ms");
     const publishedTimestamp = numberHeader("X-AIVD-Published-Timestamp-Ms");
     const browserMidpointWall =
       requestStartedWall + (responseReceivedWall - requestStartedWall) / 2;
     const serverClockOffset =
       apiTimestamp === null ? 0 : apiTimestamp - browserMidpointWall;
-    const publishedOnBrowserClock =
-      publishedTimestamp === null
+    const frameOriginOnBrowserClock =
+      (captureTimestamp ?? publishedTimestamp) === null
         ? responseReceivedWall
-        : publishedTimestamp - serverClockOffset;
+        : (captureTimestamp ?? publishedTimestamp)! - serverClockOffset;
     const previewEndToEndMs = Math.max(
       0,
       responseReceivedWall +
         (decoded - responseReceived) -
-        publishedOnBrowserClock,
+        frameOriginOnBrowserClock,
     );
 
     return {
