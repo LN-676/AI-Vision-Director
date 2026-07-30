@@ -51,10 +51,10 @@ def create_app(
         title="AI-Vision-Director Read-only API",
         summary="Local read-only inspection API",
         description=(
-            "V3.0.0b1 Phase 1. This process opens SQLite in read-only mode and "
+            "V3.0.0b2 Phase 1. This process opens SQLite in read-only mode and "
             "does not expose mutation endpoints."
         ),
-        version="3.0.0b1",
+        version="3.0.0b2",
         openapi_url="/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",

@@ -108,8 +108,12 @@ function LiveMonitor({
   );
 }
 
-export function RemoteConsole() {
-  const api = useMemo(() => createRemoteApi(), []);
+export function RemoteConsole({
+  apiBaseUrl,
+}: {
+  apiBaseUrl?: string | null;
+}) {
+  const api = useMemo(() => createRemoteApi(apiBaseUrl), [apiBaseUrl]);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [nodeId, setNodeId] = useState<string | null>(null);
   const [sending, setSending] = useState<CommandType | null>(null);

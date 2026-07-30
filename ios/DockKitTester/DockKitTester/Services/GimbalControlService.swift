@@ -200,9 +200,15 @@ final class GimbalControlService: ObservableObject {
             )
         )
 
-        // DockKit generates the accessory tracking vectors from the selected
-        // target rectangle at the manager's fixed 15 Hz observation cadence.
-        await dockKitManager.track(trackingCommand)
+        // Flow 2 Pro firmware can accept custom DockKit observations without
+        // producing motor output. Preserve the V1.77 hardware-proven path:
+        // send the bounded, smoothed velocity that the safety calculator
+        // produced directly to the accessory.
+        await dockKitManager.setAngularVelocity(
+            yaw: velocity.yaw,
+            pitch: velocity.pitch,
+            roll: velocity.roll
+        )
         if generation != commandGeneration {
             await dockKitManager.stop()
         }

@@ -225,9 +225,19 @@ export class RemoteApi {
   }
 }
 
-export function createRemoteApi(): RemoteApi {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_AIVD_API_BASE_URL?.trim() ||
-    "http://127.0.0.1:8080";
-  return new RemoteApi(baseUrl);
+function localRemoteApiBaseUrl(): string {
+  if (typeof window === "undefined") {
+    return "http://127.0.0.1:8080";
+  }
+
+  const url = new URL(window.location.href);
+  url.port = "8080";
+  url.pathname = "";
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+export function createRemoteApi(configuredBaseUrl?: string | null): RemoteApi {
+  return new RemoteApi(configuredBaseUrl?.trim() || localRemoteApiBaseUrl());
 }

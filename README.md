@@ -1,4 +1,4 @@
-# AI Vision Director V3.0.0b1
+# AI Vision Director V3.0.0b2
 
 [中文](#中文) · [English](#english)
 
@@ -12,17 +12,17 @@ AI Vision Director 是一套由 **Mac 桌面端**與 **iPhone 相機／DockKit �
 
 | 元件 | 正式名稱 | 主要責任 |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V3.0.0b1 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
-| iOS | AI Vision Director Camera for iOS V3.0.0b1 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
+| Desktop | AI Vision Director Desktop V3.0.0b2 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
+| iOS | AI Vision Director Camera for iOS V3.0.0b2 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
 
-目前 Desktop 與 iOS 的 beta 版本均為 **V3.0.0b1**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
+目前 Desktop 與 iOS 的 beta 版本均為 **V3.0.0b2**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
 
 ## 整體硬體與資料連接
 
 ```mermaid
 flowchart LR
     subgraph COMPUTER["Mac／電腦端"]
-        DESKTOP["AI Vision Director Desktop V3.0.0b1<br/>PySide6 Scheme A／Tkinter compatibility"]
+        DESKTOP["AI Vision Director Desktop V3.0.0b2<br/>PySide6 Scheme A／Tkinter compatibility"]
         SERVER["WebSocket Server<br/>ws://Mac.local:8765/ws/tracking"]
         AI["YOLO Detection<br/>Tracking · GID/ReID · Framing"]
         DB[("SQLite Identity DB<br/>本機持久化")]
@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph MOBILE["iPhone＋手機穩定器"]
-        IOS["AI Vision Director Camera for iOS V3.0.0b1"]
+        IOS["AI Vision Director Camera for iOS V3.0.0b2"]
         CAMERA["iPhone Camera<br/>AVCaptureSession"]
         DOCKKIT["Apple DockKit<br/>Custom Motor Control"]
         GIMBAL["Insta360 Flow 2 Pro<br/>Motors · Firmware"]
@@ -224,11 +224,11 @@ Quick Auto 的分數是 annotation-free proxy，用於比較模型組合的一�
 
 ```text
 AI-Vision-Director/
-├── src/autocamtracker/       # Desktop V3.0.0b1 Python application and shared use cases
+├── src/autocamtracker/       # Desktop V3.0.0b2 Python application and shared use cases
 │   ├── ui_qt/                # PySide6 Scheme A workspace
 │   └── ui/                   # Preserved Tkinter compatibility UI
 ├── tests/                    # Desktop unit and integration tests
-├── ios/DockKitTester/        # iOS V3.0.0b1 Xcode project and Swift tests
+├── ios/DockKitTester/        # iOS V3.0.0b2 Xcode project and Swift tests
 ├── docs/architecture/        # Architecture contracts and design notes
 ├── evaluation/               # Versioned evaluation scenarios
 ├── code/model/               # YOLO, tracker and ReID model assets
@@ -236,7 +236,7 @@ AI-Vision-Director/
 └── outputs/                  # Local runtime data; excluded from releases
 ```
 
-`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V3.0.0b1**。
+`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V3.0.0b2**。
 
 ## Desktop 安裝與執行
 
@@ -278,9 +278,9 @@ Mac 與 iPhone 必須位於可互相存取的同一區域網路。單純 USB 充
 ## 版本與歷史
 
 - 最新程式碼：`main`
-- 目前發布：`V3.0.0b1`
+- 目前發布：`V3.0.0b2`
 - 舊版封存：`v1.77` 與其他歷史 tags
-- Desktop 與 iOS 均為 V3.0.0b1，兩端持續使用相容的 1.0 WebSocket contract。
+- Desktop 與 iOS 均為 V3.0.0b2，兩端持續使用相容的 1.0 WebSocket contract。
 - 版本變更內容：[CHANGELOG.md](CHANGELOG.md)
 
 ---
@@ -293,10 +293,10 @@ Both components are maintained in this monorepo because they share one versioned
 
 | Component | Product name | Responsibility |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V3.0.0b1 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
-| iOS | AI Vision Director Camera for iOS V3.0.0b1 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
+| Desktop | AI Vision Director Desktop V3.0.0b2 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
+| iOS | AI Vision Director Camera for iOS V3.0.0b2 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
 
-The current Desktop and iOS beta release is **V3.0.0b1**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
+The current Desktop and iOS beta release is **V3.0.0b2**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
 
 ## End-to-end hardware and data flow
 
@@ -492,7 +492,7 @@ The Mac and iPhone must have mutually reachable IP connectivity. A charging cabl
 ## Version history
 
 - Latest code: `main`
-- Current release: `V3.0.0b1`
+- Current release: `V3.0.0b2`
 - Archived releases: `v1.77` and earlier tags
-- Desktop and iOS are both V3.0.0b1 and retain the compatible 1.0 WebSocket contract.
+- Desktop and iOS are both V3.0.0b2 and retain the compatible 1.0 WebSocket contract.
 - Release notes: [CHANGELOG.md](CHANGELOG.md)

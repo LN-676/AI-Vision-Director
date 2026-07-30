@@ -1,6 +1,6 @@
 # AI Vision Director Mission Control
 
-React/vinext read-only operations dashboard for AI-Vision-Director V3.0.0b1.
+React/vinext read-only operations dashboard for AI-Vision-Director V3.0.0b2.
 
 ## Local development
 

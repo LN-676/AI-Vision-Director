@@ -7,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function RemotePage() {
-  return <RemoteConsole />;
+  return (
+    <RemoteConsole
+      apiBaseUrl={process.env.NEXT_PUBLIC_AIVD_API_BASE_URL?.trim() || null}
+    />
+  );
 }

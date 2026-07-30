@@ -113,6 +113,9 @@ test("remote console uses high-level commands and confirms emergency stop", asyn
   assert.match(client, /X-AIVD-API-Timestamp-Ms/);
   assert.match(client, /image\.decode/);
   assert.match(client, /expires_at/);
+  assert.match(client, /window\.location\.href/);
+  assert.match(client, /url\.port = "8080"/);
+  assert.doesNotMatch(client, /process\.env/);
   assert.doesNotMatch(client, /yaw_velocity|pitch_velocity/);
 });
 

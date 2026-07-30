@@ -4,6 +4,31 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## V3.0.0b2 — 2026-07-30
+
+### 中文
+
+- 修正 Flow 2 Pro 在 DockKit custom observation 呼叫成功但馬達實際速度維持
+  為零的問題；iOS 追蹤恢復使用 V1.77 已驗證的 bounded、smoothed
+  `setAngularVelocity` 控制路徑。
+- Dashboard Remote Console 在未明確設定 API URL 時，會依目前瀏覽器主機
+  自動連接同一台 Edge Mac 的 `8080` port，讓平板透過熱點或有線網址開啟
+  Remote Console 時不再錯連平板自己的 `127.0.0.1`。
+- 將 Desktop、Dashboard、API schema 與 iOS 顯示版本同步為
+  `V3.0.0b2`；iOS build 更新為 `3003`。
+
+### English
+
+- Fixed Flow 2 Pro motor output remaining at zero even when DockKit custom
+  observation calls reported success. iOS tracking now uses the bounded,
+  smoothed `setAngularVelocity` path proven by V1.77.
+- Made the Dashboard Remote Console derive the Edge API host from the current
+  browser URL and use port `8080` when no explicit API URL is configured, so
+  tablet hotspot and wired URLs no longer resolve to the tablet's own
+  `127.0.0.1`.
+- Synchronized Desktop, Dashboard, API schema, and iOS display versions to
+  `V3.0.0b2`, and incremented the iOS build to `3003`.
+
 ## V3.0.0b1 — 2026-07-30
 
 ### 中文

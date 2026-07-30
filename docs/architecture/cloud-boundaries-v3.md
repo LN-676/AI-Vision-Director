@@ -1,6 +1,6 @@
-# V3.0.0b1 Phase 0：上網部署邊界
+# V3.0.0b2 Phase 0：上網部署邊界
 
-版本標籤：`AI-Vision-Director V3.0.0b1`
+版本標籤：`AI-Vision-Director V3.0.0b2`
 
 Phase 0 只建立本機與雲端之間的穩定邊界，不把現有 CV pipeline、SQLite
 或 UI 綁定到特定 HTTP framework、雲端資料庫或訊息服務。
