@@ -1,7 +1,7 @@
 {
   "version": 2,
   "dataset_version": "phase-10-v1",
-  "replay_root": "evaluation/gid_loss_replays",
+  "replay_root": "outputs/gid_loss_replays",
   "thresholds": {
     "gid_lock_rate_min": 0.9,
     "max_consecutive_lost_frames": 12,

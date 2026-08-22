@@ -19,8 +19,9 @@ contains exactly these 14 stress categories:
 13. far distance
 14. scene cut
 
-The canonical manifest is `evaluation/gid_loss_scenarios.json`. Large replay
-files remain outside Git and are placed under `evaluation/gid_loss_replays/`.
+The canonical manifest is packaged as
+`src/autocamtracker/evaluation/gid_loss_scenarios.json`. Large replay files
+remain outside Git and are placed under `outputs/gid_loss_replays/`.
 The manifest is the source of truth for benchmark version, dataset version,
 file names, minimum frame counts, and acceptance thresholds.
 
@@ -83,7 +84,7 @@ After installing the project in editable mode:
 
 ```bash
 gid-loss-benchmark \
-  --manifest evaluation/gid_loss_scenarios.json \
+  --manifest src/autocamtracker/evaluation/gid_loss_scenarios.json \
   --output outputs/gid_loss_report.json
 ```
 

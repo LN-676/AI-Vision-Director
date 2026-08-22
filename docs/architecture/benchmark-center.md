@@ -7,7 +7,8 @@ ground-truth JSONL. Running several desktop processes at once is intentionally
 not part of the protocol because CPU, GPU, decoder, and memory contention would
 change latency and throughput.
 
-The versioned Golden Dataset contract lives under `evaluation/golden/`.
+Golden Dataset videos and annotations are user-supplied inputs and remain
+outside the repository.
 Changing footage or annotations requires a new `dataset_version`. A complete
 race or recording session must remain in one train/validation/test split.
 
@@ -79,8 +80,8 @@ COCO and TrackEval tools.
 
 ```bash
 model-benchmark \
-  --video evaluation/golden/videos/race-a.mp4 \
-  --annotations evaluation/golden/annotations/race-a.jsonl \
+  --video /path/to/golden/videos/race-a.mp4 \
+  --annotations /path/to/golden/annotations/race-a.jsonl \
   --model models/detection/yolo26n.pt \
   --model models/detection/yolo26s.pt \
   --tracker botsort \

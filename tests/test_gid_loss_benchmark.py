@@ -14,7 +14,7 @@ from autocamtracker.evaluation.offline_replay import load_replay_jsonl
 
 class GIDLossBenchmarkTests(unittest.TestCase):
     def test_manifest_defines_all_phase_10_loss_scenarios(self) -> None:
-        benchmark = load_gid_loss_spec(Path("evaluation/gid_loss_scenarios.json"))
+        benchmark = load_gid_loss_spec()
 
         self.assertEqual(
             tuple(scenario.scenario_id for scenario in benchmark.scenarios),

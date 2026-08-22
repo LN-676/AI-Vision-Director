@@ -20,7 +20,6 @@ tmp/
 terraform.tfvars
 crash.log
 .pnpm-store/
-evaluation/gid_loss_replays/
 *.pt
 *.pth
 *.onnx

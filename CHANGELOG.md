@@ -16,6 +16,8 @@ This document records current releases. Complete historical source is available 
   they remain recoverable from the `V3.0.0b1` Git tag.
 - Removed unused starter-only Dashboard D1 examples, Drizzle scaffolding,
   authentication helper, generic SVG assets, and machine-specific editor settings.
+- Removed the obsolete top-level evaluation templates and packaged the required
+  GID-loss manifest with the Python evaluation module.
 
 ## V3.0.0b2 — 2026-07-30
 

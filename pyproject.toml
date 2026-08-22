@@ -53,3 +53,6 @@ ai-vision-director-edge-agent = "autocamtracker.edge_control.agent:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"autocamtracker.evaluation" = ["gid_loss_scenarios.json"]

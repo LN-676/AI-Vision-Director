@@ -13,7 +13,7 @@ from autocamtracker.evaluation.models import GIDObservation, ReplayFrame
 from autocamtracker.evaluation.offline_replay import load_replay_jsonl
 
 
-DEFAULT_MANIFEST = Path("evaluation") / "gid_loss_scenarios.json"
+DEFAULT_MANIFEST = Path(__file__).with_name("gid_loss_scenarios.json")
 REQUIRED_SCENARIOS = (
     "occlusion",
     "vehicle_crossing",
@@ -295,7 +295,10 @@ def evaluate_gid_loss(observations: Iterable[GIDObservation]) -> GIDLossMetrics:
 def load_gid_loss_spec(manifest_path: Path | str = DEFAULT_MANIFEST) -> GIDLossSpec:
     manifest = Path(manifest_path)
     payload = json.loads(manifest.read_text(encoding="utf-8"))
-    replay_root = _resolve_path(manifest.parent, Path(payload["replay_root"]))
+    if manifest.resolve() == DEFAULT_MANIFEST.resolve():
+        replay_root = Path.cwd() / Path(payload["replay_root"])
+    else:
+        replay_root = _resolve_path(manifest.parent, Path(payload["replay_root"]))
     raw_scenarios = payload.get("scenarios", [])
     ids = tuple(str(item["id"]) for item in raw_scenarios)
     if len(ids) != len(set(ids)):

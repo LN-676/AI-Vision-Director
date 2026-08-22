@@ -230,7 +230,6 @@ AI-Vision-Director/
 ├── dashboard/                # Web dashboard and remote console
 ├── docs/                     # Architecture, reports, and presentations
 ├── models/                   # Git LFS detection and ReID model files
-├── evaluation/               # Versioned evaluation scenarios
 ├── api/schema/               # Versioned OpenAPI schema
 ├── migrations/               # Alembic database migrations
 ├── infra/                    # Terraform cloud infrastructure
