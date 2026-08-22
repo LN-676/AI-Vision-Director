@@ -81,8 +81,8 @@ COCO and TrackEval tools.
 model-benchmark \
   --video evaluation/golden/videos/race-a.mp4 \
   --annotations evaluation/golden/annotations/race-a.jsonl \
-  --model code/model/model/yolo26n.pt \
-  --model code/model/model/yolo26s.pt \
+  --model models/detection/yolo26n.pt \
+  --model models/detection/yolo26s.pt \
   --tracker botsort \
   --dataset-version race-golden-v1 \
   --output outputs/benchmarks/model-comparison.json

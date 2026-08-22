@@ -8,6 +8,7 @@ cmake-build-*/
 ios/DockKitTester/.device-build/
 *.user
 *.log
+*.inspect.ndjson
 outputs/
 secrets/
 output/

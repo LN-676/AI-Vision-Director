@@ -41,9 +41,9 @@ def test_firebase_routes_api_and_dashboard_to_separate_cloud_run_services() -> N
 def test_cloud_build_publishes_api_and_dashboard_images() -> None:
     cloud_build = (ROOT / "cloudbuild.yaml").read_text(encoding="utf-8")
 
-    assert "Dockerfile.cloud" in cloud_build
-    assert "dashboard/Dockerfile.cloud" in cloud_build
-    assert "Dockerfile.benchmark" in cloud_build
+    assert "docker/Dockerfile.api" in cloud_build
+    assert "dashboard/Dockerfile" in cloud_build
+    assert "docker/Dockerfile.benchmark" in cloud_build
     assert "/api:${COMMIT_SHA}" in cloud_build
     assert "/dashboard:${COMMIT_SHA}" in cloud_build
     assert "/benchmark:${COMMIT_SHA}" in cloud_build

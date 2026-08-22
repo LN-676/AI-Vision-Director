@@ -1,4 +1,4 @@
-"""Adapters for external multi-object trackers bundled under code/model.
+"""Adapters for external multi-object trackers bundled under models.
 
 The V1 app owns camera input, YOLO detection, selection, and reframing. These
 adapters only convert YOLO detections into stable track IDs and return them in a
@@ -35,7 +35,7 @@ class TrackerOutputDetection:
 
 
 class DeepOcSortAdapter:
-    """Wraps code/model/Deep-OC-SORT-main OCSort for live V1 frames."""
+    """Wraps models/Deep-OC-SORT-main OCSort for live V1 frames."""
 
     def __init__(
         self,

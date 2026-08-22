@@ -1,16 +1,15 @@
-# AI Vision Director V1.0 Architecture Notes
+# AI Vision Director Architecture Notes
 
 [中文](#中文) · [English](#english)
 
 ## 中文
 
-這個目錄保存 V1.0 的設計邊界、資料契約與可驗證的技術決策。完整硬體、iOS 與 Desktop 三張架構圖位於 [專案 README](../../README.md#整體硬體與資料連接)。
+這個目錄保存目前產品的設計邊界、資料契約與可驗證的技術決策。完整硬體、iOS 與 Desktop 三張架構圖位於 [專案 README](../../README.md#整體硬體與資料連接)。
 
 ### 文件索引
 
 | 區域 | 文件 | 說明 |
 | --- | --- | --- |
-| Baseline | [baseline-v1.0.md](baseline-v1.0.md) | V1.77 歷史來源與 V1.0 發布邊界 |
 | Composition | [composition-root.md](composition-root.md) | 應用程式組裝與 dependency wiring |
 | Domain | [domain-contracts.md](domain-contracts.md) | 跨 pipeline 的穩定資料契約 |
 | Application | [application-layer.md](application-layer.md) | use case 與 application services |
@@ -32,7 +31,7 @@
 
 ## English
 
-This directory records V1.0 design boundaries, data contracts, and verifiable technical decisions. The canonical hardware, iOS, and Desktop diagrams are in the [project README](../../README.md#end-to-end-hardware-and-data-flow).
+This directory records the current product's design boundaries, data contracts, and verifiable technical decisions. The canonical hardware, iOS, and Desktop diagrams are in the [project README](../../README.md#end-to-end-hardware-and-data-flow).
 
 The table above is the architecture index. Together, these documents separate:
 
@@ -42,7 +41,7 @@ The table above is the architecture index. Together, these documents separate:
 - deterministic evaluation from live scheduling;
 - framing intent from hardware safety limits.
 
-Historical V1.77 source remains available through its Git tag. These documents describe the current V1.0 working tree.
+Historical releases remain available through Git tags. These documents describe the current working tree.
 - [Edge Control Plane MVP](edge-control-plane-mvp.md): local tablet Remote
   Console, SQLite command queue, heartbeat/lease safety, and future cloud
   contract.

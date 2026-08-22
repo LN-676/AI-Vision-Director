@@ -42,8 +42,8 @@ class AppConfig:
     telemetry_dir: Path = Path("outputs") / "telemetry"
     identity_db_path: Path = Path("outputs") / "vehicle_identity.sqlite3"
     camera_calibration_path: Path = Path("outputs") / "camera_calibrations.json"
-    model_dir: Path = Path(__file__).resolve().parents[3] / "code" / "model"
-    default_model: str = "model/yolo26n.pt"
+    model_dir: Path = Path(__file__).resolve().parents[3] / "models"
+    default_model: str = "detection/yolo26n.pt"
     default_reid_model: str = "reid/yolo26s-reid.onnx"
     frame_telemetry_interval_seconds: float = 0.25
     video_preview_interval_seconds: float = 1.0 / 30.0

@@ -435,11 +435,11 @@ class UIBuilderMixin:
     def apply_performance_profile(self, _event=None) -> str:
         profile = self.performance_profile_var.get()
         if profile == "Balanced ID":
-            self.model_var.set("model/yolo26s.pt")
+            self.model_var.set("detection/yolo26s.pt")
             self.tracker_var.set("botsort")
         else:
             self.performance_profile_var.set("High FPS")
-            self.model_var.set("model/yolo26n.pt")
+            self.model_var.set("detection/yolo26n.pt")
             self.tracker_var.set("bytetrack")
         self.on_tracking_configuration_changed()
         return "break"

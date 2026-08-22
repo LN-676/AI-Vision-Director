@@ -18,7 +18,7 @@ services:
   migrate:
     build:
       context: .
-      dockerfile: Dockerfile.cloud
+      dockerfile: docker/Dockerfile.api
     environment:
       AIVD_DATABASE_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd
     command: ["alembic", "upgrade", "head"]
@@ -29,7 +29,7 @@ services:
   edge-sync:
     build:
       context: .
-      dockerfile: Dockerfile.cloud
+      dockerfile: docker/Dockerfile.api
     profiles: ["sync"]
     environment:
       AIVD_DATABASE_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd
@@ -47,7 +47,7 @@ services:
   public-api:
     build:
       context: .
-      dockerfile: Dockerfile.cloud
+      dockerfile: docker/Dockerfile.api
     profiles: ["public"]
     environment:
       AIVD_DATABASE_URL_FILE: /run/secrets/database_url
@@ -70,7 +70,7 @@ services:
   integration-tests:
     build:
       context: .
-      dockerfile: Dockerfile.cloud
+      dockerfile: docker/Dockerfile.api
     profiles: ["test"]
     environment:
       AIVD_TEST_POSTGRES_URL: postgresql+psycopg://aivd:${AIVD_POSTGRES_PASSWORD:-aivd-local-dev}@postgres:5432/aivd

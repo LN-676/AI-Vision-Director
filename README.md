@@ -203,7 +203,7 @@ Quick Auto 的分數是 annotation-free proxy，用於比較模型組合的一�
 
 - Playback 已整合到 Source 的 Video file 頁並移除獨立 Dock；新增保持按下狀態的 Loop，影片結束時從第 0 frame 重新播放。
 - 已選定並綁定 GID 的紅色 bbox 只顯示 GID 與編號；未選取物件仍可顯示 LID 追蹤資訊。
-- Tracking 頁新增 Detection model 與 ReID model 下拉選單，可掃描 `code/model` 內的 `.pt` 與 `*-reid.onnx` 模型並套用到既有 runtime use case。
+- Tracking 頁新增 Detection model 與 ReID model 下拉選單，可掃描 `models/` 內的 `.pt` 與 `*-reid.onnx` 模型並套用到既有 runtime use case。
 - Find GID 信心門檻、Add Manual Feature、Start/Stop Auto Feature 已整合到 Vehicle Database；獨立 ReID/Features Dock 已移除。
 - Manual Feature 通過身份、品質、模型與重複 gate 後直接 commit 至 SQLite `vehicle_features`；Auto Feature 啟動後會持續對新 frame 取樣，只有通過相同安全 gate 的 feature 才會寫入。
 - Desktop 與 iOS 顯示版本更新至 V2.1，iOS build 2101；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
@@ -224,14 +224,20 @@ Quick Auto 的分數是 annotation-free proxy，用於比較模型組合的一�
 
 ```text
 AI-Vision-Director/
-├── src/autocamtracker/       # Desktop V3.0.0b2 Python application and shared use cases
-│   ├── ui_qt/                # PySide6 Scheme A workspace
-│   └── ui/                   # Preserved Tkinter compatibility UI
+├── src/autocamtracker/       # Desktop Python application and shared use cases
 ├── tests/                    # Desktop unit and integration tests
 ├── ios/DockKitTester/        # iOS V3.0.0b2 Xcode project and Swift tests
-├── docs/architecture/        # Architecture contracts and design notes
+├── dashboard/                # Web dashboard and remote console
+├── docs/                     # Architecture, reports, and presentations
+├── examples/                 # Runnable integration examples
+├── assets/                   # Documentation and demo assets
+├── models/                   # Git LFS detection and ReID model files
 ├── evaluation/               # Versioned evaluation scenarios
-├── code/model/               # YOLO, tracker and ReID model assets
+├── api/schema/               # Versioned OpenAPI schema
+├── migrations/               # Alembic database migrations
+├── infra/                    # Terraform cloud infrastructure
+├── docker/                   # API and benchmark container definitions
+├── requirements/             # Cloud workload dependency sets
 ├── tools/                    # Launch and maintenance utilities
 └── outputs/                  # Local runtime data; excluded from releases
 ```
@@ -391,7 +397,7 @@ Quick Auto scores are annotation-free proxies for comparing model-pair consisten
 
 - Integrated Playback into Source > Video file and removed its standalone dock. The persistent Loop toggle seeks to frame zero at end of file.
 - Red selected bounding boxes linked to a GID now display only the GID and number; unselected detections retain LID tracking context.
-- Added Detection model and ReID model selectors to Tracking, scanning `.pt` and `*-reid.onnx` assets under `code/model` and applying them through existing runtime use cases.
+- Added Detection model and ReID model selectors to Tracking, scanning `.pt` and `*-reid.onnx` assets under `models/` and applying them through existing runtime use cases.
 - Integrated the Find GID confidence threshold, Add Manual Feature, and Start/Stop Auto Feature into Vehicle Database and removed the standalone ReID/Features dock.
 - Manual Feature commits accepted identity/quality/model/duplicate-gated records to SQLite `vehicle_features`. Auto Feature now keeps sampling subsequent frames and writes only features that pass the same safety gates.
 - Updated Desktop and iOS display versions to V2.1 and iOS build 2101 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
@@ -496,3 +502,7 @@ The Mac and iPhone must have mutually reachable IP connectivity. A charging cabl
 - Archived releases: `v1.77` and earlier tags
 - Desktop and iOS are both V3.0.0b2 and retain the compatible 1.0 WebSocket contract.
 - Release notes: [CHANGELOG.md](CHANGELOG.md)
+
+## License
+
+Copyright © 2026 LN-676. All rights reserved. See [LICENSE](LICENSE).

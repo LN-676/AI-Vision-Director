@@ -11,7 +11,7 @@ from autocamtracker.vision.types import InputConfig
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-MODEL_DIR = PROJECT_ROOT / "code" / "model"
+MODEL_DIR = PROJECT_ROOT / "models"
 CACHE_ROOT = Path(tempfile.gettempdir()) / "autocamtracker-cache"
 
 
@@ -106,6 +106,6 @@ class UltralyticsDetectorBackend:
         searched = "\n".join(f"- {candidate}" for candidate in candidates)
         raise FileNotFoundError(
             f"YOLO model not found: {model_path}\n"
-            "Put the model under code/model and click Refresh Models.\n"
+            "Put the model under models/detection and click Refresh Models.\n"
             f"Searched:\n{searched}"
         )

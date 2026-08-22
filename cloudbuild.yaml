@@ -10,7 +10,7 @@ steps:
       - --tag
       - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${COMMIT_SHA}
       - --file
-      - Dockerfile.cloud
+      - docker/Dockerfile.api
       - .
 
   - id: push-api
@@ -26,7 +26,7 @@ steps:
       - --tag
       - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/benchmark:${COMMIT_SHA}
       - --file
-      - Dockerfile.benchmark
+      - docker/Dockerfile.benchmark
       - .
 
   - id: push-benchmark
@@ -42,7 +42,7 @@ steps:
       - --tag
       - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dashboard:${COMMIT_SHA}
       - --file
-      - dashboard/Dockerfile.cloud
+      - dashboard/Dockerfile
       - --build-arg
       - NEXT_PUBLIC_AIVD_API_BASE_URL=https://${PROJECT_ID}.web.app
       - --build-arg

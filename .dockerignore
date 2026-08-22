@@ -1,6 +1,13 @@
 .git
+.venv
 .ruff_cache
 build
+dashboard
+docs
+examples
+assets
+ios
+models
 output
 outputs
 tmp

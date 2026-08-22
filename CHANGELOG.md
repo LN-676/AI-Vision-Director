@@ -4,6 +4,17 @@
 
 This document records current releases. Complete historical source is available through Git tags.
 
+## Unreleased
+
+- Reorganized models, container definitions, cloud requirements, reports, and
+  presentations into purpose-specific top-level directories.
+- Added an explicit proprietary license and aligned the Dashboard package
+  metadata with product version `3.0.0b2` (`3.0.0-beta.2` in npm SemVer).
+- Updated deployment, documentation, model discovery, and CODEOWNERS paths for
+  the new repository layout.
+- Removed obsolete V1.0 launcher/baseline files and V2.3 presentation artifacts;
+  they remain recoverable from the `V3.0.0b1` Git tag.
+
 ## V3.0.0b2 — 2026-07-30
 
 ### 中文

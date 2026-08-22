@@ -9,8 +9,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     AIVD_FORWARDED_ALLOW_IPS=169.254.8.129
 
 WORKDIR /app
-COPY requirements-cloud.txt .
-RUN pip install --no-cache-dir -r requirements-cloud.txt
+COPY requirements requirements
+RUN pip install --no-cache-dir -r requirements/cloud.txt
 
 COPY alembic.ini .
 COPY migrations migrations
