@@ -229,8 +229,6 @@ AI-Vision-Director/
 ├── ios/DockKitTester/        # iOS V3.0.0b2 Xcode project and Swift tests
 ├── dashboard/                # Web dashboard and remote console
 ├── docs/                     # Architecture, reports, and presentations
-├── examples/                 # Runnable integration examples
-├── assets/                   # Documentation and demo assets
 ├── models/                   # Git LFS detection and ReID model files
 ├── evaluation/               # Versioned evaluation scenarios
 ├── api/schema/               # Versioned OpenAPI schema

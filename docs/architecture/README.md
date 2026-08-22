@@ -14,8 +14,12 @@
 | Domain | [domain-contracts.md](domain-contracts.md) | 跨 pipeline 的穩定資料契約 |
 | Application | [application-layer.md](application-layer.md) | use case 與 application services |
 | Vision | [vision-backends.md](vision-backends.md) | detector／tracker backend 邊界 |
+| Calibration | [camera-calibration-gmc.md](camera-calibration-gmc.md) | 鏡頭校正與 Global Motion Compensation |
+| Framing | [framing-engine.md](framing-engine.md) | 構圖、lead room 與 zoom 決策 |
 | Identity | [identity-components.md](identity-components.md) | GID、ReID 與 identity facade |
+| Identity decisions | [identity-decisions.md](identity-decisions.md) | 可稽核身份決策與 reason codes |
 | Gallery | [feature-gallery-components.md](feature-gallery-components.md) | feature quality、encoder、policy 與 index |
+| Gallery safety | [gallery-contamination-prevention.md](gallery-contamination-prevention.md) | feature provenance 與污染防護 |
 | Persistence | [sqlite-threading.md](sqlite-threading.md) | SQLite 單一 owner worker |
 | Network | [websocket-components.md](websocket-components.md) | protocol、transport、receiver、publisher 與 policy |
 | Cloud | [cloud-boundaries-v3.md](cloud-boundaries-v3.md) | V3 Phase 0 query、command、event、API 與 ID mapping 邊界 |
@@ -26,6 +30,7 @@
 | Advanced cloud | [phase6-advanced-cloud.md](phase6-advanced-cloud.md) | 多租戶、Pub/Sub、GPU benchmark、model registry、通知與 BigQuery |
 | Evaluation | [offline-replay.md](offline-replay.md) | 無 UI 的可重現 replay |
 | Benchmark | [benchmark-center.md](benchmark-center.md) | 最多五模型的標準格式、跑分與 live capture |
+| GID benchmark | [gid-loss-benchmark.md](gid-loss-benchmark.md) | GID continuity 壓力測試與驗收標準 |
 | Safety | [camera-control-policy.md](camera-control-policy.md) | dead zone、hysteresis 與安全限制 |
 | Timing | [timestamp-pipeline.md](timestamp-pipeline.md) | capture-to-control 時間軸 |
 
