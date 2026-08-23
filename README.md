@@ -130,7 +130,7 @@ AI-Vision-Director/
 本 repository 是 source-visible 求職作品集，不是開源套件或公開試用版。訪客可以在
 GitHub 網頁閱讀程式碼與文件、觀看 Demo、討論工程決策，並分享原始 repository 連結。
 
-作者不授權 clone、下載、安裝、執行、複製、修改、重製、散布、部署或商業／非商業
+不授權 clone、下載、安裝、執行、複製、修改、重製、散布、部署或商業／非商業
 使用。技術文件保留的 command 與設定只記錄作者的工程流程，不構成使用授權。本機
 技術評估或合作必須事先取得書面許可。完整條款見 [LICENSE](LICENSE)，外部貢獻政策
 見 [CONTRIBUTING.md](CONTRIBUTING.md)。
