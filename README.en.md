@@ -16,7 +16,7 @@ real-time reframing, and Apple DockKit gimbal control.**
 > copying, modifying, redistribution, and commercial or non-commercial use are
 > not licensed. See [LICENSE](LICENSE).
 
-## The problem
+## Core problem
 
 Motorsport, sports, and event camera operators spend long periods repeating the
 same demanding task: find the selected vehicle, keep it framed, recover after
@@ -35,16 +35,12 @@ movement.
 | Visual taste, timing, and exception handling | Reframing, zoom targets, and motion policy |
 | Final quality and safety oversight | DockKit commands, limits, timeouts, and safe STOP |
 
-## Real-system demo
+## System demo
 
 The [24-second demo](https://youtu.be/vCB8icjmaDg) shows the implemented system
 running with a Mac, an iPhone, and a physical DockKit-compatible gimbal. It
 shows the desktop tracking view, the selected vehicle, and the hardware
 responding as the vehicle moves across the scene.
-
-This is a physical-system demonstration, not an accuracy benchmark. Current
-verified scope is one Mac + one iPhone + one gimbal. Multi-camera orchestration
-is roadmap work and is not presented as a current capability.
 
 ## Three engineering decisions that define the system
 
@@ -100,7 +96,7 @@ control goes through Apple DockKit.
   offline evaluation.
 - Read-only tablet Mission Control and opt-in cloud control-plane components.
 
-## Evaluation without inflated claims
+## Benchmark evaluation
 
 The Benchmark Center supports two distinct profiles:
 
@@ -149,11 +145,11 @@ package or public trial. Reviewers may read the source and documentation on
 GitHub, watch the public demo, discuss the engineering decisions, and share the
 original repository link.
 
-The author does not grant permission to clone, download, install, execute,
-copy, modify, reproduce, redistribute, host, deploy, or use the project for
-commercial or non-commercial purposes. Commands and configuration retained in
-technical documents describe the author's engineering workflow; they do not
-grant permission to use the software. Written permission is required for local
+No permission is granted to clone, download, install, execute, copy, modify,
+reproduce, redistribute, host, deploy, or use the project for commercial or
+non-commercial purposes. Commands and configuration retained in technical
+documents describe the author's engineering workflow; they do not grant
+permission to use the software. Written permission is required for local
 technical evaluation or collaboration. See [LICENSE](LICENSE) and
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
