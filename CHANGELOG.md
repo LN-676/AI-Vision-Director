@@ -6,6 +6,9 @@ This document records current releases. Complete historical source is available 
 
 ## Unreleased
 
+- Split the bilingual root README into a default Traditional Chinese
+  `README.md` and a dedicated English `README.en.md`, with reciprocal language
+  links and equivalent product, demo, rationale, safety, and license content.
 - Rebuilt the root README around a 30-second product narrative, the physical
   system demo, the currently verified hardware scope, and a compact end-to-end
   system map.
