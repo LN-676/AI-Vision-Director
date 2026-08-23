@@ -1,0 +1,14 @@
+# Audited false positives retained only in private Git history.
+#
+# - The Swift findings are UserDefaults record identifiers, not credentials.
+# - The Firebase finding is a third-party public documentation image URL.
+# - The AWS-pattern findings are expired GitHub release-asset signed URLs embedded
+#   in third-party notebook output from 2022.
+6ea096b0bb1ba0fb99f494da58b3f231fbb54de8:ios/DockKitTester/DockKitTester/Services/GimbalControlService.swift:generic-api-key:21
+a8f327d4265d08be33518e20811ade85bfbb748b:ios/DockKitTester/DockKitTester/Services/GimbalControlService.swift:generic-api-key:20
+8f8207777862b31f21f20251a7c7dd7d16c0c8e2:code/model/BoT-SORT-main/fast_reid/projects/PartialReID/README.md:generic-api-key:22
+8f8207777862b31f21f20251a7c7dd7d16c0c8e2:code/model/Deep-OC-SORT-main/external/fast_reid/projects/PartialReID/README.md:generic-api-key:22
+8f8207777862b31f21f20251a7c7dd7d16c0c8e2:code/model/BoT-SORT-main/yolov7/tools/YOLOv7onnx.ipynb:aws-access-token:274
+8f8207777862b31f21f20251a7c7dd7d16c0c8e2:code/model/BoT-SORT-main/yolov7/tools/YOLOv7onnx.ipynb:aws-access-token:275
+8f8207777862b31f21f20251a7c7dd7d16c0c8e2:code/model/BoT-SORT-main/yolov7/tools/YOLOv7trt.ipynb:aws-access-token:340
+8f8207777862b31f21f20251a7c7dd7d16c0c8e2:code/model/BoT-SORT-main/yolov7/tools/YOLOv7trt.ipynb:aws-access-token:341

@@ -17,18 +17,19 @@ final class GimbalControlService: ObservableObject {
     private var lostStartedAt: Date?
     private var stableLockCount = 0
     private var autoReturnInFlight = false
-    private let calibrationKey = "AIVisionDirectorGimbalCalibrationV1"
-    private let legacyCalibrationKey = "AI_Vison_DirectorGimbalCalibrationV177"
+    // These are UserDefaults record names, not cryptographic keys or credentials.
+    private let calibrationStorageIdentifier = "AIVisionDirectorGimbalCalibrationV1"
+    private let legacyCalibrationStorageIdentifier = "AI_Vison_DirectorGimbalCalibrationV177"
 
     init(dockKitManager: DockKitMotorControlling, logger: AppLogger) {
         self.dockKitManager = dockKitManager
         self.logger = logger
         let defaults = UserDefaults.standard
-        if defaults.data(forKey: calibrationKey) == nil,
-           let legacyCalibration = defaults.data(forKey: legacyCalibrationKey) {
-            defaults.set(legacyCalibration, forKey: calibrationKey)
+        if defaults.data(forKey: calibrationStorageIdentifier) == nil,
+           let legacyCalibration = defaults.data(forKey: legacyCalibrationStorageIdentifier) {
+            defaults.set(legacyCalibration, forKey: calibrationStorageIdentifier)
         }
-        calibration = Self.loadCalibration(key: calibrationKey)
+        calibration = Self.loadCalibration(key: calibrationStorageIdentifier)
         calculator.applyCalibration(calibration)
     }
 
@@ -280,7 +281,7 @@ final class GimbalControlService: ObservableObject {
 
     private func saveCalibration() {
         guard let data = try? JSONEncoder().encode(calibration) else { return }
-        UserDefaults.standard.set(data, forKey: calibrationKey)
+        UserDefaults.standard.set(data, forKey: calibrationStorageIdentifier)
     }
 
     private static func loadCalibration(key: String) -> GimbalCalibrationProfile {
