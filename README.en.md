@@ -8,6 +8,8 @@ real-time reframing, and Apple DockKit gimbal control.**
 [Architecture docs](docs/architecture/README.md) ·
 [Release history](CHANGELOG.md)
 
+[![CI](https://github.com/LN-676/AI-Vision-Director/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LN-676/AI-Vision-Director/actions/workflows/ci.yml)
+
 [![AI Vision Director physical tracking demo](https://img.youtube.com/vi/vCB8icjmaDg/maxresdefault.jpg)](https://youtu.be/vCB8icjmaDg)
 
 > [!IMPORTANT]

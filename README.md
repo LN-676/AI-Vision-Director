@@ -8,6 +8,8 @@ AI 攝影助理。**
 [架構文件](docs/architecture/README.md) ·
 [版本變更紀錄](CHANGELOG.md)
 
+[![CI](https://github.com/LN-676/AI-Vision-Director/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LN-676/AI-Vision-Director/actions/workflows/ci.yml)
+
 [![AI Vision Director 實機追蹤 Demo](https://img.youtube.com/vi/vCB8icjmaDg/maxresdefault.jpg)](https://youtu.be/vCB8icjmaDg)
 
 > [!IMPORTANT]
