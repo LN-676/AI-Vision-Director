@@ -15,7 +15,7 @@ AI 攝影助理。**
 > 網頁閱讀與作品評估。作者不授權 clone、下載、執行、複製、修改、散布或商業／
 > 非商業使用。完整條款見 [LICENSE](LICENSE)。
 
-## 要解決的問題
+## 核心問題
 
 賽車、運動與活動攝影師經常長時間重複同一件高負荷工作：找到指定車輛、保持構圖、
 遮擋後重新找回，並平順移動相機，同時避免硬體在斷線或錯誤資料下持續運轉。
@@ -30,14 +30,11 @@ AI Vision Director 不取代攝影師。人仍負責架設、選擇目標、美�
 | 美感、節奏與突發狀況 | 數位構圖、zoom 目標與控制策略 |
 | 最終品質與安全監督 | DockKit 命令、限制、timeout 與安全 STOP |
 
-## 真實系統 Demo
+## 系統 Demo
 
 [24 秒實機 Demo](https://youtu.be/vCB8icjmaDg) 使用一台 Mac、一支 iPhone 與
 一個實體 DockKit 相容雲台，畫面同時呈現 Desktop 追蹤介面、選定車輛，以及車輛
 移動時的硬體反應。
-
-這是實機系統展示，不是準確率 benchmark。目前驗證完成的範圍是一台 Mac＋一支
-iPhone＋一個雲台；多機位中控仍屬 Roadmap，不列為現行能力。
 
 ## 定義這套系統的三個工程決策
 
@@ -89,7 +86,7 @@ Apple DockKit。
 - 本機 SQLite、結構化 telemetry、診斷與離線評估。
 - 區網平板 Mission Control 與 opt-in 雲端控制面元件。
 
-## 不誇大的評估方式
+## Banchmark評估方式
 
 Benchmark Center 明確分成兩種 profile：
 
