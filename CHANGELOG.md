@@ -6,6 +6,21 @@ This document records current releases. Complete historical source is available 
 
 ## Unreleased
 
+- Rebuilt the root README around a 30-second product narrative, the physical
+  system demo, the currently verified hardware scope, and a compact end-to-end
+  system map.
+- Removed duplicated V2.0-V2.3 release-history sections from the README; release
+  details now live only in this changelog and the versioning policy.
+- Added problem-decision-outcome rationale for LID/GID separation, feature
+  gallery contamination prevention, and fail-closed network/motor safety.
+- Positioned the public repository as a source-visible employment portfolio,
+  defined a view-only evaluation scope, and removed public clone/install
+  instructions from the root README.
+- Added the physical-system YouTube demo and clarified the current single-Mac,
+  single-iPhone, DockKit-assisted motorsport/event-filming scope.
+- Standardized the current human-readable version as `3.0.0 Beta 2`, documented
+  ecosystem-specific PEP 440/SemVer/iOS representations, and kept protocol
+  versions independent.
 - Reorganized models, container definitions, cloud requirements, reports, and
   presentations into purpose-specific top-level directories.
 - Added an explicit proprietary license and aligned the Dashboard package
@@ -19,7 +34,7 @@ This document records current releases. Complete historical source is available 
 - Removed the obsolete top-level evaluation templates and packaged the required
   GID-loss manifest with the Python evaluation module.
 
-## V3.0.0b2 — 2026-07-30
+## 3.0.0 Beta 2 — 2026-07-30
 
 ### 中文
 
@@ -30,7 +45,7 @@ This document records current releases. Complete historical source is available 
   自動連接同一台 Edge Mac 的 `8080` port，讓平板透過熱點或有線網址開啟
   Remote Console 時不再錯連平板自己的 `127.0.0.1`。
 - 將 Desktop、Dashboard、API schema 與 iOS 顯示版本同步為
-  `V3.0.0b2`；iOS build 更新為 `3003`。
+  `3.0.0 Beta 2`；iOS build 更新為 `3003`。
 
 ### English
 
@@ -42,7 +57,7 @@ This document records current releases. Complete historical source is available 
   tablet hotspot and wired URLs no longer resolve to the tablet's own
   `127.0.0.1`.
 - Synchronized Desktop, Dashboard, API schema, and iOS display versions to
-  `V3.0.0b2`, and incremented the iOS build to `3003`.
+  `3.0.0 Beta 2`, and incremented the iOS build to `3003`.
 
 ## V3.0.0b1 — 2026-07-30
 

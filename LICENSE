@@ -1,12 +1,61 @@
+AI VISION DIRECTOR SOURCE-VISIBLE PORTFOLIO LICENSE
+
 Copyright (c) 2026 LN-676. All rights reserved.
 
-This software and its associated documentation are proprietary. No permission
-is granted to use, copy, modify, merge, publish, distribute, sublicense, sell,
-or create derivative works from this software without prior written permission
-from the copyright holder.
+1. PURPOSE
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING
-FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF THE SOFTWARE.
+This repository is published as a source-visible portfolio so that prospective
+employers, clients, educators, and other reviewers can inspect the author's
+engineering work through GitHub's website.
+
+2. LIMITED REVIEW SCOPE
+
+You may:
+
+- view the repository through GitHub's website for personal evaluation of the
+  author's skills and experience;
+- watch demonstrations and read documentation made publicly available by the
+  author; and
+- share a link to the original GitHub repository.
+
+These limited activities do not grant a copyright license or any right to use
+the software.
+
+3. NO LICENSE TO USE OR COPY
+
+Except for rights that GitHub itself may provide under its Terms of Service, no
+permission is granted to clone, download, copy, reproduce, execute, compile,
+modify, adapt, merge, publish, distribute, sublicense, sell, host, deploy,
+commercialize, create derivative works from, or otherwise use any part of this
+software or its documentation, whether for commercial or non-commercial
+purposes.
+
+Any permission beyond the limited review scope in Section 2 requires prior
+written authorization from the copyright holder.
+
+4. CONTRIBUTIONS
+
+External code contributions are not accepted unless the copyright holder has
+agreed to them in writing in advance. Submitting material does not grant the
+submitter or any other person a license to this software.
+
+5. THIRD-PARTY MATERIALS
+
+Third-party libraries, frameworks, model weights, media, trademarks, and other
+materials remain subject to their respective licenses and terms. Nothing in
+this license grants rights to third-party materials.
+
+6. NO TRADEMARK LICENSE
+
+No permission is granted to use the names "AI Vision Director" or "LN-676," or
+any associated names, logos, or branding, except when accurately identifying
+or linking to this portfolio.
+
+7. DISCLAIMER
+
+THE SOFTWARE AND DOCUMENTATION ARE PROVIDED "AS IS," WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO
+EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR
+DOCUMENTATION.

@@ -258,7 +258,7 @@ export class DemoVisionApi implements VisionApi {
         node_id: "edge-taipei-01",
         status: "ready",
         observed_at: new Date(now).toISOString(),
-        version_label: "AI-Vision-Director V3.0.0b2",
+        version_label: "AI Vision Director 3.0.0 Beta 2",
         deployment_mode: "local",
         read_only: true,
         checks: {

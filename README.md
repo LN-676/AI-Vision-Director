@@ -1,505 +1,280 @@
-# AI Vision Director V3.0.0b2
+# AI Vision Director
 
-[中文](#中文) · [English](#english)
+**A local AI camera assistant for vehicle tracking, persistent identity,
+real-time reframing, and Apple DockKit gimbal control.**
 
----
+[English](#english) · [繁體中文](#繁體中文) ·
+[Watch demo](https://youtu.be/vCB8icjmaDg) ·
+[Architecture docs](docs/architecture/README.md) ·
+[Release history](CHANGELOG.md)
 
-## 中文
+[![AI Vision Director physical tracking demo](https://img.youtube.com/vi/vCB8icjmaDg/maxresdefault.jpg)](https://youtu.be/vCB8icjmaDg)
 
-AI Vision Director 是一套由 **Mac 桌面端**與 **iPhone 相機／DockKit 端**共同組成的 AI 車輛攝影系統。桌面端執行物件偵測、單車追蹤、GID 長期身份辨識、數位構圖與控制決策；iPhone 端提供相機畫面，並把桌面端的追蹤結果轉成 Apple DockKit 雲台動作。
-
-這兩端是同一個產品的兩個協同元件，因此放在同一個 repository 中：
-
-| 元件 | 正式名稱 | 主要責任 |
-| --- | --- | --- |
-| Desktop | AI Vision Director Desktop V3.0.0b2 | PySide6／Tkinter 介面、AI 偵測、追蹤、ReID、構圖、WebSocket Server、資料庫與評估 |
-| iOS | AI Vision Director Camera for iOS V3.0.0b2 | 相機擷取、JPEG 串流、Bonjour 探索、WebSocket Client、DockKit 控制與安全停止 |
-
-目前 Desktop 與 iOS 的 beta 版本均為 **V3.0.0b2**。PySide6 方案 A 是主要模組化工作區；既有 Tkinter 入口仍保留。產品版本升級不改變 1.0 WebSocket contract、SQLite 格式、cache 路徑、Bonjour service type 或 DockKit safety policy。舊的 V1.77 程式碼保留在 Git tag `v1.77`。
-
-## 整體硬體與資料連接
-
-```mermaid
-flowchart LR
-    subgraph COMPUTER["Mac／電腦端"]
-        DESKTOP["AI Vision Director Desktop V3.0.0b2<br/>PySide6 Scheme A／Tkinter compatibility"]
-        SERVER["WebSocket Server<br/>ws://Mac.local:8765/ws/tracking"]
-        AI["YOLO Detection<br/>Tracking · GID/ReID · Framing"]
-        DB[("SQLite Identity DB<br/>本機持久化")]
-
-        DESKTOP --> SERVER
-        DESKTOP --> AI
-        AI <--> DB
-    end
-
-    subgraph MOBILE["iPhone＋手機穩定器"]
-        IOS["AI Vision Director Camera for iOS V3.0.0b2"]
-        CAMERA["iPhone Camera<br/>AVCaptureSession"]
-        DOCKKIT["Apple DockKit<br/>Custom Motor Control"]
-        GIMBAL["Insta360 Flow 2 Pro<br/>Motors · Firmware"]
-
-        CAMERA -->|"Camera frames"| IOS
-        IOS -->|"Tracking command"| DOCKKIT
-        DOCKKIT <-->|"Bluetooth／DockKit control"| GIMBAL
-        IOS -.->|"首次快速配對／喚醒：NFC"| GIMBAL
-    end
-
-    SERVER -.->|"Bonjour 廣播<br/>_autocamtracker._tcp"| IOS
-    IOS -->|"WebSocket：JPEG frames<br/>最高約 30 FPS"| SERVER
-    SERVER -->|"WebSocket：JSON tracking<br/>error · confidence · zoom"| IOS
-    AI -->|"Detection／control result"| SERVER
-```
-
-### 連線方式的重要說明
-
-- **NFC 只負責快速配對入口**：iPhone 輕觸 Flow 2 Pro 的 NFC 區域後開始 DockKit 配對；首次配對完成後，穩定器開機並開啟 iPhone Bluetooth 即可自動重連。持續的控制資料不是透過 NFC 傳送。請參考 [Insta360 官方 NFC 配對說明](https://onlinemanual.insta360.com/flow2pro/en-us/camera/firstuse/nfconetouchpairing)。
-- **iPhone 與穩定器**：iOS App 透過 Apple DockKit API 控制相容穩定器。App 會關閉 DockKit System Tracking，改用桌面 AI 的自訂目標控制。請參考 [Apple DockKit 文件](https://developer.apple.com/documentation/dockkit)。
-- **Mac 與 iPhone**：兩端在可互通的區域網路上使用 WebSocket。桌面端透過 Bonjour 廣播 `_autocamtracker._tcp`，iOS 優先使用 `.local` 位址、自動偵測 IP 變更並修正保存的舊 URL。
-- **安全握手**：每個候選端點有 4 秒握手期限。握手完成前不傳 camera frame、馬達狀態或控制訊息；斷線、無效訊息或 tracking timeout 會 STOP。
-- **硬體儲存邊界**：AI 模型、GID gallery 與身份資料不會寫入穩定器。相機 frame 主要以即時串流在記憶體中流動；需要持久化的 GID feature 與 metadata 才會寫入 Mac 的 SQLite。
-
-## iOS 軟體架構
-
-```mermaid
-flowchart TD
-    UI["SwiftUI<br/>Status · Preview · Manual Controls · Logs"]
-    PERM["PermissionService<br/>Camera · Local Network"]
-    CAMERA["CameraSessionService<br/>AVCaptureSession"]
-    ENCODE["JPEG Frame Encoder<br/>Latest-frame backpressure"]
-    BONJOUR["BonjourServerBrowser<br/>_autocamtracker._tcp"]
-    NETWORK["V13NetworkClient<br/>WebSocket · Auto-reconnect"]
-    PARSER["TrackingCommand Decoder<br/>Sequence validation"]
-    SAFETY["Safety Gates<br/>4 s handshake · 500 ms timeout · STOP"]
-    CONTROL["GimbalControlService<br/>Dead zone · smoothing · limits"]
-    MANAGER["DockKitManager<br/>Accessory session · manual mode"]
-    ACCESSORY["DockKit Accessory<br/>Yaw · Pitch · Roll · Zoom"]
-    LOGGER["AppLogger"]
-
-    UI --> PERM
-    UI --> CAMERA
-    CAMERA --> ENCODE --> NETWORK
-    BONJOUR --> NETWORK
-    NETWORK --> PARSER --> SAFETY --> CONTROL --> MANAGER --> ACCESSORY
-    NETWORK --> SAFETY
-    UI --> CONTROL
-    UI --> LOGGER
-    NETWORK --> LOGGER
-    MANAGER --> LOGGER
-```
-
-### iOS 各區責任
-
-- `CameraSessionService`：管理 iPhone 相機、preview、倍率與 JPEG frame。
-- `V13NetworkClient`：Bonjour 探索、端點驗證、WebSocket 收發、IP 自動修正、握手 timeout 與重連。
-- `TrackingCommand`：解碼版本化 JSON，驗證 sequence 與欄位。
-- `GimbalControlService`：將畫面誤差轉成安全的 yaw／pitch 速度與 zoom。
-- `DockKitManager`：取得 DockKit accessory、切換 manual mode、執行姿態與 Home 控制。
-- Safety gates：握手前禁止送 frame；斷線、逾時、target lost 或無效命令時立即停止。
-
-iOS 安裝、簽名與實機操作請參考 [iOS README](ios/DockKitTester/README.md)。
-
-## Desktop 軟體架構
-
-```mermaid
-flowchart TD
-    QT["PySide6 Scheme A<br/>QMainWindow · Docks · Workspaces"]
-    QTPANELS["Qt Panels<br/>Source + Playback · Models · Vehicle DB + Features"]
-    TK["Tkinter UI<br/>Compatibility entry"]
-    BOOT["Composition Roots<br/>bootstrap.py · ui_qt/bootstrap.py"]
-    SOURCE["Frame Sources<br/>Video · URL · Screen · Webcam · iPhone"]
-    RECEIVER["CameraStreamReceiver<br/>Latest JPEG frame"]
-    DETECTOR["Detector Backend<br/>YOLO26n／YOLO26s"]
-    TRACKER["Tracker Adapter<br/>ByteTrack／BoT-SORT"]
-    IDENTITY["Identity Pipeline<br/>GID · ReID · Reacquire"]
-    GALLERY["Feature Gallery<br/>Quality · Encoder · Policy · Index"]
-    DB[("SQLite Worker<br/>Identity persistence")]
-    FRAMING["Framing Engine<br/>Anchor · lead room · zoom"]
-    POLICY["Camera Control Policy<br/>Dead zone · hysteresis · limits"]
-    WS["TrackingWebSocketServer<br/>Bonjour · WebSocket transport"]
-    EVAL["Offline Evaluation<br/>Detection · Tracking · ReID · Control"]
-    OUTPUT["Preview · Recording · Telemetry"]
-
-    QT --> QTPANELS --> BOOT
-    TK --> BOOT
-    BOOT --> SOURCE
-    SOURCE --> DETECTOR
-    WS --> RECEIVER --> DETECTOR
-    DETECTOR --> TRACKER --> IDENTITY
-    IDENTITY <--> GALLERY <--> DB
-    IDENTITY --> FRAMING --> POLICY --> WS
-    DETECTOR --> OUTPUT
-    IDENTITY --> OUTPUT
-    QT --> OUTPUT
-    TK --> OUTPUT
-    DETECTOR -.-> EVAL
-    IDENTITY -.-> EVAL
-    POLICY -.-> EVAL
-```
-
-### Desktop 各區責任
-
-- `vision/`：來源讀取、YOLO inference、tracker adapter、相機校正、GMC 與構圖。
-- `tracking/`：detections、GID/LID、ReID、feature gallery、污染防護與 SQLite persistence。
-- `server/`：WebSocket wire protocol、Bonjour、iPhone frame receiver、control publisher 與安全 policy。
-- `ui_qt/`：PySide6 QMainWindow、Before／After 雙監看、模組化 Dock、Workspace、整合 Playback 的來源分頁、模型選擇、Vehicle Database 與 Feature Manager。
-- `ui/`：保留的 Tkinter 相容介面，共用相同 application use case。
-- `evaluation/`：無 UI 的離線 replay、Detection／Tracking／ReID／System／Control 指標。
-- `domain/` 與 `core/`：跨模組資料契約、timestamp、frame pipeline 與 application boundary。
-
-## 主要功能
-
-- 支援 `webcam`、`video_file`、`video_url`、`screen_region` 與 `iphone`。
-- High FPS profile：YOLO26n＋ByteTrack，針對約 30 FPS iPhone 串流。
-- Balanced ID profile：YOLO26s＋BoT-SORT／ReID。
-- GID 長期身份與 LID 短期 tracker identity 分離。
-- 手動建立 GID、bbox 綁定、Find GID、自動 reacquire 與 feature gallery。
-- Master feature 寫入前的 class、ReID、品質與重複檢查，降低 gallery 污染。
-- Fixed Cut、AI Tracking、In/Out Auto 等構圖模式。
-- DockKit 實體 yaw／pitch／roll、Home 與 iPhone camera zoom 控制。
-- 失追 coasting、zoom hold／ramp、速度與加速度限制、timeout STOP。
-- 可版本化的相機 calibration、GMC、timestamp pipeline 與離線 benchmark。
-- 即時效能評估會分開統計來源序號缺口、iPhone send drop、Desktop latest-frame overwrite、decode failure 與影片主動跳幀，並顯示 latency percentile 與失追 frame 區間。
-- 一鍵診斷會彙整 source、decoder、detector、tracker、ReID、GMC、framing、SQLite、WebSocket、DockKit 與 motor control 的健康狀態及結構化事件。
-- V3 Phase 6 雲端控制面提供 organization／member／device 租戶隔離、Pub/Sub 事件、CPU 或 NVIDIA L4 benchmark job、版本化 model registry、通知規則與 BigQuery 長期分析；進階雲端與 GPU 均採 opt-in 部署。
-
-## Quick Auto 使用方式
-
-1. 開啟 **Benchmark** 頁，選擇 Benchmark video 與一至五組 Detection × ReID 模型。
-2. `Quick Auto — no annotations` 不需要 ground-truth JSONL；預設執行三輪，Feature limit 為 20。
-3. 按下 **Run Selected Combinations** 後會開啟獨立進度視窗，顯示目前模型、Feature Gallery 建立數量、測試輪次、已分析 frame、完成百分比、已耗時間與 ETA。
-4. **Pause／Resume** 會合作式暫停或繼續逐幀處理；**Stop** 會中止工作並安全關閉 detector。
-5. 關閉或隱藏進度視窗後，可用同一排的 **Show Progress** 再次叫出。Run、Show Progress、Import Results 與 Export Comparison 四顆按鈕採等寬排列。
-
-Quick Auto 的分數是 annotation-free proxy，用於比較模型組合的一致性與效能，不代表 ground-truth 身份準確率。需要標準 Detection／Tracking accuracy 時請改用 Verified 模式並提供相符的 JSONL。
-
-## Desktop V2.3 Quick Auto 進度更新
-
-- Quick Auto 的預設 Feature limit 從 50 降為 20，縮短 Feature Gallery 建立時間。
-- Quick Auto 新增獨立進度彈窗，逐幀顯示目前模型、Feature Gallery 建立進度、測試輪次與已分析 frame。
-- 新增完成百分比、已耗時間、預估剩餘時間與預計完成時間。
-- 新增 Pause／Resume 與 Stop 控制；停止時會合作式中止並安全關閉 detector。
-- Benchmark 操作列新增 Show Progress，可隨時重新叫出進度視窗。
-- Run Selected Combinations、Show Progress、Import Results 與 Export Comparison 四顆按鈕改為同排等寬排列。
-- Desktop 顯示版本更新為 V2.3；1.0 WebSocket contract 與 iOS V2.2 保持不變。
-
-## Desktop V2.2.1 Benchmark 更新
-
-- Benchmark 預設改為不需註解檔的 Quick Auto 模式。
-- 可選擇最多五組 Detection × ReID 模型搭配。
-- 每組先建立最多 50 張的固定 Feature Gallery，再執行預設三輪正式測試。
-- 自動偵測 Shot／硬切鏡並輸出逐 Shot 結果、平均 FPS、標準差與 P50/P95/P99。
-- 無 Ground Truth 的指標明確標示為 proxy；Verified 模式仍保留標準 Detection／Tracking 評估。
-
-## V2.2 更新內容
-
-- 新增 Benchmark Center，可用按鈕或 `Ctrl+4` 開啟，最多選擇五個 Detection 模型依序比較，不會讓多個模型互搶 CPU/GPU。
-- 使用同一支 Golden video 與 ground-truth JSONL 計算 Detection、Tracking、ReID、Framing、Control 與 Realtime 六軸比例，以及顯示資料覆蓋率的 100 萬分制跑分。
-- 新增雷達比較圖、完整原始數值表、JSON 匯入／匯出、`model-benchmark` CLI、COCO 與 MOTChallenge 格式匯出。
-- Detection model 與 ReID model 已移至獨立 Models 頁；可連結外部 `.pt`／`.onnx` 檔案及直接開啟模型資料夾。
-- Record 會保存 live／iPhone closed-loop session 的 source video 與 observations；必須補 ground truth 後才會用於準確度評分。
-- Desktop 與 iOS 顯示版本更新至 V2.2，iOS build 2201；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
-
-## V2.1 更新內容
-
-- Playback 已整合到 Source 的 Video file 頁並移除獨立 Dock；新增保持按下狀態的 Loop，影片結束時從第 0 frame 重新播放。
-- 已選定並綁定 GID 的紅色 bbox 只顯示 GID 與編號；未選取物件仍可顯示 LID 追蹤資訊。
-- Tracking 頁新增 Detection model 與 ReID model 下拉選單，可掃描 `models/` 內的 `.pt` 與 `*-reid.onnx` 模型並套用到既有 runtime use case。
-- Find GID 信心門檻、Add Manual Feature、Start/Stop Auto Feature 已整合到 Vehicle Database；獨立 ReID/Features Dock 已移除。
-- Manual Feature 通過身份、品質、模型與重複 gate 後直接 commit 至 SQLite `vehicle_features`；Auto Feature 啟動後會持續對新 frame 取樣，只有通過相同安全 gate 的 feature 才會寫入。
-- Desktop 與 iOS 顯示版本更新至 V2.1，iOS build 2101；1.0 WebSocket contract、Bonjour `_autocamtracker._tcp` 與 DockKit safety policy 保持不變。
-
-## V2.0 更新內容
-
-- 新增 PySide6 方案 A「雙監看平衡型」工作區，使用 QMainWindow、可移動／浮動 Dock、Window menu、QSettings 與 Tracking／Identity／Performance workspace。
-- Before／After 以橫式影像最大可用空間排列，支援監看區最大化；保留黑邊顯示 live/source FPS、frame/drop、E2E、inference、pipeline、receive、decode 與同步延遲。
-- 影片依 source FPS 與媒體時鐘正常播放；推論落後時跳過逾時影格，避免慢動作。Timeline 顯示 frame-accurate timecode。
-- LID／GID 標籤提高到 80 px 並加描邊，提升監看辨識度。
-- Source 改為來源專屬分頁，只顯示目前來源需要的欄位；iPhone 頁可顯示及複製 WebSocket URL，Qt 啟動 iPhone 來源時會自動啟動 listener。
-- Vehicle Database 全欄唯讀，支援首張 feature 照片懸浮預覽；雙擊車輛開啟自適應圖庫，可用 Command／Ctrl／Shift 多選並將污染 feature 從有效 ReID matching 移除，同時保留 audit record。
-- iOS App 更新至 V2.0 build 2001，新增貼上 Desktop URL，並保留 Bonjour 自動探索、IP 修復、握手期限、自動重連及原有 DockKit safety gates。
-- Python 正式類別名稱修正為 `AIVisionDirectorApp`，並保留 `AIVisonDirectorApp` 與 `AutoCamTrackerApp` 相容 alias。
-- 保留既有 Tkinter UI、`autocamtracker` package、`ai-vision-director` CLI、1.0 WebSocket contract、SQLite 與 Bonjour `_autocamtracker._tcp`。
-
-## Repository 結構
-
-```text
-AI-Vision-Director/
-├── src/autocamtracker/       # Desktop Python application and shared use cases
-├── tests/                    # Desktop unit and integration tests
-├── ios/DockKitTester/        # iOS V3.0.0b2 Xcode project and Swift tests
-├── dashboard/                # Web dashboard and remote console
-├── docs/                     # Architecture, reports, and presentations
-├── models/                   # Git LFS detection and ReID model files
-├── api/schema/               # Versioned OpenAPI schema
-├── migrations/               # Alembic database migrations
-├── infra/                    # Terraform cloud infrastructure
-├── docker/                   # API and benchmark container definitions
-├── requirements/             # Cloud workload dependency sets
-├── tools/                    # Launch and maintenance utilities
-└── outputs/                  # Local runtime data; excluded from releases
-```
-
-`DockKitTester` 是目前保留的 Xcode 內部 target／資料夾名稱；App 顯示名稱與產品文件均為 **AI Vision Director Camera for iOS V3.0.0b2**。
-
-## Desktop 安裝與執行
-
-建議使用 Python 3.13 或目前相容版本。
-
-```bash
-git clone https://github.com/LN-676/AI-Vision-Director.git
-cd AI-Vision-Director
-python -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pip install -e .
-.venv/bin/ai-vision-director-qt
-```
-
-保留的 Tkinter 相容入口：
-
-```bash
-.venv/bin/ai-vision-director
-```
-
-`ai-vision-director` 仍啟動既有 Tkinter UI；兩個入口共用同一套 application use case、資料格式與 WebSocket contract。
-
-也可以直接使用 module entry point：
-
-```bash
-PYTHONPATH=src .venv/bin/python -m autocamtracker.main
-```
-
-Mac 與 iPhone 必須位於可互相存取的同一區域網路。單純 USB 充電線或 Xcode deploy 不會自動成為 App 資料通道；USB 模式需要 Personal Hotspot USB、USB Ethernet 或其他可互通 IP 介面。
-
-## 資料與安全注意事項
-
-- `outputs/vehicle_identity.sqlite3` 是本機身份資料，不應放入 release。
-- `outputs/`、`.venv/`、cache、log、測試影片與暫存輸出不屬於乾淨版本內容。
-- 握手前不傳 frame；WebSocket 失聯、tracking timeout 或資料驗證失敗時會執行 STOP。
-- DockKit System Tracking 會在自訂 AI 控制啟用時關閉，避免兩套追蹤同時控制馬達。
-- 模型權重可能由 Git LFS 管理；clone 後若缺少模型，請確認 Git LFS objects 已完整下載。
-
-## 版本與歷史
-
-- 最新程式碼：`main`
-- 目前發布：`V3.0.0b2`
-- 舊版封存：`v1.77` 與其他歷史 tags
-- Desktop 與 iOS 均為 V3.0.0b2，兩端持續使用相容的 1.0 WebSocket contract。
-- 版本變更內容：[CHANGELOG.md](CHANGELOG.md)
-
----
+> [!IMPORTANT]
+> **Source-visible employment portfolio — not open source.** Public access is
+> provided for browser-based portfolio review. Cloning, downloading, running,
+> copying, modifying, redistribution, and commercial or non-commercial use are
+> not licensed. See [LICENSE](LICENSE).
 
 ## English
 
-AI Vision Director is an AI vehicle-filming system composed of a **Mac desktop component** and an **iPhone camera/DockKit component**. The desktop performs object detection, single-vehicle tracking, persistent GID identity matching, digital reframing, and control decisions. The iPhone provides camera frames and translates desktop tracking results into Apple DockKit gimbal movement.
+## The problem
 
-Both components are maintained in this monorepo because they share one versioned WebSocket contract:
+Motorsport, sports, and event camera operators spend long periods repeating the
+same demanding task: find the selected vehicle, keep it framed, recover after
+temporary occlusion, and move the camera smoothly without creating unsafe
+hardware behavior.
 
-| Component | Product name | Responsibility |
+AI Vision Director keeps people responsible for setup, target selection,
+visual judgment, monitoring, and live decisions. It automates the repetitive
+closed loop between camera frames, vehicle identity, composition, and gimbal
+movement.
+
+| People remain responsible for | The system automates |
+| --- | --- |
+| Equipment placement and shooting intent | Vehicle detection and short-term tracking |
+| Selecting the vehicle to follow | Persistent GID/ReID identity and reacquisition |
+| Visual taste, timing, and exception handling | Reframing, zoom targets, and motion policy |
+| Final quality and safety oversight | DockKit commands, limits, timeouts, and safe STOP |
+
+## Real-system demo
+
+The [24-second demo](https://youtu.be/vCB8icjmaDg) shows the implemented system
+running with a Mac, an iPhone, and a physical DockKit-compatible gimbal. It
+shows the desktop tracking view, the selected vehicle, and the hardware
+responding as the vehicle moves across the scene.
+
+This is a physical-system demonstration, not an accuracy benchmark. Current
+verified scope is one Mac + one iPhone + one gimbal. Multi-camera orchestration
+is roadmap work and is not presented as a current capability.
+
+## Three engineering decisions that define the system
+
+| Problem | Design decision | Why it matters |
 | --- | --- | --- |
-| Desktop | AI Vision Director Desktop V3.0.0b2 | PySide6/Tkinter delivery layers, detection, tracking, ReID, framing, WebSocket server, persistence, and evaluation |
-| iOS | AI Vision Director Camera for iOS V3.0.0b2 | Camera capture, JPEG streaming, Bonjour discovery, WebSocket client, DockKit control, and safety stop |
+| A tracker ID is temporary and may change after occlusion, leaving the frame, or a camera cut. | Separate short-lived **LID** tracker identity from persistent **GID** vehicle identity; record typed reasons and scores for every identity decision. | The system follows the selected vehicle identity instead of trusting whichever bounding box currently has the same tracker number. [Decision details](docs/architecture/identity-decisions.md) |
+| A wrong or low-quality embedding can poison future ReID decisions. | Admit gallery features only through identity, class, quality, duplicate, and provenance gates; retain audited rollback instead of silently deleting evidence. | Reacquisition quality does not gradually collapse because one bad crop became trusted identity memory. [Gallery safeguards](docs/architecture/gallery-contamination-prevention.md) |
+| A delayed or invalid network command can move physical hardware incorrectly. | Use a fail-closed chain: endpoint verification, a four-second handshake deadline, sequence validation, bounded control policy, and a 500 ms tracking timeout that triggers STOP. | Network loss, stale messages, target loss, and invalid data become safe stopped states rather than uncontrolled motor motion. [WebSocket boundary](docs/architecture/websocket-components.md) · [Control policy](docs/architecture/camera-control-policy.md) |
 
-The current Desktop and iOS beta release is **V3.0.0b2**. PySide6 Scheme A is the primary modular workspace and the Tkinter entry point remains available. The product release does not change the 1.0 WebSocket contract, SQLite format, cache paths, Bonjour service type, or DockKit safety policy. The previous V1.77 source remains available through the `v1.77` Git tag.
+## System at a glance
 
-## End-to-end hardware and data flow
+```mermaid
+flowchart LR
+    HUMAN["Camera operator<br/>selects target and monitors quality"]
 
-The first Mermaid diagram above is the canonical hardware map:
+    subgraph IOS["iPhone + DockKit"]
+        CAMERA["iPhone camera<br/>latest JPEG frame"]
+        SAFETY["Command validation<br/>timeout and STOP"]
+        GIMBAL["DockKit gimbal<br/>yaw · pitch · roll · zoom"]
+    end
 
-- NFC starts the initial one-tap Flow 2 Pro pairing flow; it is not the continuous motor-control transport.
-- After pairing, the iPhone reconnects to the gimbal with Bluetooth enabled and controls it through Apple DockKit.
-- The Mac and iPhone exchange data over WebSocket. Bonjour advertises `_autocamtracker._tcp` and lets iOS prefer a stable `.local` endpoint.
-- iOS sends JPEG camera frames to the Mac. The Mac returns JSON tracking commands containing target error, confidence, predicted state, and zoom.
-- Frames normally remain transient in memory. Persistent GID metadata and selected feature embeddings are stored in the Mac-side SQLite database; AI models and identity data are never written to the gimbal.
+    subgraph MAC["Mac · AI Vision Director"]
+        DETECT["Detection + tracker"]
+        IDENTITY["GID / ReID<br/>identity memory"]
+        FRAME["Framing + control policy"]
+        DATA[("SQLite + telemetry")]
+    end
 
-See the [official Insta360 NFC pairing guide](https://onlinemanual.insta360.com/flow2pro/en-us/camera/firstuse/nfconetouchpairing) and [Apple DockKit documentation](https://developer.apple.com/documentation/dockkit) for the accessory boundary.
+    HUMAN -->|"target selection"| IDENTITY
+    CAMERA -->|"Bonjour + WebSocket"| DETECT
+    DETECT --> IDENTITY --> FRAME
+    IDENTITY <--> DATA
+    FRAME -->|"versioned tracking command"| SAFETY --> GIMBAL
+```
 
-## iOS architecture
+The iPhone and Mac communicate over a reachable local network. Bonjour
+discovers the desktop service and WebSocket carries camera frames and tracking
+commands. NFC is used only for initial Flow 2 Pro pairing; continuous motor
+control goes through Apple DockKit.
 
-The iOS diagram above maps these responsibilities:
+## Implemented capabilities
 
-- `CameraSessionService`: AVCaptureSession, preview, physical zoom, and JPEG frames.
-- `V13NetworkClient`: Bonjour discovery, endpoint verification, WebSocket I/O, saved-IP repair, handshake timeout, and reconnect.
-- `TrackingCommand`: versioned JSON decoding and sequence validation.
-- `GimbalControlService`: safe yaw/pitch velocity and zoom derived from screen-space error.
-- `DockKitManager`: DockKit accessory lifecycle, manual mode, pose, and Home commands.
-- Safety gates: no frames before the handshake; STOP on disconnect, timeout, target loss, or invalid commands.
-
-For signing and physical-device setup, see the [iOS README](ios/DockKitTester/README.md).
-
-## Desktop architecture
-
-The desktop diagram above maps these responsibilities:
-
-- `vision/`: source adapters, YOLO inference, tracker adapters, calibration, GMC, and framing.
-- `tracking/`: detections, GID/LID state, ReID, feature gallery, contamination prevention, and SQLite persistence.
-- `server/`: wire protocol, Bonjour, WebSocket transport, iPhone frame receiver, control publisher, and safety policy.
-- `ui_qt/`: PySide6 QMainWindow, Before/After monitors, modular docks, workspaces, source pages with playback, model selection, Vehicle Database, and Feature Manager.
-- `ui/`: preserved Tkinter compatibility layer sharing the same application use cases.
-- `evaluation/`: UI-free replay and Detection, Tracking, ReID, System, and Control metrics.
-- `domain/` and `core/`: shared contracts, timestamps, frame pipeline, and application boundaries.
-
-## Key features
-
-- Video file, URL, screen region, webcam, and iPhone inputs.
-- YOLO26n + ByteTrack High FPS profile and YOLO26s + BoT-SORT/ReID Balanced ID profile.
-- Separate long-lived GID identity and short-lived tracker LID.
-- Manual GID creation, bbox linking, Find GID, automatic reacquisition, and feature galleries.
-- Class, ReID, quality, and duplicate gates before Master feature writes.
+- Video file, URL, screen-region, webcam, and iPhone inputs.
+- YOLO detector backends with ByteTrack or BoT-SORT tracker adapters.
+- Persistent GID identity, feature galleries, Find GID, coasting, search, and
+  automatic reacquisition.
 - Fixed Cut, AI Tracking, and In/Out Auto framing modes.
-- DockKit yaw/pitch/roll, Home, and physical iPhone camera zoom control.
-- Lost-target coasting, zoom hold/ramp, rate limits, acceleration limits, and timeout STOP.
-- Versioned calibration, GMC, timestamp pipeline, offline replay, and benchmark infrastructure.
+- DockKit yaw, pitch, roll, Home, emergency STOP, and physical iPhone zoom.
+- Latest-frame backpressure, sequence validation, rate and acceleration limits,
+  and timeout safety.
+- PySide6 dual-monitor workspace plus a retained Tkinter compatibility layer.
+- Local SQLite identity storage, structured telemetry, diagnostics, and
+  offline evaluation.
+- Read-only tablet Mission Control and opt-in cloud control-plane components.
 
-## Using Quick Auto
+## Evaluation without inflated claims
 
-1. Open **Benchmark**, choose a benchmark video, and select one to five Detection × ReID model pairs.
-2. `Quick Auto — no annotations` does not require a ground-truth JSONL file. It defaults to three measured rounds and a Feature limit of 20.
-3. Press **Run Selected Combinations** to open the progress window. It reports the current model, feature-gallery enrollment count, measured round, analyzed frames, completion percentage, elapsed time, and ETA.
-4. **Pause/Resume** cooperatively suspends or continues per-frame work. **Stop** cancels the run and safely closes the detector.
-5. If the progress window is closed or hidden, use **Show Progress** to reopen it. Run, Show Progress, Import Results, and Export Comparison share one evenly distributed action row.
+The Benchmark Center supports two distinct profiles:
 
-Quick Auto scores are annotation-free proxies for comparing model-pair consistency and performance; they are not ground-truth identity-accuracy claims. Use Verified mode with a matching JSONL file for standard Detection/Tracking accuracy.
+- **Quick Auto** runs repeatable, annotation-free proxy comparisons for model
+  consistency, coverage, FPS, and latency. Its values are not mAP, HOTA, IDF1,
+  or ground-truth identity accuracy.
+- **Verified** uses a matching Golden video and ground-truth JSONL for standard
+  Detection, Tracking, Identity, Framing, Control, and Realtime evaluation,
+  with COCO and MOTChallenge exports.
 
-## Desktop V2.3 Quick Auto progress update
+Benchmark profiles and dataset versions must match before results are compared.
+The design and metric boundaries are documented in
+[Benchmark Center](docs/architecture/benchmark-center.md) and
+[Offline Replay](docs/architecture/offline-replay.md).
 
-- Reduced the default Quick Auto Feature limit from 50 to 20 to shorten feature-gallery enrollment.
-- Added a dedicated Quick Auto progress window with per-frame model, feature-gallery enrollment, measured-round, and analyzed-frame status.
-- Added completion percentage, elapsed time, estimated remaining time, and estimated finish time.
-- Added cooperative Pause/Resume and Stop controls with safe detector cleanup.
-- Added Show Progress to reopen the progress window at any time.
-- Distributed Run Selected Combinations, Show Progress, Import Results, and Export Comparison evenly across one action row.
-- Updated the Desktop display version to V2.3 while preserving the 1.0 WebSocket contract and iOS V2.2.
+## Components
 
-## Desktop V2.2.1 benchmark update
+| Component | Responsibility |
+| --- | --- |
+| Desktop | Detection, tracking, GID/ReID, framing, control policy, persistence, diagnostics, and evaluation |
+| iOS camera app | Camera capture, Bonjour discovery, WebSocket client, command validation, DockKit execution, and last-line safety |
+| Dashboard | Read-only monitoring and high-level remote control on a private network |
+| Evaluation | UI-free replay, benchmark profiles, telemetry, COCO export, and MOTChallenge export |
 
-- Quick Auto is now the default and requires only a video.
-- Up to five Detection × ReID combinations can be compared sequentially.
-- Each pair enrolls a frozen gallery (50 features by default) before three
-  measured rounds.
-- Hard cuts are segmented into per-shot results with FPS mean/deviation and
-  P50/P95/P99 latency.
-- Annotation-free values are explicitly labeled as proxies; Verified mode
-  remains available for standard Detection/Tracking accuracy.
-
-## V2.2 release highlights
-
-- Added Benchmark Center with toolbar/`Ctrl+4` access and sequential comparison of up to five Detection models without accelerator contention.
-- Added a six-axis Detection, Tracking, ReID, Framing, Control, and Realtime ratio chart plus a coverage-aware one-million-point score.
-- Added raw metric tables, JSON import/export, the `model-benchmark` CLI, and COCO/MOTChallenge format exports.
-- Moved Detection and ReID selection into an independent Models page with external `.pt`/`.onnx` linking and model-folder access.
-- Record now captures live/iPhone closed-loop source video and observations; accuracy scoring remains disabled until ground truth is supplied.
-- Updated Desktop and iOS display versions to V2.2 and iOS build 2201 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
-
-## V2.1 release highlights
-
-- Integrated Playback into Source > Video file and removed its standalone dock. The persistent Loop toggle seeks to frame zero at end of file.
-- Red selected bounding boxes linked to a GID now display only the GID and number; unselected detections retain LID tracking context.
-- Added Detection model and ReID model selectors to Tracking, scanning `.pt` and `*-reid.onnx` assets under `models/` and applying them through existing runtime use cases.
-- Integrated the Find GID confidence threshold, Add Manual Feature, and Start/Stop Auto Feature into Vehicle Database and removed the standalone ReID/Features dock.
-- Manual Feature commits accepted identity/quality/model/duplicate-gated records to SQLite `vehicle_features`. Auto Feature now keeps sampling subsequent frames and writes only features that pass the same safety gates.
-- Updated Desktop and iOS display versions to V2.1 and iOS build 2101 while preserving the 1.0 WebSocket contract, `_autocamtracker._tcp`, and DockKit safety policy.
-
-## V2.0 release highlights
-
-- Added the PySide6 Scheme A balanced dual-monitor workspace with QMainWindow, movable and floating docks, Window menu actions, QSettings, and Tracking, Identity, and Performance workspaces.
-- Maximized horizontal Before/After monitor space while reserving letterbox readouts for live/source FPS, frame/drop counts, and end-to-end, inference, pipeline, receive, decode, and synchronization latency.
-- Synchronized file playback to source FPS and media time, skipping overdue frames instead of producing slow motion, and added frame-accurate timeline timecode.
-- Increased LID/GID overlays to 80 px with outlines for clear monitoring.
-- Split Source into source-specific pages. The iPhone page displays and copies the WebSocket URL, and the Qt process automatically starts its listener for iPhone sessions.
-- Made Vehicle Database read-only with first-feature hover previews. Double-click opens a responsive gallery where Command/Ctrl/Shift selects multiple contaminated features for removal from active ReID matching while retaining the audit record.
-- Updated the iOS app to V2.0 build 2001 with desktop-URL paste support while preserving Bonjour discovery, stale-IP repair, handshake deadlines, automatic reconnect, and existing DockKit safety gates.
-- Corrected the Python class to `AIVisionDirectorApp` while retaining `AIVisonDirectorApp` and `AutoCamTrackerApp` compatibility aliases.
-- Preserved the Tkinter UI, `autocamtracker` package, `ai-vision-director` CLI, 1.0 WebSocket contract, SQLite format, and `_autocamtracker._tcp` Bonjour type.
-
-## Install and run the desktop app
-
-```bash
-git clone https://github.com/LN-676/AI-Vision-Director.git
-cd AI-Vision-Director
-python -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pip install -e .
-.venv/bin/ai-vision-director-qt
-```
-
-Preserved Tkinter compatibility entry point:
-
-```bash
-.venv/bin/ai-vision-director
-```
-
-`ai-vision-director` continues to launch Tkinter. Both delivery layers share the same application use cases, data formats, and WebSocket contract.
-
-Module entry point:
-
-```bash
-PYTHONPATH=src .venv/bin/python -m autocamtracker.main
-```
-
-## Tablet Remote Control MVP
-
-The local MVP keeps all AI inference, tracking, ReID, framing, and DockKit
-safety on the Mac. A tablet on the same private LAN opens a high-contrast Remote
-Console and sends only high-level commands.
-
-Install both Python and Dashboard dependencies once:
-
-```bash
-.venv/bin/python -m pip install -e .
-cd dashboard
-npm install
-cd ..
-chmod +x tools/AI-Vision-Director-MVP.command
-```
-
-Connect the Mac, iPhone, and tablet to the same private hotspot or router, then
-run:
-
-```bash
-./tools/AI-Vision-Director-MVP.command
-```
-
-The launcher prints the tablet URL:
+## Repository map
 
 ```text
-http://<MAC_LAN_IP>:3000/remote
+AI-Vision-Director/
+├── src/autocamtracker/       # Desktop application and shared use cases
+├── tests/                    # Python unit and integration tests
+├── ios/DockKitTester/        # iOS app, Swift package, and Swift tests
+├── dashboard/                # Web dashboard and tablet remote console
+├── docs/architecture/        # Design boundaries and rationale
+├── models/                   # Detection and ReID model assets
+├── api/schema/               # Versioned OpenAPI schema
+├── migrations/               # Database migrations
+├── infra/                    # Opt-in cloud infrastructure
+├── docker/                   # API and benchmark containers
+└── tools/                    # Internal launch and maintenance utilities
 ```
 
-Find the Wi-Fi address manually with `ipconfig getifaddr en0`. If needed, set
-`AIVD_LAN_IP` explicitly before launching. The API binds to `0.0.0.0:8080`, but
-CORS accepts only the exact Dashboard LAN origin and localhost; wildcard CORS
-is not used. `AIVD_EDGE_DEVICE_TOKEN` is generated ephemerally unless supplied
-in the environment and must never be committed.
+## Portfolio evaluation boundary
 
-Start, Stop, tracking-mode selection, GID selection, Find, Home, and Emergency
-Stop execute through the Desktop's high-level `ControlPort`. The two monitors
-refresh independently at up to 10 FPS and show preview end-to-end, FastAPI
-queue, LAN transfer, and browser decode timing in the lower-right corner.
-Emergency Stop requires a second tablet tap and still passes through the
-existing Desktop/DockKit stop path. If the control API disconnects, Desktop
-tracking and local manual controls continue to operate.
+This repository is a source-visible employment portfolio, not an open-source
+package or public trial. Reviewers may read the source and documentation on
+GitHub, watch the public demo, discuss the engineering decisions, and share the
+original repository link.
 
-Architecture, safety details, demo steps, and known limitations are documented
-in [Edge Control Plane MVP](docs/architecture/edge-control-plane-mvp.md).
+The author does not grant permission to clone, download, install, execute,
+copy, modify, reproduce, redistribute, host, deploy, or use the project for
+commercial or non-commercial purposes. Commands and configuration retained in
+technical documents describe the author's engineering workflow; they do not
+grant permission to use the software. Written permission is required for local
+technical evaluation or collaboration. See [LICENSE](LICENSE) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-The Mac and iPhone must have mutually reachable IP connectivity. A charging cable or Xcode deployment alone does not create the app data channel.
+## Documentation
+
+- [Architecture index](docs/architecture/README.md)
+- [iOS architecture and device notes](ios/DockKitTester/README.md)
+- [Identity decisions](docs/architecture/identity-decisions.md)
+- [Gallery contamination prevention](docs/architecture/gallery-contamination-prevention.md)
+- [Camera control policy](docs/architecture/camera-control-policy.md)
+- [WebSocket components](docs/architecture/websocket-components.md)
+- [Benchmark Center](docs/architecture/benchmark-center.md)
+- [Versioning policy](docs/versioning.md)
+- [Release history](CHANGELOG.md)
 
 ## Safety and local data
 
-- `outputs/vehicle_identity.sqlite3` contains local identity data and must not be shipped in a release.
-- Runtime outputs, virtual environments, caches, logs, and test media are excluded from clean releases.
-- No camera frame is sent before handshake completion.
-- Disconnects, invalid data, or tracking timeout trigger STOP.
-- DockKit System Tracking is disabled while custom AI motor control is active.
+- Handshake completion is required before camera, motor-status, or control data
+  is exchanged.
+- Disconnects, invalid data, stale sequences, target loss, and tracking timeout
+  trigger STOP.
+- DockKit System Tracking is disabled while custom AI control is active so two
+  controllers cannot command the motors simultaneously.
+- Runtime identity databases, telemetry, caches, logs, and test media are not
+  release artifacts.
+- Model assets may use Git LFS; internal release validation must confirm that
+  required LFS objects are present.
 
-## Version history
+---
 
-- Latest code: `main`
-- Current release: `V3.0.0b2`
-- Archived releases: `v1.77` and earlier tags
-- Desktop and iOS are both V3.0.0b2 and retain the compatible 1.0 WebSocket contract.
-- Release notes: [CHANGELOG.md](CHANGELOG.md)
+## 繁體中文
+
+## 要解決的問題
+
+賽車、運動與活動攝影師經常長時間重複同一件高負荷工作：找到指定車輛、保持構圖、
+遮擋後重新找回，並平順移動相機，同時避免硬體在斷線或錯誤資料下持續運轉。
+
+AI Vision Director 不取代攝影師。人仍負責架設、選擇目標、美感、監看與臨場判斷；
+系統負責把相機畫面、車輛身份、數位構圖與雲台動作串成可停止、可追蹤的自動閉環。
+
+| 人負責 | 系統自動化 |
+| --- | --- |
+| 設備位置與拍攝意圖 | 車輛偵測與短期追蹤 |
+| 選擇要跟拍的車輛 | GID/ReID 長期身份與失追找回 |
+| 美感、節奏與突發狀況 | 數位構圖、zoom 目標與控制策略 |
+| 最終品質與安全監督 | DockKit 命令、限制、timeout 與安全 STOP |
+
+## 真實系統 Demo
+
+[24 秒實機 Demo](https://youtu.be/vCB8icjmaDg) 使用一台 Mac、一支 iPhone 與
+一個實體 DockKit 相容雲台，畫面同時呈現 Desktop 追蹤介面、選定車輛，以及車輛
+移動時的硬體反應。
+
+這是實機系統展示，不是準確率 benchmark。目前驗證完成的範圍是一台 Mac＋一支
+iPhone＋一個雲台；多機位中控仍屬 Roadmap，不列為現行能力。
+
+## 定義這套系統的三個工程決策
+
+| 問題 | 設計決策 | 為什麼重要 |
+| --- | --- | --- |
+| Tracker ID 在遮擋、離框或切鏡後可能改變。 | 把短期 tracker **LID** 與長期車輛 **GID** 分離，並記錄每次身份決策的 reason、score 與 sub-scores。 | 系統追的是使用者選定的車輛身份，不是剛好拿到相同 tracker 編號的 bbox。[決策細節](docs/architecture/identity-decisions.md) |
+| 錯誤或低品質 embedding 會污染後續 ReID。 | Gallery 寫入必須通過身份、類別、品質、重複與 provenance gate；撤銷採有稽核紀錄的 rollback。 | 不會因為一張錯誤 crop 被當成可信身份記憶，讓找回能力逐步惡化。[污染防護](docs/architecture/gallery-contamination-prevention.md) |
+| 延遲或無效網路命令可能造成實體馬達誤動。 | 採 fail-closed 控制鏈：端點驗證、4 秒握手期限、sequence validation、有界控制 policy，以及 500 ms timeout STOP。 | 斷線、舊訊息、失追與錯誤資料會進入安全停止，而不是讓馬達失控。[WebSocket 邊界](docs/architecture/websocket-components.md) · [控制策略](docs/architecture/camera-control-policy.md) |
+
+## 系統怎麼運作
+
+上方的系統圖是完整資料閉環：iPhone 提供最新相機 frame，Mac 執行 Detection、
+Tracker、GID/ReID、Framing 與 Control Policy，再由 iOS 驗證命令並控制 DockKit。
+Bonjour 用於找到 Desktop，WebSocket 傳送相機與控制資料；NFC 只負責 Flow 2 Pro
+首次配對，持續的馬達控制走 Apple DockKit。
+
+## 已實作能力
+
+- 支援影片、URL、螢幕區域、webcam 與 iPhone 輸入。
+- YOLO detector 與 ByteTrack／BoT-SORT tracker adapter。
+- GID 長期身份、Feature Gallery、Find GID、coasting、search 與自動 reacquire。
+- Fixed Cut、AI Tracking 與 In/Out Auto 構圖模式。
+- DockKit yaw、pitch、roll、Home、Emergency STOP 與 iPhone 實體 zoom。
+- Latest-frame backpressure、sequence validation、速度／加速度限制與 timeout safety。
+- PySide6 雙監看模組化工作區，並保留 Tkinter 相容介面。
+- 本機 SQLite、結構化 telemetry、診斷與離線評估。
+- 區網平板 Mission Control 與 opt-in 雲端控制面元件。
+
+## 不誇大的評估方式
+
+Benchmark Center 明確分成兩種 profile：
+
+- **Quick Auto**：不需人工標註，用於可重複的模型一致性、coverage、FPS 與 latency
+  proxy 比較；不是 mAP、HOTA、IDF1 或 ground-truth identity accuracy。
+- **Verified**：搭配 Golden video 與 ground-truth JSONL，評估 Detection、Tracking、
+  Identity、Framing、Control 與 Realtime，並支援 COCO／MOTChallenge 匯出。
+
+只有 profile 與 dataset version 相同時才能直接比較。詳細設計見
+[Benchmark Center](docs/architecture/benchmark-center.md) 與
+[Offline Replay](docs/architecture/offline-replay.md)。
+
+## 作品評估與授權邊界
+
+本 repository 是 source-visible 求職作品集，不是開源套件或公開試用版。訪客可以在
+GitHub 網頁閱讀程式碼與文件、觀看 Demo、討論工程決策，並分享原始 repository 連結。
+
+作者不授權 clone、下載、安裝、執行、複製、修改、重製、散布、部署或商業／非商業
+使用。技術文件保留的 command 與設定只記錄作者的工程流程，不構成使用授權。本機
+技術評估或合作必須事先取得書面許可。完整條款見 [LICENSE](LICENSE)，外部貢獻政策
+見 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 文件索引
+
+- [架構文件索引](docs/architecture/README.md)
+- [iOS 架構與實機說明](ios/DockKitTester/README.md)
+- [身份決策](docs/architecture/identity-decisions.md)
+- [Feature Gallery 污染防護](docs/architecture/gallery-contamination-prevention.md)
+- [相機控制策略](docs/architecture/camera-control-policy.md)
+- [WebSocket 元件](docs/architecture/websocket-components.md)
+- [Benchmark Center](docs/architecture/benchmark-center.md)
+- [版本規則](docs/versioning.md)
+- [版本變更紀錄](CHANGELOG.md)
 
 ## License
 
-Copyright © 2026 LN-676. All rights reserved. See [LICENSE](LICENSE).
+Copyright © 2026 LN-676. All rights reserved. This is a source-visible
+portfolio, not an open-source project. See [LICENSE](LICENSE).
