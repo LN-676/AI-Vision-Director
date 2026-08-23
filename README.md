@@ -13,8 +13,8 @@ AI 攝影助理。**
 [![AI Vision Director 實機追蹤 Demo](https://img.youtube.com/vi/vCB8icjmaDg/maxresdefault.jpg)](https://youtu.be/vCB8icjmaDg)
 
 > [!IMPORTANT]
-> **Source-visible 求職作品集，不是開源專案。** 本 repository 僅供透過 GitHub
-> 網頁閱讀與作品評估。作者不授權 clone、下載、執行、複製、修改、散布或商業／
+> **Source-visible 作品集，不是開源專案。** 本 repository 僅供透過 GitHub
+> 網頁閱讀與作品評估。不授權 clone、下載、執行、複製、修改、散布或商業／
 > 非商業使用。完整條款見 [LICENSE](LICENSE)。
 
 ## 核心問題
